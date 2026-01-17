@@ -1,4 +1,5 @@
-# YugabyteDB Helm values for minikube (minimal resources)
+# YugabyteDB Helm values for minikube
+# Based on: https://docs.yugabyte.com/stable/deploy/kubernetes/single-zone/oss/helm-chart/
 
 replicas:
   master: 1
@@ -7,15 +8,15 @@ replicas:
 resource:
   master:
     requests:
-      cpu: "0.25"
-      memory: "256Mi"
-    limits:
       cpu: "0.5"
-      memory: "512Mi"
+      memory: "0.5Gi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
   tserver:
     requests:
-      cpu: "0.25"
-      memory: "512Mi"
+      cpu: "0.5"
+      memory: "0.5Gi"
     limits:
       cpu: "1"
       memory: "1Gi"
