@@ -6,14 +6,26 @@ resources:
 
 # Minikube-specific patches for reduced resources
 patches:
-  # Reduce Kafka replicas for local development
+  # Reduce controller node pool replicas for local development
   - patch: |-
       - op: replace
-        path: /spec/kafka/replicas
+        path: /spec/replicas
         value: 1
+    target:
+      kind: KafkaNodePool
+      name: controller
+
+  # Reduce broker node pool replicas for local development
+  - patch: |-
       - op: replace
-        path: /spec/zookeeper/replicas
+        path: /spec/replicas
         value: 1
+    target:
+      kind: KafkaNodePool
+      name: broker
+
+  # Reduce Kafka replication factors for single-node
+  - patch: |-
       - op: replace
         path: /spec/kafka/config/offsets.topic.replication.factor
         value: 1
@@ -33,7 +45,7 @@ patches:
       kind: Kafka
       name: kafka-cluster
 
-  # Reduce Kafka Connect replicas
+  # Reduce Kafka Connect replicas and resources
   - patch: |-
       - op: replace
         path: /spec/replicas
@@ -47,6 +59,18 @@ patches:
       - op: replace
         path: /spec/config/status.storage.replication.factor
         value: 1
+      - op: replace
+        path: /spec/resources/requests/cpu
+        value: "250m"
+      - op: replace
+        path: /spec/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/resources/limits/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/resources/limits/memory
+        value: "1Gi"
     target:
       kind: KafkaConnect
       name: kafka-connect
@@ -61,6 +85,18 @@ patches:
         value: 3
     target:
       kind: KafkaTopic
+
+  # Reduce CDC producer resources for local development
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+    target:
+      kind: Deployment
+      name: cdc-producer
 
   # Add NodePort for Prometheus access
   - patch: |-

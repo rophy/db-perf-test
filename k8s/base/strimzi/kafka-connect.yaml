@@ -6,7 +6,7 @@ metadata:
   annotations:
     strimzi.io/use-connector-resources: "true"
 spec:
-  version: 3.6.0
+  version: 4.1.1
   replicas: 2
   bootstrapServers: kafka-cluster-kafka-bootstrap:9092
   config:
@@ -25,12 +25,12 @@ spec:
   build:
     output:
       type: docker
-      image: kafka-connect-jdbc:latest
-      pushSecret: docker-registry-secret
+      image: ttl.sh/yugabyte-kafka-connect-jdbc:2h
     plugins:
       - name: jdbc-connector
         artifacts:
           - type: maven
+            repository: https://packages.confluent.io/maven/
             group: io.confluent
             artifact: kafka-connect-jdbc
             version: 10.7.4
