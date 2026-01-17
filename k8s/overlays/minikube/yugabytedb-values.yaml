@@ -1,0 +1,39 @@
+# YugabyteDB Helm values for minikube (minimal resources)
+
+replicas:
+  master: 1
+  tserver: 1
+
+resource:
+  master:
+    requests:
+      cpu: "0.25"
+      memory: "256Mi"
+    limits:
+      cpu: "0.5"
+      memory: "512Mi"
+  tserver:
+    requests:
+      cpu: "0.25"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+storage:
+  master:
+    size: 5Gi
+  tserver:
+    size: 5Gi
+
+enableLoadBalancer: false
+
+ysql:
+  enabled: true
+  port: 5433
+
+ycql:
+  enabled: false
+
+metrics:
+  enabled: true

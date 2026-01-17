@@ -1,0 +1,188 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: yugabyte-test
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: yugabyte-test
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: yugabyte-test
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      # Prometheus self-monitoring
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # YugabyteDB Masters
+      - job_name: 'yugabytedb-master'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - yugabyte-test
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: yb-master
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: ${1}:9000
+
+      # YugabyteDB TServers
+      - job_name: 'yugabytedb-tserver'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - yugabyte-test
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: yb-tserver
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: ${1}:9000
+
+      # Kafka brokers (Strimzi)
+      - job_name: 'kafka'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - yugabyte-test
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_strimzi_io_kind]
+            regex: Kafka
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            regex: tcp-prometheus
+            action: keep
+
+      # Kafka Connect
+      - job_name: 'kafka-connect'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - yugabyte-test
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_strimzi_io_kind]
+            regex: KafkaConnect
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            regex: tcp-prometheus
+            action: keep
+
+      # CDC Producers
+      - job_name: 'cdc-producer'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - yugabyte-test
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: cdc-producer
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: ${1}:8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: yugabyte-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.48.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=7d"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: storage
+              mountPath: /prometheus
+          resources:
+            requests:
+              cpu: "0.5"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: yugabyte-test
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: 9090
+  selector:
+    app: prometheus

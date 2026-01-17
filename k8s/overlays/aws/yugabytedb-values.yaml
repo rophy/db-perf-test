@@ -1,0 +1,51 @@
+# YugabyteDB Helm values for AWS (production-scale testing)
+
+replicas:
+  master: 3
+  tserver: 6
+
+resource:
+  master:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  tserver:
+    requests:
+      cpu: "4"
+      memory: "8Gi"
+    limits:
+      cpu: "8"
+      memory: "16Gi"
+
+storage:
+  master:
+    storageClass: gp3
+    size: 50Gi
+  tserver:
+    storageClass: gp3
+    size: 200Gi
+
+enableLoadBalancer: true
+
+ysql:
+  enabled: true
+  port: 5433
+
+ycql:
+  enabled: false
+
+metrics:
+  enabled: true
+
+# AWS-specific settings
+gflags:
+  master:
+    replication_factor: 3
+  tserver:
+    # High throughput settings
+    yb_num_shards_per_tserver: 8
+    ysql_num_shards_per_tserver: 8
+    rocksdb_compact_flush_rate_limit_bytes_per_sec: 268435456

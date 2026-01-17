@@ -1,0 +1,78 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# AWS-specific patches for production-scale testing
+patches:
+  # Scale up Kafka for high throughput
+  - patch: |-
+      - op: replace
+        path: /spec/kafka/replicas
+        value: 5
+      - op: replace
+        path: /spec/kafka/storage/volumes/0/size
+        value: 100Gi
+      - op: add
+        path: /spec/kafka/resources
+        value:
+          requests:
+            cpu: "2"
+            memory: "8Gi"
+          limits:
+            cpu: "4"
+            memory: "16Gi"
+    target:
+      kind: Kafka
+      name: kafka-cluster
+
+  # Scale Kafka Connect for parallel processing
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 4
+      - op: replace
+        path: /spec/resources/requests/cpu
+        value: "2"
+      - op: replace
+        path: /spec/resources/requests/memory
+        value: "4Gi"
+      - op: replace
+        path: /spec/resources/limits/cpu
+        value: "4"
+      - op: replace
+        path: /spec/resources/limits/memory
+        value: "8Gi"
+    target:
+      kind: KafkaConnect
+      name: kafka-connect
+
+  # Increase topic partitions for parallelism
+  - patch: |-
+      - op: replace
+        path: /spec/partitions
+        value: 48
+    target:
+      kind: KafkaTopic
+
+  # Scale Prometheus for higher cardinality
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+    target:
+      kind: Deployment
+      name: prometheus
+
+  # Use LoadBalancer for Prometheus in AWS
+  - patch: |-
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+    target:
+      kind: Service
+      name: prometheus

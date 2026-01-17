@@ -1,0 +1,77 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: kafka-connect
+  namespace: yugabyte-test
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: 3.6.0
+  replicas: 2
+  bootstrapServers: kafka-cluster-kafka-bootstrap:9092
+  config:
+    group.id: connect-cluster
+    offset.storage.topic: connect-cluster-offsets
+    config.storage.topic: connect-cluster-configs
+    status.storage.topic: connect-cluster-status
+    offset.storage.replication.factor: 3
+    config.storage.replication.factor: 3
+    status.storage.replication.factor: 3
+    # Performance tuning
+    offset.flush.interval.ms: 10000
+    producer.batch.size: 131072
+    producer.linger.ms: 10
+    consumer.max.poll.records: 5000
+  build:
+    output:
+      type: docker
+      image: kafka-connect-jdbc:latest
+      pushSecret: docker-registry-secret
+    plugins:
+      - name: jdbc-connector
+        artifacts:
+          - type: maven
+            group: io.confluent
+            artifact: kafka-connect-jdbc
+            version: 10.7.4
+      - name: postgresql-driver
+        artifacts:
+          - type: maven
+            group: org.postgresql
+            artifact: postgresql
+            version: 42.7.1
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  metricsConfig:
+    type: jmxPrometheusExporter
+    valueFrom:
+      configMapKeyRef:
+        name: connect-metrics
+        key: connect-metrics-config.yml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: connect-metrics
+  namespace: yugabyte-test
+data:
+  connect-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+    - pattern: kafka.connect<type=connect-worker-metrics, (.+)><>(.+)
+      name: kafka_connect_worker_$2
+      type: GAUGE
+    - pattern: kafka.connect<type=connector-metrics, (.+)><>(.+)
+      name: kafka_connect_connector_$2
+      type: GAUGE
+    - pattern: kafka.connect<type=task-metrics, (.+)><>(.+)
+      name: kafka_connect_task_$2
+      type: GAUGE
+    - pattern: kafka.connect<type=sink-task-metrics, (.+)><>(.+)
+      name: kafka_connect_sink_task_$2
+      type: GAUGE

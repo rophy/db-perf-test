@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: cdc-producer
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+producer:
+  enabled: ${PRODUCER_ENABLED:true}
+  mode: ${PRODUCER_MODE:both}  # oracle, db2, or both
+  events-per-second: ${PRODUCER_EVENTS_PER_SECOND:1000}
+  threads: ${PRODUCER_THREADS:4}
+
+  # Kafka producer tuning
+  batch-size: ${PRODUCER_BATCH_SIZE:131072}
+  linger-ms: ${PRODUCER_LINGER_MS:10}
+  buffer-memory: ${PRODUCER_BUFFER_MEMORY:67108864}
+  acks: ${PRODUCER_ACKS:1}
+
+  # Topic names
+  topic:
+    oracle:
+      customers: ${TOPIC_ORACLE_CUSTOMERS:oracle-cdc-customers}
+      orders: ${TOPIC_ORACLE_ORDERS:oracle-cdc-orders}
+    db2:
+      products: ${TOPIC_DB2_PRODUCTS:db2-cdc-products}
+      inventory: ${TOPIC_DB2_INVENTORY:db2-cdc-inventory}
+
+logging:
+  level:
+    root: INFO
+    com.yugabytetest: INFO
+    org.apache.kafka: WARN

@@ -1,0 +1,141 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka-cluster
+  namespace: yugabyte-test
+spec:
+  kafka:
+    version: 3.6.0
+    replicas: 3
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: external
+        port: 9094
+        type: nodeport
+        tls: false
+    config:
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      inter.broker.protocol.version: "3.6"
+      # High throughput settings
+      num.network.threads: 8
+      num.io.threads: 16
+      socket.send.buffer.bytes: 102400
+      socket.receive.buffer.bytes: 102400
+      socket.request.max.bytes: 104857600
+    storage:
+      type: jbod
+      volumes:
+        - id: 0
+          type: persistent-claim
+          size: 20Gi
+          deleteClaim: false
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: kafka-metrics-config.yml
+  zookeeper:
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-metrics
+  namespace: yugabyte-test
+data:
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+    - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+), topic=(.+), partition=(.*)><>Value
+      name: kafka_server_$1_$2
+      type: GAUGE
+      labels:
+        clientId: "$3"
+        topic: "$4"
+        partition: "$5"
+    - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+), brokerHost=(.+), brokerPort=(.+)><>Value
+      name: kafka_server_$1_$2
+      type: GAUGE
+      labels:
+        clientId: "$3"
+        broker: "$4:$5"
+    - pattern: kafka.server<type=(.+), name=(.+)><>Value
+      name: kafka_server_$1_$2
+      type: GAUGE
+    - pattern: kafka.server<type=(.+), name=(.+)><>Count
+      name: kafka_server_$1_$2_count
+      type: COUNTER
+    - pattern: kafka.server<type=(.+), name=(.+)><>OneMinuteRate
+      name: kafka_server_$1_$2_rate
+      type: GAUGE
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: oracle-cdc-customers
+  namespace: yugabyte-test
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: oracle-cdc-orders
+  namespace: yugabyte-test
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: db2-cdc-products
+  namespace: yugabyte-test
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: db2-cdc-inventory
+  namespace: yugabyte-test
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824
