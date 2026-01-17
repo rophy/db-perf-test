@@ -7,7 +7,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Cluster configuration - must be provided for AWS
 KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set to the AWS cluster context}"
 
-echo "=== YugabyteDB Test Infrastructure Setup (AWS) ==="
+echo "=== YugabyteDB Benchmark Infrastructure Setup (AWS) ==="
 echo "Context: $KUBE_CONTEXT"
 
 # Check prerequisites
@@ -33,20 +33,6 @@ fi
 echo "Creating namespace..."
 kubectl --context "$KUBE_CONTEXT" apply -f "$PROJECT_DIR/k8s/base/namespace.yaml"
 
-# Install Strimzi Operator
-echo "Installing Strimzi Kafka Operator..."
-helm repo add strimzi https://strimzi.io/charts/ || true
-helm repo update
-helm upgrade --install strimzi-kafka-operator strimzi/strimzi-kafka-operator \
-    --kube-context "$KUBE_CONTEXT" \
-    --namespace yugabyte-test \
-    --version 0.49.1 \
-    --set resources.requests.cpu=500m \
-    --set resources.requests.memory=512Mi \
-    --set resources.limits.cpu=1 \
-    --set resources.limits.memory=1Gi \
-    --wait
-
 # Install YugabyteDB
 echo "Installing YugabyteDB..."
 helm repo add yugabytedb https://charts.yugabyte.com || true
@@ -60,6 +46,11 @@ helm upgrade --install yugabyte yugabytedb/yugabyte \
 echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "  1. Wait for all pods to be ready: kubectl --context $KUBE_CONTEXT get pods -n yugabyte-test -w"
-echo "  2. Deploy Kafka and other components: KUBE_CONTEXT=$KUBE_CONTEXT make deploy ENV=aws"
-echo "  3. Get Prometheus URL: kubectl --context $KUBE_CONTEXT get svc prometheus -n yugabyte-test"
+echo "  1. Wait for YugabyteDB pods to be ready:"
+echo "     kubectl --context $KUBE_CONTEXT get pods -n yugabyte-test -w"
+echo "  2. Deploy HammerDB and Prometheus:"
+echo "     KUBE_CONTEXT=$KUBE_CONTEXT make deploy ENV=aws"
+echo "  3. Build TPROC-C schema:"
+echo "     KUBE_CONTEXT=$KUBE_CONTEXT make build-schema"
+echo "  4. Run benchmark:"
+echo "     KUBE_CONTEXT=$KUBE_CONTEXT make run-bench"

@@ -5,7 +5,6 @@ namespace: yugabyte-test
 
 resources:
   - namespace.yaml
-  - strimzi/kafka-cluster.yaml
-  - strimzi/kafka-connect.yaml
+  - hammerdb/configmap.yaml
+  - hammerdb/deployment.yaml
   - prometheus/prometheus.yaml
-  - producer/producer.yaml

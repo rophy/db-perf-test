@@ -6,55 +6,23 @@ resources:
 
 # AWS-specific patches for production-scale testing
 patches:
-  # Scale up Kafka for high throughput
+  # Scale up HammerDB resources for production testing
   - patch: |-
       - op: replace
-        path: /spec/kafka/replicas
-        value: 5
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "1"
       - op: replace
-        path: /spec/kafka/storage/volumes/0/size
-        value: 100Gi
-      - op: add
-        path: /spec/kafka/resources
-        value:
-          requests:
-            cpu: "2"
-            memory: "8Gi"
-          limits:
-            cpu: "4"
-            memory: "16Gi"
-    target:
-      kind: Kafka
-      name: kafka-cluster
-
-  # Scale Kafka Connect for parallel processing
-  - patch: |-
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "2Gi"
       - op: replace
-        path: /spec/replicas
-        value: 4
-      - op: replace
-        path: /spec/resources/requests/cpu
-        value: "2"
-      - op: replace
-        path: /spec/resources/requests/memory
-        value: "4Gi"
-      - op: replace
-        path: /spec/resources/limits/cpu
+        path: /spec/template/spec/containers/0/resources/limits/cpu
         value: "4"
       - op: replace
-        path: /spec/resources/limits/memory
-        value: "8Gi"
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
     target:
-      kind: KafkaConnect
-      name: kafka-connect
-
-  # Increase topic partitions for parallelism
-  - patch: |-
-      - op: replace
-        path: /spec/partitions
-        value: 48
-    target:
-      kind: KafkaTopic
+      kind: Deployment
+      name: hammerdb
 
   # Scale Prometheus for higher cardinality
   - patch: |-

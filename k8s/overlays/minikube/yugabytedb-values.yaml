@@ -27,7 +27,14 @@ storage:
   tserver:
     size: 5Gi
 
-enableLoadBalancer: false
+enableLoadBalancer: true
+
+serviceEndpoints:
+  - name: "yb-tserver-service"
+    type: ClusterIP
+    app: "yb-tserver"
+    ports:
+      tcp-ysql-port: "5433"
 
 ysql:
   enabled: true

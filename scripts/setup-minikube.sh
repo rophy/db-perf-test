@@ -6,7 +6,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 KUBE_CONTEXT="minikube"
 
-echo "=== YugabyteDB Test Infrastructure Setup (minikube) ==="
+echo "=== YugabyteDB Benchmark Infrastructure Setup (minikube) ==="
 
 # Check prerequisites
 command -v minikube >/dev/null 2>&1 || { echo "minikube is required but not installed. Aborting." >&2; exit 1; }
@@ -29,15 +29,6 @@ minikube addons enable storage-provisioner
 echo "Creating namespace..."
 kubectl --context "$KUBE_CONTEXT" apply -f "$PROJECT_DIR/k8s/base/namespace.yaml"
 
-# Install Strimzi Operator
-echo "Installing Strimzi Kafka Operator..."
-helm repo add strimzi https://strimzi.io/charts/ || true
-helm repo update
-helm upgrade --install strimzi-kafka-operator strimzi/strimzi-kafka-operator \
-    --kube-context "$KUBE_CONTEXT" \
-    --namespace yugabyte-test \
-    --version 0.49.1
-
 # Install YugabyteDB
 echo "Installing YugabyteDB..."
 helm repo add yugabytedb https://charts.yugabyte.com || true
@@ -50,6 +41,11 @@ helm upgrade --install yugabyte yugabytedb/yugabyte \
 echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "  1. Wait for all pods to be ready: kubectl --context $KUBE_CONTEXT get pods -n yugabyte-test -w"
-echo "  2. Deploy Kafka and other components: make deploy ENV=minikube"
-echo "  3. Access Prometheus: kubectl --context $KUBE_CONTEXT port-forward svc/prometheus 9090:9090 -n yugabyte-test"
+echo "  1. Wait for YugabyteDB pods to be ready:"
+echo "     kubectl --context $KUBE_CONTEXT get pods -n yugabyte-test -w"
+echo "  2. Deploy HammerDB and Prometheus:"
+echo "     make deploy ENV=minikube"
+echo "  3. Build TPROC-C schema:"
+echo "     make build-schema"
+echo "  4. Run benchmark:"
+echo "     make run-bench"

@@ -4,99 +4,55 @@ kind: Kustomization
 resources:
   - ../../base
 
-# Minikube-specific patches for reduced resources
+# Minikube-specific patches for minimal resource usage
 patches:
-  # Reduce controller node pool replicas for local development
+  # Reduce HammerDB resources and set minimal benchmark settings
   - patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: KafkaNodePool
-      name: controller
-
-  # Reduce broker node pool replicas for local development
-  - patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: KafkaNodePool
-      name: broker
-
-  # Reduce Kafka replication factors for single-node
-  - patch: |-
-      - op: replace
-        path: /spec/kafka/config/offsets.topic.replication.factor
-        value: 1
-      - op: replace
-        path: /spec/kafka/config/transaction.state.log.replication.factor
-        value: 1
-      - op: replace
-        path: /spec/kafka/config/transaction.state.log.min.isr
-        value: 1
-      - op: replace
-        path: /spec/kafka/config/default.replication.factor
-        value: 1
-      - op: replace
-        path: /spec/kafka/config/min.insync.replicas
-        value: 1
-    target:
-      kind: Kafka
-      name: kafka-cluster
-
-  # Reduce Kafka Connect replicas and resources
-  - patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: replace
-        path: /spec/config/offset.storage.replication.factor
-        value: 1
-      - op: replace
-        path: /spec/config/config.storage.replication.factor
-        value: 1
-      - op: replace
-        path: /spec/config/status.storage.replication.factor
-        value: 1
-      - op: replace
-        path: /spec/resources/requests/cpu
-        value: "250m"
-      - op: replace
-        path: /spec/resources/requests/memory
-        value: "512Mi"
-      - op: replace
-        path: /spec/resources/limits/cpu
-        value: "500m"
-      - op: replace
-        path: /spec/resources/limits/memory
-        value: "1Gi"
-    target:
-      kind: KafkaConnect
-      name: kafka-connect
-
-  # Reduce Kafka topic replicas
-  - patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: replace
-        path: /spec/partitions
-        value: 3
-    target:
-      kind: KafkaTopic
-
-  # Reduce CDC producer resources for local development
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: "100m"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: "500m"
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hammerdb
+      spec:
+        template:
+          spec:
+            containers:
+              - name: hammerdb
+                resources:
+                  requests:
+                    cpu: "250m"
+                    memory: "512Mi"
+                  limits:
+                    cpu: "1"
+                    memory: "1Gi"
+                env:
+                  - name: PG_HOST
+                    value: "yb-tserver-service"
+                  - name: PG_PORT
+                    value: "5433"
+                  - name: PG_SUPERUSER
+                    value: "yugabyte"
+                  - name: PG_SUPERPASS
+                    value: "yugabyte"
+                  - name: PG_DEFAULTDBASE
+                    value: "yugabyte"
+                  - name: PG_USER
+                    value: "tpcc"
+                  - name: PG_PASS
+                    value: "tpcc"
+                  - name: PG_DBASE
+                    value: "tpcc"
+                  # Minimal settings for config testing
+                  - name: HAMMERDB_WAREHOUSES
+                    value: "1"
+                  - name: HAMMERDB_VUS
+                    value: "1"
+                  - name: HAMMERDB_DURATION
+                    value: "1"
+                  - name: HAMMERDB_RAMPUP
+                    value: "0"
     target:
       kind: Deployment
-      name: cdc-producer
+      name: hammerdb
 
   # Add NodePort for Prometheus access
   - patch: |-

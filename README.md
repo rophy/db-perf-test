@@ -1,26 +1,24 @@
-# YugabyteDB Scalability Test Infrastructure
+# YugabyteDB Benchmark Infrastructure
 
-Test infrastructure for evaluating YugabyteDB scalability under high-volume CDC (Change Data Capture) streaming from simulated Oracle and DB2 sources.
+Benchmark infrastructure for evaluating YugabyteDB performance using HammerDB TPROC-C (TPC-C like) workload.
 
 ## Architecture
 
 ```
-┌────────────────────┐     ┌─────────────┐     ┌──────────────────┐
-│  CDC Producer      │────▶│   Kafka     │────▶│   YugabyteDB     │
-│  (Oracle/DB2 sim)  │     │  (Strimzi)  │     │   (YSQL)         │
-└────────────────────┘     └─────────────┘     └──────────────────┘
-                                  │
-                           ┌──────▼──────┐
-                           │  Prometheus │
-                           └─────────────┘
+┌─────────────────┐                ┌──────────────────┐
+│   HammerDB      │───────────────▶│   YugabyteDB     │
+│   (TPROC-C)     │   PostgreSQL   │   (YSQL:5433)    │
+└─────────────────┘                └──────────────────┘
+                                           │
+                                    ┌──────▼──────┐
+                                    │  Prometheus │
+                                    └─────────────┘
 ```
 
 **Components:**
-- **CDC Producer** - Spring Boot app generating Debezium-format CDC events
-- **Kafka (Strimzi)** - Message broker using KRaft mode (no ZooKeeper)
-- **Kafka Connect** - JDBC sink connector to write to YugabyteDB
+- **HammerDB** - Industry-standard database benchmark tool running TPROC-C workload
 - **YugabyteDB** - Distributed PostgreSQL-compatible database
-- **Prometheus** - Metrics collection
+- **Prometheus** - Metrics collection for YugabyteDB
 
 ## Prerequisites
 
@@ -28,120 +26,108 @@ Test infrastructure for evaluating YugabyteDB scalability under high-volume CDC 
 - kubectl
 - Minikube (for local testing) or AWS CLI (for cloud deployment)
 - Helm 3.x
-- Java 21+ (for local producer development)
 
 ## Quick Start (Minikube)
 
 ```bash
-# 1. Setup minikube with Strimzi and YugabyteDB
-./scripts/setup-minikube.sh
+# 1. Setup minikube with YugabyteDB
+make setup-minikube
 
-# 2. Deploy Kafka cluster, topics, and other components
+# 2. Wait for YugabyteDB pods to be ready
+kubectl --context minikube get pods -n yugabyte-test -w
+
+# 3. Deploy HammerDB and Prometheus
 make deploy ENV=minikube
 
-# 3. Build and load the CDC producer image
-make build-producer
-make load-producer-minikube
+# 4. Build TPROC-C schema
+make build-schema
 
-# 4. Check status
-make status
+# 5. Run benchmark
+make run-bench
 
-# 5. Run load test (default: 1000 events/sec)
-make run-test EVENTS_PER_SECOND=1000
+# 6. Check results in YugabyteDB
+make ysql
+# Then: SELECT count(*) FROM tpcc.orders;
 ```
 
 ## Project Structure
 
 ```
 .
+├── config/
+│   └── hammerdb/               # HammerDB TCL scripts
+│       ├── entrypoint.sh       # Command router
+│       ├── buildschema.tcl     # Schema build script
+│       ├── runworkload.tcl     # Workload script
+│       └── deleteschema.tcl    # Schema cleanup script
 ├── k8s/
-│   ├── base/                    # Base Kubernetes manifests
-│   │   ├── strimzi/             # Kafka cluster & connect configs
-│   │   ├── producer/            # CDC producer deployment
-│   │   ├── prometheus/          # Monitoring
-│   │   └── yugabytedb/          # YugabyteDB Helm values
+│   ├── base/
+│   │   ├── databases/
+│   │   │   └── yugabytedb/     # YugabyteDB Helm values
+│   │   ├── hammerdb/           # HammerDB deployment
+│   │   └── prometheus/         # Monitoring
 │   └── overlays/
-│       ├── minikube/            # Minikube-specific patches
-│       └── aws/                 # AWS-specific patches
-├── producers/                   # Java CDC producer application
-│   ├── src/
-│   └── Dockerfile
-├── sink/                        # JDBC sink connector configs
-├── scripts/                     # Setup and deployment scripts
-└── Makefile                     # Build and deployment commands
+│       ├── minikube/           # Minikube-specific patches
+│       └── aws/                # AWS-specific patches
+├── scripts/                    # Setup and deployment scripts
+└── Makefile                    # Build and deployment commands
 ```
 
 ## Makefile Targets
 
 | Target | Description |
 |--------|-------------|
-| `make setup-minikube` | Setup minikube with Strimzi and YugabyteDB |
-| `make deploy` | Deploy all components |
-| `make build-producer` | Build the CDC producer Docker image |
-| `make load-producer-minikube` | Load producer image into minikube |
-| `make run-test` | Run load test |
+| `make setup-minikube` | Setup minikube with YugabyteDB |
+| `make deploy` | Deploy HammerDB and Prometheus |
+| `make build-schema` | Build TPROC-C schema in YugabyteDB |
+| `make run-bench` | Run TPROC-C benchmark |
+| `make delete-schema` | Delete TPROC-C schema |
 | `make status` | Show status of all components |
-| `make logs` | Show CDC producer logs |
-| `make logs-kafka` | Show Kafka broker logs |
-| `make logs-connect` | Show Kafka Connect logs |
+| `make logs` | Show HammerDB logs |
 | `make ysql` | Connect to YugabyteDB YSQL shell |
+| `make hammerdb-shell` | Open HammerDB CLI shell |
 | `make port-forward-prometheus` | Port forward Prometheus to localhost:9090 |
 | `make clean` | Delete all resources |
 
 ## Configuration
 
-### Producer Settings
+### HammerDB Settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `EVENTS_PER_SECOND` | 1000 | Target events per second |
-| `THREADS` | 4 | Number of producer threads |
-| `MODE` | both | Event mode: `oracle`, `db2`, or `both` |
+| `HAMMERDB_WAREHOUSES` | 4 | Number of TPROC-C warehouses |
+| `HAMMERDB_VUS` | 4 | Number of virtual users |
+| `HAMMERDB_DURATION` | 5 | Test duration (minutes) |
+| `HAMMERDB_RAMPUP` | 1 | Rampup time (minutes) |
 
-### Kafka Topics
-
-| Topic | Source | Description |
-|-------|--------|-------------|
-| `oracle-cdc-customers` | Oracle | Customer records |
-| `oracle-cdc-orders` | Oracle | Order records |
-| `db2-cdc-products` | DB2 | Product catalog |
-| `db2-cdc-inventory` | DB2 | Inventory updates |
-
-## CDC Event Format
-
-Events are generated in Debezium envelope format:
-
-```json
-{
-  "before": null,
-  "after": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john@example.com",
-    "created_at": 1705123456789
-  },
-  "source": {
-    "version": "2.4.0.Final",
-    "connector": "oracle",
-    "name": "oracle-source",
-    "db": "ORCL",
-    "schema": "TESTDB",
-    "table": "CUSTOMERS"
-  },
-  "op": "c",
-  "ts_ms": 1705123456789
-}
-```
-
-## Deploying JDBC Sink Connectors
-
-To enable data flow from Kafka to YugabyteDB:
-
+Example with custom settings:
 ```bash
-kubectl --context minikube apply -f sink/jdbc-sink-connector.yaml
+make build-schema HAMMERDB_WAREHOUSES=10 HAMMERDB_VUS=8
+make run-bench HAMMERDB_VUS=8 HAMMERDB_DURATION=10
 ```
 
-This creates sink connectors for all four topics, writing to corresponding tables in YugabyteDB.
+### Environment Variables (in HammerDB pod)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PG_HOST` | yb-tserver-service | Database host |
+| `PG_PORT` | 5433 | YSQL port |
+| `PG_SUPERUSER` | yugabyte | Admin user |
+| `PG_SUPERPASS` | yugabyte | Admin password |
+| `PG_USER` | tpcc | TPCC user |
+| `PG_PASS` | tpcc | TPCC password |
+| `PG_DBASE` | tpcc | TPCC database |
+
+## TPROC-C Benchmark
+
+TPROC-C is HammerDB's implementation of a TPC-C like workload. It simulates a wholesale supplier with:
+- Warehouses, districts, and customers
+- Order entry and fulfillment operations
+- Stock level checks
+
+Key metrics:
+- **NOPM** (New Orders Per Minute) - Primary throughput metric
+- **TPM** (Transactions Per Minute) - Total transaction throughput
 
 ## Monitoring
 
@@ -153,18 +139,17 @@ make port-forward-prometheus
 # Open http://localhost:9090
 ```
 
-Key metrics:
-- `cdc.events.sent` - Total events sent to Kafka
-- `cdc.events.errors` - Error count
-- `cdc.events.latency` - Send latency histogram
+YugabyteDB exposes metrics on port 9000 for both masters and tservers.
 
 ### Checking Data in YugabyteDB
 
 ```bash
 make ysql
-# Then run SQL queries:
-# SELECT COUNT(*) FROM customers;
-# SELECT COUNT(*) FROM orders;
+# Example queries:
+\c tpcc
+SELECT count(*) FROM warehouse;
+SELECT count(*) FROM orders;
+SELECT count(*) FROM new_order;
 ```
 
 ## Technology Stack
@@ -172,32 +157,43 @@ make ysql
 | Component | Version |
 |-----------|---------|
 | Kubernetes | 1.33+ |
-| Strimzi | 0.49.1 |
-| Apache Kafka | 4.1.1 |
 | YugabyteDB | Latest |
-| Kafka Connect JDBC | 10.7.4 |
-| Java | 21 |
-| Spring Boot | 3.2.1 |
+| HammerDB | 4.12 |
+| Prometheus | 2.48.0 |
+
+## Future Extensibility
+
+The infrastructure is designed to support additional databases:
+```
+k8s/base/databases/
+├── yugabytedb/    # Current
+├── citus/         # Future
+├── mariadb/       # Future
+└── tidb/          # Future
+```
+
+Usage pattern: `make deploy ENV=minikube DB=yugabytedb`
 
 ## Troubleshooting
 
-### Kafka Connect build fails
-The Kafka Connect image is built with the JDBC connector and pushed to `ttl.sh` (ephemeral registry with 2h TTL). If the image expires, delete the KafkaConnect resource and reapply:
+### HammerDB can't connect to YugabyteDB
 
+Check that YugabyteDB is running and the service is available:
 ```bash
-kubectl --context minikube delete kafkaconnect kafka-connect -n yugabyte-test
-make deploy ENV=minikube
+kubectl --context minikube get svc -n yugabyte-test
+kubectl --context minikube get pods -n yugabyte-test
 ```
 
 ### Pod scheduling issues
+
 Minikube has limited resources. Check node capacity:
 ```bash
 kubectl --context minikube describe node minikube | grep -A 10 "Allocated resources"
 ```
 
-### View component logs
+### View logs
+
 ```bash
-make logs           # Producer logs
-make logs-kafka     # Kafka broker logs
-make logs-connect   # Kafka Connect logs
+make logs              # HammerDB logs
+kubectl --context minikube logs -n yugabyte-test yb-tserver-0  # YugabyteDB logs
 ```
