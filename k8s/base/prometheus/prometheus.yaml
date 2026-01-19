@@ -13,6 +13,7 @@ rules:
     resources:
       - nodes
       - nodes/proxy
+      - nodes/metrics
       - services
       - endpoints
       - pods
@@ -21,7 +22,7 @@ rules:
     resources:
       - configmaps
     verbs: ["get"]
-  - nonResourceURLs: ["/metrics"]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
     verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -54,35 +55,24 @@ data:
         static_configs:
           - targets: ['localhost:9090']
 
-      # YugabyteDB Masters
-      - job_name: 'yugabytedb-master'
+      # cAdvisor metrics from kubelet
+      - job_name: 'cadvisor'
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
         kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - yugabyte-test
+          - role: node
+        metrics_path: /metrics/cadvisor
         relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            regex: yb-master
-            action: keep
-          - source_labels: [__meta_kubernetes_pod_ip]
-            target_label: __address__
-            replacement: ${1}:9000
-
-      # YugabyteDB TServers
-      - job_name: 'yugabytedb-tserver'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - yugabyte-test
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            regex: yb-tserver
-            action: keep
-          - source_labels: [__meta_kubernetes_pod_ip]
-            target_label: __address__
-            replacement: ${1}:9000
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
 ---
 apiVersion: apps/v1
 kind: Deployment

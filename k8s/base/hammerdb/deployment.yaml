@@ -48,6 +48,10 @@ spec:
               value: "5"
             - name: HAMMERDB_RAMPUP
               value: "1"
+            - name: HAMMERDB_ALLWAREHOUSE
+              value: "false"
+            - name: HAMMERDB_KEYANDTHINK
+              value: "false"
           resources:
             requests:
               cpu: "500m"

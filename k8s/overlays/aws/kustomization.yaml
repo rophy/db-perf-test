@@ -6,7 +6,7 @@ resources:
 
 # AWS-specific patches for production-scale testing
 patches:
-  # Scale up HammerDB resources for production testing
+  # Scale up HammerDB resources and set correct DB host
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/cpu
@@ -20,6 +20,25 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: "4Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "yb-tservers"
+      # Benchmark tuning for AWS
+      - op: replace
+        path: /spec/template/spec/containers/0/env/8/value
+        value: "400"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/9/value
+        value: "96"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/10/value
+        value: "5"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/11/value
+        value: "2"
+      - op: replace
+        path: /spec/template/spec/containers/0/env/12/value
+        value: "true"
     target:
       kind: Deployment
       name: hammerdb
@@ -36,11 +55,3 @@ patches:
       kind: Deployment
       name: prometheus
 
-  # Use LoadBalancer for Prometheus in AWS
-  - patch: |-
-      - op: replace
-        path: /spec/type
-        value: LoadBalancer
-    target:
-      kind: Service
-      name: prometheus

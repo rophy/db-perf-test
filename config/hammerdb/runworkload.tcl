@@ -16,6 +16,8 @@ set pg_dbase [expr {[info exists ::env(PG_DBASE)] ? $::env(PG_DBASE) : "tpcc"}]
 set vus [expr {[info exists ::env(HAMMERDB_VUS)] ? $::env(HAMMERDB_VUS) : "4"}]
 set duration [expr {[info exists ::env(HAMMERDB_DURATION)] ? $::env(HAMMERDB_DURATION) : "5"}]
 set rampup [expr {[info exists ::env(HAMMERDB_RAMPUP)] ? $::env(HAMMERDB_RAMPUP) : "1"}]
+set allwarehouse [expr {[info exists ::env(HAMMERDB_ALLWAREHOUSE)] ? $::env(HAMMERDB_ALLWAREHOUSE) : "false"}]
+set keyandthink [expr {[info exists ::env(HAMMERDB_KEYANDTHINK)] ? $::env(HAMMERDB_KEYANDTHINK) : "false"}]
 
 puts "Configuration:"
 puts "  Host: $pg_host:$pg_port"
@@ -24,6 +26,8 @@ puts "  User: $pg_user"
 puts "  Virtual Users: $vus"
 puts "  Duration: $duration minutes"
 puts "  Rampup: $rampup minutes"
+puts "  All Warehouse: $allwarehouse"
+puts "  Key and Think: $keyandthink"
 
 # PostgreSQL connection settings
 diset connection pg_host $pg_host
@@ -37,8 +41,9 @@ diset tpcc pg_user $pg_user
 diset tpcc pg_pass $pg_pass
 diset tpcc pg_dbase $pg_dbase
 
-# Enable all transaction types
-diset tpcc pg_allwarehouse false
+# Workload behavior settings
+diset tpcc pg_allwarehouse $allwarehouse
+diset tpcc pg_keyandthink $keyandthink
 diset tpcc pg_timeprofile false
 
 # Load driver script
