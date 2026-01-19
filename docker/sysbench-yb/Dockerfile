@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone sysbench fork with YugabyteDB-specific options
+# Clone YugabyteDB fork of sysbench (master branch has YB-specific options)
 WORKDIR /build
-RUN git clone --depth 1 --branch master https://github.com/rophy/sysbench.git
+RUN git clone --depth 1 --branch master https://github.com/yugabyte/sysbench.git
 
 # Build sysbench
 WORKDIR /build/sysbench

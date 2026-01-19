@@ -1,6 +1,6 @@
 .PHONY: help setup-minikube setup-aws deploy clean status ysql
 .PHONY: hammerdb-build hammerdb-run hammerdb-delete hammerdb-shell hammerdb-logs
-.PHONY: sysbench-prepare sysbench-run sysbench-bench sysbench-cleanup sysbench-shell sysbench-logs sysbench-config
+.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-config
 .PHONY: report
 
 ENV ?= minikube
@@ -67,13 +67,15 @@ sysbench-prepare: ## Prepare sysbench tables and load data
 		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
 		/scripts/entrypoint.sh prepare
 
-sysbench-run: ## Run sysbench benchmark
-	@echo "Running sysbench (workload: $(SYSBENCH_WORKLOAD), threads: $(SYSBENCH_THREADS), time: $(SYSBENCH_TIME)s)..."
-	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
-		env SYSBENCH_TABLES=$(SYSBENCH_TABLES) SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
-		SYSBENCH_THREADS=$(SYSBENCH_THREADS) SYSBENCH_TIME=$(SYSBENCH_TIME) \
-		SYSBENCH_WARMUP=$(SYSBENCH_WARMUP) SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
-		/scripts/entrypoint.sh run
+sysbench-run: ## Run sysbench benchmark with timestamps for report
+	@KUBE_CONTEXT=$(KUBE_CONTEXT) \
+		SYSBENCH_TABLES=$(SYSBENCH_TABLES) \
+		SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
+		SYSBENCH_THREADS=$(SYSBENCH_THREADS) \
+		SYSBENCH_TIME=$(SYSBENCH_TIME) \
+		SYSBENCH_WARMUP=$(SYSBENCH_WARMUP) \
+		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
+		./scripts/sysbench-run-with-timestamps.sh
 
 sysbench-cleanup: ## Cleanup sysbench tables
 	@echo "Cleaning up sysbench tables..."
@@ -90,16 +92,6 @@ sysbench-shell: ## Open shell in sysbench container
 
 sysbench-logs: ## Show sysbench container logs
 	@kubectl --context $(KUBE_CONTEXT) logs -f deployment/sysbench -n yugabyte-test
-
-sysbench-bench: ## Run sysbench with timestamps for report generation
-	@KUBE_CONTEXT=$(KUBE_CONTEXT) \
-		SYSBENCH_TABLES=$(SYSBENCH_TABLES) \
-		SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
-		SYSBENCH_THREADS=$(SYSBENCH_THREADS) \
-		SYSBENCH_TIME=$(SYSBENCH_TIME) \
-		SYSBENCH_WARMUP=$(SYSBENCH_WARMUP) \
-		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
-		./scripts/sysbench-run-with-timestamps.sh
 
 # Report generation
 report: ## Generate performance report from last benchmark run
