@@ -146,7 +146,7 @@ class ReportGenerator:
         self.metrics_data = {}
 
     def collect_container_metrics(self):
-        """Collect CPU, memory, network metrics for pods."""
+        """Collect CPU, memory, network, disk metrics for pods."""
         pods_regex = "|".join(self.config.pods)
 
         # CPU usage (percentage)
@@ -164,6 +164,22 @@ class ReportGenerator:
         # Network TX (bytes/s)
         net_tx_query = f'sum(rate(container_network_transmit_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod)'
         self.metrics_data["network_tx"] = self._query_and_aggregate(net_tx_query, "Network TX (B/s)")
+
+        # Disk Read IOPS (ops/s)
+        disk_read_iops_query = f'sum(rate(container_fs_reads_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod)'
+        self.metrics_data["disk_read_iops"] = self._query_and_aggregate(disk_read_iops_query, "Disk Read IOPS")
+
+        # Disk Write IOPS (ops/s)
+        disk_write_iops_query = f'sum(rate(container_fs_writes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod)'
+        self.metrics_data["disk_write_iops"] = self._query_and_aggregate(disk_write_iops_query, "Disk Write IOPS")
+
+        # Disk Read Throughput (MB/s)
+        disk_read_throughput_query = f'sum(rate(container_fs_reads_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod) / 1024 / 1024'
+        self.metrics_data["disk_read_throughput"] = self._query_and_aggregate(disk_read_throughput_query, "Disk Read (MB/s)")
+
+        # Disk Write Throughput (MB/s)
+        disk_write_throughput_query = f'sum(rate(container_fs_writes_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod) / 1024 / 1024'
+        self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)")
 
     def collect_custom_metrics(self):
         """Collect custom rate and total metrics."""

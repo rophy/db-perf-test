@@ -229,6 +229,42 @@
                     </div>
                 </div>
                 {% endif %}
+
+                {% if metrics.disk_read_iops and metrics.disk_read_iops.series %}
+                <div class="chart-card">
+                    <h3>Disk Read IOPS</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-read-iops-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if metrics.disk_write_iops and metrics.disk_write_iops.series %}
+                <div class="chart-card">
+                    <h3>Disk Write IOPS</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-write-iops-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if metrics.disk_read_throughput and metrics.disk_read_throughput.series %}
+                <div class="chart-card">
+                    <h3>Disk Read Throughput (MB/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-read-throughput-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if metrics.disk_write_throughput and metrics.disk_write_throughput.series %}
+                <div class="chart-card">
+                    <h3>Disk Write Throughput (MB/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-write-throughput-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </section>
 
@@ -347,6 +383,12 @@
         if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
         if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
         if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
+
+        // Disk I/O charts
+        if (metricsData.disk_read_iops) createChart('disk-read-iops-chart', metricsData.disk_read_iops.series, 'IOPS');
+        if (metricsData.disk_write_iops) createChart('disk-write-iops-chart', metricsData.disk_write_iops.series, 'IOPS');
+        if (metricsData.disk_read_throughput) createChart('disk-read-throughput-chart', metricsData.disk_read_throughput.series, 'MB/s');
+        if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
 
         // Custom metrics charts
         Object.keys(metricsData).forEach(key => {
