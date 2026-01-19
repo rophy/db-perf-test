@@ -202,37 +202,28 @@ class ReportGenerator:
             self.config.step
         )
 
-        # Aggregate all series into one
-        all_timestamps = []
-        all_values = []
+        # Filter to only tserver pods for summary statistics
+        tserver_values = []
         for series in series_list:
-            if series.timestamps and series.values:
-                all_timestamps.extend(series.timestamps)
-                all_values.extend(series.values)
+            pod_name = series.labels.get("pod", "")
+            if "yb-tserver" in pod_name and series.values:
+                tserver_values.extend(series.values)
 
-        if not all_values:
-            return {
-                "name": display_name,
-                "timestamps": [],
-                "values": [],
-                "min": 0,
-                "avg": 0,
-                "max": 0,
-                "total": 0,
-                "series": []
-            }
+        # Calculate statistics from tserver pods only
+        if not tserver_values:
+            min_val = 0
+            avg_val = 0
+            max_val = 0
+        else:
+            non_zero = [v for v in tserver_values if v > 0]
+            min_val = min(non_zero) if non_zero else 0
+            max_val = max(tserver_values)
+            avg_val = sum(non_zero) / len(non_zero) if non_zero else 0
 
-        # Calculate statistics
-        non_zero = [v for v in all_values if v > 0]
-        min_val = min(non_zero) if non_zero else 0
-        max_val = max(all_values)
-        avg_val = sum(non_zero) / len(non_zero) if non_zero else 0
         total_val = avg_val * self.config.duration_seconds
 
         return {
             "name": display_name,
-            "timestamps": all_timestamps,
-            "values": all_values,
             "min": min_val,
             "avg": avg_val,
             "max": max_val,

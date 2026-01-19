@@ -65,7 +65,7 @@ patches:
                     memory: "2Gi"
                 env:
                   - name: PG_HOST
-                    value: "yb-tservers"
+                    value: "yb-tserver-service"
                   - name: PG_PORT
                     value: "5433"
                   - name: PG_USER

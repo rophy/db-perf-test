@@ -28,7 +28,15 @@ storage:
     storageClass: ebs-gp3
     size: 50Gi
 
-enableLoadBalancer: false
+enableLoadBalancer: true
+
+# ClusterIP service for load-balanced YSQL connections
+serviceEndpoints:
+  - name: yb-tserver-service
+    type: ClusterIP
+    app: yb-tserver
+    ports:
+      tcp-ysql-port: "5433"
 
 ysql:
   enabled: true
