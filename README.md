@@ -1,24 +1,24 @@
 # YugabyteDB Benchmark Infrastructure
 
-Benchmark infrastructure for evaluating YugabyteDB performance using HammerDB TPROC-C (TPC-C like) workload.
+Benchmark infrastructure for evaluating YugabyteDB performance using sysbench OLTP workloads.
 
 ## Architecture
 
 ```
 ┌─────────────────┐                ┌──────────────────┐
-│   HammerDB      │───────────────▶│   YugabyteDB     │
-│   (TPROC-C)     │   PostgreSQL   │   (YSQL:5433)    │
+│    Sysbench     │───────────────▶│   YugabyteDB     │
+│   (OLTP)        │   PostgreSQL   │   (YSQL:5433)    │
 └─────────────────┘                └──────────────────┘
-                                           │
-                                    ┌──────▼──────┐
-                                    │  Prometheus │
-                                    └─────────────┘
+                                          │
+                                   ┌──────▼──────┐
+                                   │  Prometheus │
+                                   └─────────────┘
 ```
 
 **Components:**
-- **HammerDB** - Industry-standard database benchmark tool running TPROC-C workload
+- **Sysbench** - Database benchmark tool using YugabyteDB's fork with YB-specific optimizations
 - **YugabyteDB** - Distributed PostgreSQL-compatible database
-- **Prometheus** - Metrics collection for YugabyteDB
+- **Prometheus** - Metrics collection for performance reports
 
 ## Prerequisites
 
@@ -26,6 +26,7 @@ Benchmark infrastructure for evaluating YugabyteDB performance using HammerDB TP
 - kubectl
 - Minikube (for local testing) or AWS CLI (for cloud deployment)
 - Helm 3.x
+- Python 3 with Jinja2 (`pip install Jinja2`)
 
 ## Quick Start (Minikube)
 
@@ -36,98 +37,117 @@ make setup-minikube
 # 2. Wait for YugabyteDB pods to be ready
 kubectl --context minikube get pods -n yugabyte-test -w
 
-# 3. Deploy HammerDB and Prometheus
+# 3. Deploy sysbench and Prometheus
 make deploy ENV=minikube
 
-# 4. Build TPROC-C schema
-make build-schema
+# 4. Prepare sysbench tables
+make sysbench-prepare
 
-# 5. Run benchmark
-make run-bench
+# 5. Run benchmark (records timestamps for report)
+make sysbench-run
 
-# 6. Check results in YugabyteDB
-make ysql
-# Then: SELECT count(*) FROM tpcc.orders;
+# 6. Generate HTML performance report
+make report
 ```
+
+Reports are saved to `reports/<timestamp>/report.html`.
 
 ## Project Structure
 
 ```
 .
 ├── config/
-│   └── hammerdb/               # HammerDB TCL scripts
-│       ├── entrypoint.sh       # Command router
-│       ├── buildschema.tcl     # Schema build script
-│       ├── runworkload.tcl     # Workload script
-│       └── deleteschema.tcl    # Schema cleanup script
+│   └── sysbench/              # Sysbench entrypoint script
+├── docker/
+│   └── sysbench-yb/           # YugabyteDB sysbench fork Dockerfile
 ├── k8s/
 │   ├── base/
 │   │   ├── databases/
-│   │   │   └── yugabytedb/     # YugabyteDB Helm values
-│   │   ├── hammerdb/           # HammerDB deployment
-│   │   └── prometheus/         # Monitoring
+│   │   │   └── yugabytedb/    # YugabyteDB Helm values
+│   │   ├── sysbench/          # Sysbench deployment
+│   │   └── prometheus/        # Monitoring
 │   └── overlays/
-│       ├── minikube/           # Minikube-specific patches
-│       └── aws/                # AWS-specific patches
-├── scripts/                    # Setup and deployment scripts
-└── Makefile                    # Build and deployment commands
+│       ├── minikube/          # Minikube-specific patches
+│       └── aws/               # AWS-specific patches
+├── scripts/
+│   └── report-generator/      # HTML report generation
+└── Makefile
 ```
 
 ## Makefile Targets
 
+### Sysbench Operations
+
+| Target | Description |
+|--------|-------------|
+| `make sysbench-prepare` | Create tables and load test data |
+| `make sysbench-run` | Run benchmark with timestamps for report |
+| `make sysbench-cleanup` | Drop benchmark tables |
+| `make sysbench-config` | Show current configuration |
+| `make sysbench-shell` | Open shell in sysbench container |
+| `make report` | Generate HTML performance report |
+
+### Infrastructure
+
 | Target | Description |
 |--------|-------------|
 | `make setup-minikube` | Setup minikube with YugabyteDB |
-| `make deploy` | Deploy HammerDB and Prometheus |
-| `make build-schema` | Build TPROC-C schema in YugabyteDB |
-| `make run-bench` | Run TPROC-C benchmark |
-| `make delete-schema` | Delete TPROC-C schema |
+| `make deploy` | Deploy sysbench and Prometheus |
 | `make status` | Show status of all components |
-| `make logs` | Show HammerDB logs |
 | `make ysql` | Connect to YugabyteDB YSQL shell |
-| `make hammerdb-shell` | Open HammerDB CLI shell |
 | `make port-forward-prometheus` | Port forward Prometheus to localhost:9090 |
 | `make clean` | Delete all resources |
 
 ## Configuration
 
-### HammerDB Settings
+### Sysbench Settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HAMMERDB_WAREHOUSES` | 4 | Number of TPROC-C warehouses |
-| `HAMMERDB_VUS` | 4 | Number of virtual users |
-| `HAMMERDB_DURATION` | 5 | Test duration (minutes) |
-| `HAMMERDB_RAMPUP` | 1 | Rampup time (minutes) |
+| `SYSBENCH_TABLES` | 1 | Number of tables |
+| `SYSBENCH_TABLE_SIZE` | 1000 | Rows per table |
+| `SYSBENCH_THREADS` | 1 | Concurrent threads |
+| `SYSBENCH_TIME` | 60 | Test duration (seconds) |
+| `SYSBENCH_WARMUP` | 10 | Warmup time (seconds) |
+| `SYSBENCH_WORKLOAD` | oltp_read_write | Workload type |
 
 Example with custom settings:
 ```bash
-make build-schema HAMMERDB_WAREHOUSES=10 HAMMERDB_VUS=8
-make run-bench HAMMERDB_VUS=8 HAMMERDB_DURATION=10
+make sysbench-prepare SYSBENCH_TABLES=10 SYSBENCH_TABLE_SIZE=100000
+make sysbench-run SYSBENCH_THREADS=4 SYSBENCH_TIME=300
+make report
 ```
 
-### Environment Variables (in HammerDB pod)
+### YugabyteDB-specific Options
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PG_HOST` | yb-tserver-service | Database host |
-| `PG_PORT` | 5433 | YSQL port |
-| `PG_SUPERUSER` | yugabyte | Admin user |
-| `PG_SUPERPASS` | yugabyte | Admin password |
-| `PG_USER` | tpcc | TPCC user |
-| `PG_PASS` | tpcc | TPCC password |
-| `PG_DBASE` | tpcc | TPCC database |
+The sysbench image uses YugabyteDB's fork which includes optimizations:
 
-## TPROC-C Benchmark
+| Option | Default | Description |
+|--------|---------|-------------|
+| `SYSBENCH_RANGE_KEY_PARTITIONING` | false | Use range partitioning |
+| `SYSBENCH_SERIAL_CACHE_SIZE` | 1000 | Serial column cache size |
+| `SYSBENCH_CREATE_SECONDARY` | true | Create secondary index |
 
-TPROC-C is HammerDB's implementation of a TPC-C like workload. It simulates a wholesale supplier with:
-- Warehouses, districts, and customers
-- Order entry and fulfillment operations
-- Stock level checks
+### Available Workloads
 
-Key metrics:
-- **NOPM** (New Orders Per Minute) - Primary throughput metric
-- **TPM** (Transactions Per Minute) - Total transaction throughput
+- `oltp_read_write` - Mixed read/write transactions
+- `oltp_read_only` - Read-only transactions
+- `oltp_write_only` - Write-only transactions
+- `oltp_update_index` - Index update operations
+- `oltp_update_non_index` - Non-index update operations
+- `oltp_insert` - Insert operations
+- `oltp_delete` - Delete operations
+
+## Performance Reports
+
+After running `make sysbench-run`, generate a report with `make report`.
+
+The report includes:
+- CPU utilization per pod
+- Memory usage over time
+- Network I/O statistics
+- Min/Avg/Max summary table
+- Interactive Chart.js visualizations
 
 ## Monitoring
 
@@ -141,44 +161,20 @@ make port-forward-prometheus
 
 YugabyteDB exposes metrics on port 9000 for both masters and tservers.
 
-### Checking Data in YugabyteDB
+## HammerDB (Deprecated)
 
-```bash
-make ysql
-# Example queries:
-\c tpcc
-SELECT count(*) FROM warehouse;
-SELECT count(*) FROM orders;
-SELECT count(*) FROM new_order;
-```
+> **Note:** HammerDB support is outdated and needs revisiting. The TPROC-C workload did not generate sufficient CPU pressure on YugabyteDB in our tests. Use sysbench instead.
 
-## Technology Stack
-
-| Component | Version |
-|-----------|---------|
-| Kubernetes | 1.33+ |
-| YugabyteDB | Latest |
-| HammerDB | 4.12 |
-| Prometheus | 2.48.0 |
-
-## Future Extensibility
-
-The infrastructure is designed to support additional databases:
-```
-k8s/base/databases/
-├── yugabytedb/    # Current
-├── citus/         # Future
-├── mariadb/       # Future
-└── tidb/          # Future
-```
-
-Usage pattern: `make deploy ENV=minikube DB=yugabytedb`
+Legacy HammerDB targets still exist but are not maintained:
+- `make hammerdb-build`
+- `make hammerdb-run`
+- `make hammerdb-delete`
 
 ## Troubleshooting
 
-### HammerDB can't connect to YugabyteDB
+### Sysbench can't connect to YugabyteDB
 
-Check that YugabyteDB is running and the service is available:
+Check that YugabyteDB is running:
 ```bash
 kubectl --context minikube get svc -n yugabyte-test
 kubectl --context minikube get pods -n yugabyte-test
@@ -194,6 +190,6 @@ kubectl --context minikube describe node minikube | grep -A 10 "Allocated resour
 ### View logs
 
 ```bash
-make logs              # HammerDB logs
-kubectl --context minikube logs -n yugabyte-test yb-tserver-0  # YugabyteDB logs
+make sysbench-logs
+kubectl --context minikube logs -n yugabyte-test yb-tserver-0
 ```
