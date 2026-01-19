@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .metadata-label {
+            font-weight: 600;
+        }
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .section h2 {
+            font-size: 1.3rem;
+            color: #444;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .summary-table th,
+        .summary-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        .summary-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .summary-table td:not(:first-child) {
+            text-align: right;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 25px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .chart-card h3 {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        .pods-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .pod-badge {
+            background: #e3e8ff;
+            color: #4c5fd5;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .stat-value {
+            color: #4c5fd5;
+            font-weight: 600;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .metadata {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ title }}</h1>
+            <div class="metadata">
+                <div class="metadata-item">
+                    <span class="metadata-label">Start:</span>
+                    <span>{{ start_time }}</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">End:</span>
+                    <span>{{ end_time }}</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Duration:</span>
+                    <span>{{ duration }}</span>
+                </div>
+            </div>
+            <div class="pods-list">
+                {% for pod in pods %}
+                <span class="pod-badge">{{ pod }}</span>
+                {% endfor %}
+            </div>
+        </header>
+
+        <section class="section">
+            <h2>Metrics Summary</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Min</th>
+                        <th>Avg</th>
+                        <th>Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for key, metric in metrics.items() %}
+                    <tr>
+                        <td>{{ metric.name }}</td>
+                        <td class="stat-value">{{ "%.2f"|format(metric.min) }}</td>
+                        <td class="stat-value">{{ "%.2f"|format(metric.avg) }}</td>
+                        <td class="stat-value">{{ "%.2f"|format(metric.max) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>Resource Usage Charts</h2>
+            <div class="chart-grid">
+                {% if metrics.cpu and metrics.cpu.series %}
+                <div class="chart-card">
+                    <h3>CPU Usage (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="cpu-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if metrics.memory and metrics.memory.series %}
+                <div class="chart-card">
+                    <h3>Memory Usage (MB)</h3>
+                    <div class="chart-container">
+                        <canvas id="memory-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if metrics.network_rx and metrics.network_rx.series %}
+                <div class="chart-card">
+                    <h3>Network RX (B/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="network-rx-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if metrics.network_tx and metrics.network_tx.series %}
+                <div class="chart-card">
+                    <h3>Network TX (B/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="network-tx-chart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% set custom_metrics = [] %}
+        {% for key, metric in metrics.items() %}
+            {% if key.startswith('rate_') or key.startswith('total_') %}
+                {% set _ = custom_metrics.append((key, metric)) %}
+            {% endif %}
+        {% endfor %}
+
+        {% if custom_metrics %}
+        <section class="section">
+            <h2>Custom Metrics</h2>
+            <div class="chart-grid">
+                {% for key, metric in custom_metrics %}
+                {% if metric.series %}
+                <div class="chart-card">
+                    <h3>{{ metric.name }}</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-{{ key }}"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <footer>
+            <p>Generated by db-perf-test Report Generator</p>
+        </footer>
+    </div>
+
+    <script>
+        const colors = [
+            'rgba(102, 126, 234, 1)',
+            'rgba(118, 75, 162, 1)',
+            'rgba(52, 211, 153, 1)',
+            'rgba(251, 191, 36, 1)',
+            'rgba(239, 68, 68, 1)',
+            'rgba(236, 72, 153, 1)',
+        ];
+
+        const colorsBg = [
+            'rgba(102, 126, 234, 0.1)',
+            'rgba(118, 75, 162, 0.1)',
+            'rgba(52, 211, 153, 0.1)',
+            'rgba(251, 191, 36, 0.1)',
+            'rgba(239, 68, 68, 0.1)',
+            'rgba(236, 72, 153, 0.1)',
+        ];
+
+        function createChart(canvasId, seriesData, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !seriesData || seriesData.length === 0) return;
+
+            const datasets = seriesData.map((series, idx) => ({
+                label: series.name,
+                data: series.timestamps.map((t, i) => ({
+                    x: new Date(t * 1000),
+                    y: series.values[i]
+                })),
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colorsBg[idx % colorsBg.length],
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0,
+            }));
+
+            new Chart(canvas, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    second: 'HH:mm:ss',
+                                    minute: 'HH:mm',
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: yAxisLabel
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize charts with data from template
+        const metricsData = {{ metrics | tojson }};
+
+        // Resource charts
+        if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'CPU %');
+        if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
+        if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
+        if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
+
+        // Custom metrics charts
+        Object.keys(metricsData).forEach(key => {
+            if (key.startsWith('rate_') || key.startsWith('total_')) {
+                createChart('chart-' + key, metricsData[key].series, 'Value');
+            }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</body>
+</html>
