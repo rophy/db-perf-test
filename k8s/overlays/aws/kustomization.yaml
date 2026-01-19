@@ -54,13 +54,15 @@ patches:
           spec:
             containers:
               - name: sysbench
+                image: rophy/sysbench:yugabyte-20260119
+                imagePullPolicy: IfNotPresent
                 resources:
                   requests:
+                    cpu: "500m"
+                    memory: "1Gi"
+                  limits:
                     cpu: "2"
                     memory: "2Gi"
-                  limits:
-                    cpu: "4"
-                    memory: "4Gi"
                 env:
                   - name: PG_HOST
                     value: "yb-tservers"
@@ -72,25 +74,30 @@ patches:
                     value: "yugabyte"
                   - name: PG_DB
                     value: "yugabyte"
-                  # Production settings for AWS
+                  # Sysbench settings tuned per YugabyteDB docs
                   - name: SYSBENCH_TABLES
-                    value: "20"
+                    value: "10"
                   - name: SYSBENCH_TABLE_SIZE
-                    value: "5000000"
+                    value: "100000"
                   - name: SYSBENCH_THREADS
                     value: "60"
                   - name: SYSBENCH_TIME
-                    value: "1800"
-                  - name: SYSBENCH_WARMUP
                     value: "300"
+                  - name: SYSBENCH_WARMUP
+                    value: "60"
                   - name: SYSBENCH_WORKLOAD
                     value: "oltp_read_write"
-                  - name: SYSBENCH_RANGE_KEY_PARTITIONING
+                  # YugabyteDB recommended settings (from official docs)
+                  - name: SYSBENCH_RANGE_SELECTS
                     value: "false"
-                  - name: SYSBENCH_SERIAL_CACHE_SIZE
-                    value: "1000"
-                  - name: SYSBENCH_CREATE_SECONDARY
-                    value: "true"
+                  - name: SYSBENCH_POINT_SELECTS
+                    value: "10"
+                  - name: SYSBENCH_INDEX_UPDATES
+                    value: "10"
+                  - name: SYSBENCH_NON_INDEX_UPDATES
+                    value: "10"
+                  - name: SYSBENCH_THREAD_INIT_TIMEOUT
+                    value: "90"
     target:
       kind: Deployment
       name: sysbench

@@ -24,9 +24,16 @@ set -e
 : "${SYSBENCH_SERIAL_CACHE_SIZE:=1000}"
 : "${SYSBENCH_CREATE_SECONDARY:=true}"
 
+# YugabyteDB recommended run options (from official docs)
+: "${SYSBENCH_RANGE_SELECTS:=false}"
+: "${SYSBENCH_POINT_SELECTS:=10}"
+: "${SYSBENCH_INDEX_UPDATES:=10}"
+: "${SYSBENCH_NON_INDEX_UPDATES:=10}"
+: "${SYSBENCH_NUM_ROWS_INSERT:=10}"
+: "${SYSBENCH_THREAD_INIT_TIMEOUT:=90}"
+
 # Build common sysbench options
-# Note: YugabyteDB-specific options (range_key_partitioning, serial_cache_size, create_secondary)
-# are only available in the YugabyteDB fork of sysbench. Standard sysbench doesn't support them.
+# Uses YugabyteDB fork of sysbench with YB-specific options
 build_common_opts() {
     echo "--db-driver=pgsql \
 --pgsql-host=${PG_HOST} \
@@ -35,7 +42,10 @@ build_common_opts() {
 --pgsql-password=${PG_PASS} \
 --pgsql-db=${PG_DB} \
 --tables=${SYSBENCH_TABLES} \
---table_size=${SYSBENCH_TABLE_SIZE}"
+--table_size=${SYSBENCH_TABLE_SIZE} \
+--range_key_partitioning=${SYSBENCH_RANGE_KEY_PARTITIONING} \
+--serial_cache_size=${SYSBENCH_SERIAL_CACHE_SIZE} \
+--create_secondary=${SYSBENCH_CREATE_SECONDARY}"
 }
 
 # Prepare: Create tables and load data
@@ -70,7 +80,13 @@ do_run() {
     opts="${opts} \
 --threads=${SYSBENCH_THREADS} \
 --time=${SYSBENCH_TIME} \
---report-interval=10"
+--warmup-time=${SYSBENCH_WARMUP} \
+--report-interval=10 \
+--range_selects=${SYSBENCH_RANGE_SELECTS} \
+--point_selects=${SYSBENCH_POINT_SELECTS} \
+--index_updates=${SYSBENCH_INDEX_UPDATES} \
+--non_index_updates=${SYSBENCH_NON_INDEX_UPDATES} \
+--thread-init-timeout=${SYSBENCH_THREAD_INIT_TIMEOUT}"
 
     echo "Running: sysbench ${SYSBENCH_WORKLOAD} ${opts} run"
     echo ""
@@ -116,10 +132,18 @@ do_config() {
     echo "  SYSBENCH_TIME=${SYSBENCH_TIME}"
     echo "  SYSBENCH_WARMUP=${SYSBENCH_WARMUP}"
     echo ""
-    echo "YugabyteDB Settings:"
+    echo "YugabyteDB-specific Settings (YB fork):"
     echo "  SYSBENCH_RANGE_KEY_PARTITIONING=${SYSBENCH_RANGE_KEY_PARTITIONING}"
     echo "  SYSBENCH_SERIAL_CACHE_SIZE=${SYSBENCH_SERIAL_CACHE_SIZE}"
     echo "  SYSBENCH_CREATE_SECONDARY=${SYSBENCH_CREATE_SECONDARY}"
+    echo ""
+    echo "Run-time Settings (from docs):"
+    echo "  SYSBENCH_RANGE_SELECTS=${SYSBENCH_RANGE_SELECTS}"
+    echo "  SYSBENCH_POINT_SELECTS=${SYSBENCH_POINT_SELECTS}"
+    echo "  SYSBENCH_INDEX_UPDATES=${SYSBENCH_INDEX_UPDATES}"
+    echo "  SYSBENCH_NON_INDEX_UPDATES=${SYSBENCH_NON_INDEX_UPDATES}"
+    echo "  SYSBENCH_NUM_ROWS_INSERT=${SYSBENCH_NUM_ROWS_INSERT}"
+    echo "  SYSBENCH_THREAD_INIT_TIMEOUT=${SYSBENCH_THREAD_INIT_TIMEOUT}"
     echo ""
     echo "Available Workloads:"
     echo "  oltp_read_only"

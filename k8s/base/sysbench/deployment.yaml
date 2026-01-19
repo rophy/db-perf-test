@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
       - name: sysbench
-        image: severalnines/sysbench:latest
+        image: sysbench-yb:latest
+        imagePullPolicy: Never
         command: ["/bin/bash", "/scripts/entrypoint.sh", "sleep"]
         env:
         # Database connection
