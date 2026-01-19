@@ -54,6 +54,58 @@ patches:
       kind: Deployment
       name: hammerdb
 
+  # Minimal sysbench settings for minikube
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: sysbench
+      spec:
+        template:
+          spec:
+            containers:
+              - name: sysbench
+                resources:
+                  requests:
+                    cpu: "100m"
+                    memory: "128Mi"
+                  limits:
+                    cpu: "500m"
+                    memory: "256Mi"
+                env:
+                  - name: PG_HOST
+                    value: "yb-tserver-service"
+                  - name: PG_PORT
+                    value: "5433"
+                  - name: PG_USER
+                    value: "yugabyte"
+                  - name: PG_PASS
+                    value: "yugabyte"
+                  - name: PG_DB
+                    value: "yugabyte"
+                  # Minimal settings for development
+                  - name: SYSBENCH_TABLES
+                    value: "1"
+                  - name: SYSBENCH_TABLE_SIZE
+                    value: "1000"
+                  - name: SYSBENCH_THREADS
+                    value: "1"
+                  - name: SYSBENCH_TIME
+                    value: "60"
+                  - name: SYSBENCH_WARMUP
+                    value: "10"
+                  - name: SYSBENCH_WORKLOAD
+                    value: "oltp_read_write"
+                  - name: SYSBENCH_RANGE_KEY_PARTITIONING
+                    value: "false"
+                  - name: SYSBENCH_SERIAL_CACHE_SIZE
+                    value: "1000"
+                  - name: SYSBENCH_CREATE_SECONDARY
+                    value: "true"
+    target:
+      kind: Deployment
+      name: sysbench
+
   # Add NodePort for Prometheus access
   - patch: |-
       - op: replace

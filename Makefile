@@ -1,4 +1,6 @@
-.PHONY: help setup-minikube setup-aws deploy build-schema run-bench delete-schema clean status logs ysql
+.PHONY: help setup-minikube setup-aws deploy clean status ysql
+.PHONY: hammerdb-build hammerdb-run hammerdb-delete hammerdb-shell hammerdb-logs
+.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-config
 
 ENV ?= minikube
 KUBE_CONTEXT ?= minikube
@@ -8,6 +10,14 @@ HAMMERDB_WAREHOUSES ?= 4
 HAMMERDB_VUS ?= 4
 HAMMERDB_DURATION ?= 5
 HAMMERDB_RAMPUP ?= 1
+
+# Sysbench settings (minimal defaults for development)
+SYSBENCH_TABLES ?= 1
+SYSBENCH_TABLE_SIZE ?= 1000
+SYSBENCH_THREADS ?= 1
+SYSBENCH_TIME ?= 60
+SYSBENCH_WARMUP ?= 10
+SYSBENCH_WORKLOAD ?= oltp_read_write
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -24,19 +34,19 @@ deploy: ## Deploy HammerDB and Prometheus (ENV=minikube|aws)
 	@ENV=$(ENV) KUBE_CONTEXT=$(KUBE_CONTEXT) ./scripts/deploy.sh
 
 # HammerDB operations
-build-schema: ## Build TPROC-C schema in YugabyteDB
+hammerdb-build: ## Build TPROC-C schema in YugabyteDB
 	@echo "Building TPROC-C schema (warehouses: $(HAMMERDB_WAREHOUSES), vus: $(HAMMERDB_VUS))..."
 	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/hammerdb -- \
 		env HAMMERDB_WAREHOUSES=$(HAMMERDB_WAREHOUSES) HAMMERDB_VUS=$(HAMMERDB_VUS) \
 		/scripts/entrypoint.sh build
 
-run-bench: ## Run TPROC-C benchmark
+hammerdb-run: ## Run TPROC-C benchmark
 	@echo "Running TPROC-C benchmark (vus: $(HAMMERDB_VUS), duration: $(HAMMERDB_DURATION) min)..."
 	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/hammerdb -- \
 		env HAMMERDB_VUS=$(HAMMERDB_VUS) HAMMERDB_DURATION=$(HAMMERDB_DURATION) HAMMERDB_RAMPUP=$(HAMMERDB_RAMPUP) \
 		/scripts/entrypoint.sh run
 
-delete-schema: ## Delete TPROC-C schema from YugabyteDB
+hammerdb-delete: ## Delete TPROC-C schema from YugabyteDB
 	@echo "Deleting TPROC-C schema..."
 	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/hammerdb -- \
 		/scripts/entrypoint.sh delete
@@ -45,6 +55,41 @@ hammerdb-shell: ## Open HammerDB CLI shell
 	@kubectl --context $(KUBE_CONTEXT) exec -it -n yugabyte-test deployment/hammerdb -- \
 		/scripts/entrypoint.sh shell
 
+hammerdb-logs: ## Show HammerDB logs
+	@kubectl --context $(KUBE_CONTEXT) logs -f deployment/hammerdb -n yugabyte-test
+
+# Sysbench operations
+sysbench-prepare: ## Prepare sysbench tables and load data
+	@echo "Preparing sysbench (tables: $(SYSBENCH_TABLES), size: $(SYSBENCH_TABLE_SIZE))..."
+	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
+		env SYSBENCH_TABLES=$(SYSBENCH_TABLES) SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
+		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
+		/scripts/entrypoint.sh prepare
+
+sysbench-run: ## Run sysbench benchmark
+	@echo "Running sysbench (workload: $(SYSBENCH_WORKLOAD), threads: $(SYSBENCH_THREADS), time: $(SYSBENCH_TIME)s)..."
+	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
+		env SYSBENCH_TABLES=$(SYSBENCH_TABLES) SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
+		SYSBENCH_THREADS=$(SYSBENCH_THREADS) SYSBENCH_TIME=$(SYSBENCH_TIME) \
+		SYSBENCH_WARMUP=$(SYSBENCH_WARMUP) SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
+		/scripts/entrypoint.sh run
+
+sysbench-cleanup: ## Cleanup sysbench tables
+	@echo "Cleaning up sysbench tables..."
+	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
+		env SYSBENCH_TABLES=$(SYSBENCH_TABLES) SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
+		/scripts/entrypoint.sh cleanup
+
+sysbench-config: ## Show sysbench configuration
+	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
+		/scripts/entrypoint.sh config
+
+sysbench-shell: ## Open shell in sysbench container
+	@kubectl --context $(KUBE_CONTEXT) exec -it -n yugabyte-test deployment/sysbench -- /bin/bash
+
+sysbench-logs: ## Show sysbench container logs
+	@kubectl --context $(KUBE_CONTEXT) logs -f deployment/sysbench -n yugabyte-test
+
 # Monitoring
 status: ## Show status of all components
 	@echo "=== Pods ==="
@@ -52,9 +97,6 @@ status: ## Show status of all components
 	@echo ""
 	@echo "=== Services ==="
 	@kubectl --context $(KUBE_CONTEXT) get svc -n yugabyte-test
-
-logs: ## Show HammerDB logs
-	@kubectl --context $(KUBE_CONTEXT) logs -f deployment/hammerdb -n yugabyte-test
 
 # Database access
 ysql: ## Connect to YugabyteDB YSQL shell

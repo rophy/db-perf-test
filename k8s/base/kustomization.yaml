@@ -7,4 +7,6 @@ resources:
   - namespace.yaml
   - hammerdb/configmap.yaml
   - hammerdb/deployment.yaml
+  - sysbench/configmap.yaml
+  - sysbench/deployment.yaml
   - prometheus/prometheus.yaml
