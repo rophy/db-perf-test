@@ -4,7 +4,7 @@
 fullnameOverride: ""
 
 # Sysbench configuration
-# Benchmark parameters are defined in Makefile (single source of truth)
+# Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/
 sysbench:
   enabled: true
   image:
@@ -18,6 +18,36 @@ sysbench:
     limits:
       cpu: "2"
       memory: "2Gi"
+
+  # Database connection
+  db:
+    host: yb-tserver-service
+    port: 5433
+    user: yugabyte
+    password: yugabyte
+    name: yugabyte
+
+  # Benchmark parameters (per YugabyteDB docs)
+  tables: 20
+  tableSize: 5000000
+  threads: 60
+  time: 1800
+  warmupTime: 300
+  reportInterval: 10
+  workload: oltp_read_write
+
+  # YugabyteDB-specific flags
+  rangeKeyPartitioning: false
+  serialCacheSize: 1000
+  createSecondary: true
+
+  # Workload tuning flags (CRITICAL: rangeSelects=false prevents 100x slowdown)
+  rangeSelects: false
+  pointSelects: 10
+  indexUpdates: 10
+  nonIndexUpdates: 10
+  numRowsInInsert: 10
+  threadInitTimeout: 90
 
 # Prometheus configuration
 prometheus:

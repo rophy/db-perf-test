@@ -7,54 +7,6 @@ NAMESPACE ?= yugabyte-test
 RELEASE_NAME ?= yb-bench
 CHART_DIR := charts/yb-benchmark
 
-# Database connection
-PG_HOST ?= yb-tserver-service
-PG_PORT ?= 5433
-PG_USER ?= yugabyte
-PG_PASS ?= yugabyte
-PG_DB ?= yugabyte
-
-# Sysbench parameters (per YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/)
-SYSBENCH_TABLES ?= 20
-SYSBENCH_TABLE_SIZE ?= 5000000
-SYSBENCH_THREADS ?= 60
-SYSBENCH_TIME ?= 1800
-SYSBENCH_WARMUP ?= 300
-SYSBENCH_WORKLOAD ?= oltp_read_write
-
-# Common sysbench flags
-SYSBENCH_DB_OPTS := \
-	--db-driver=pgsql \
-	--pgsql-host=$(PG_HOST) \
-	--pgsql-port=$(PG_PORT) \
-	--pgsql-user=$(PG_USER) \
-	--pgsql-password=$(PG_PASS) \
-	--pgsql-db=$(PG_DB) \
-	--tables=$(SYSBENCH_TABLES) \
-	--table_size=$(SYSBENCH_TABLE_SIZE)
-
-# YugabyteDB-specific prepare flags
-SYSBENCH_PREPARE_OPTS := $(SYSBENCH_DB_OPTS) \
-	--range_key_partitioning=false \
-	--serial_cache_size=1000 \
-	--create_secondary=true
-
-# YugabyteDB-specific run flags (CRITICAL: range_selects=false prevents 100x slowdown)
-SYSBENCH_RUN_OPTS := $(SYSBENCH_DB_OPTS) \
-	--range_key_partitioning=false \
-	--serial_cache_size=1000 \
-	--create_secondary=true \
-	--threads=$(SYSBENCH_THREADS) \
-	--time=$(SYSBENCH_TIME) \
-	--warmup-time=$(SYSBENCH_WARMUP) \
-	--report-interval=10 \
-	--range_selects=false \
-	--point_selects=10 \
-	--index_updates=10 \
-	--non_index_updates=10 \
-	--num_rows_in_insert=10 \
-	--thread-init-timeout=90
-
 KUBECTL := kubectl --context $(KUBE_CONTEXT) -n $(NAMESPACE)
 SYSBENCH_POD := deployment/$(RELEASE_NAME)-sysbench
 
@@ -94,20 +46,16 @@ deploy-benchmarks: ## Deploy benchmarks only (use existing YugabyteDB)
 		--set fullnameOverride=$(RELEASE_NAME) \
 		--wait --timeout 5m
 
-# Sysbench operations - runs sysbench DIRECTLY with YugabyteDB-optimized flags
-sysbench-prepare: ## Prepare sysbench tables (20 tables x 5M rows per YB docs)
-	$(KUBECTL) exec $(SYSBENCH_POD) -- \
-		sysbench $(SYSBENCH_WORKLOAD) $(SYSBENCH_PREPARE_OPTS) prepare
+# Sysbench operations - uses scripts from ConfigMap (parameters in values.yaml)
+sysbench-prepare: ## Prepare sysbench tables
+	$(KUBECTL) exec $(SYSBENCH_POD) -- /scripts/sysbench-prepare.sh
 
-sysbench-run: ## Run sysbench benchmark (1800s per YB docs)
+sysbench-run: ## Run sysbench benchmark
 	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) \
-		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
-		SYSBENCH_RUN_OPTS="$(SYSBENCH_RUN_OPTS)" \
 		./scripts/sysbench-run-with-timestamps.sh
 
 sysbench-cleanup: ## Cleanup sysbench tables
-	$(KUBECTL) exec $(SYSBENCH_POD) -- \
-		sysbench $(SYSBENCH_WORKLOAD) $(SYSBENCH_DB_OPTS) cleanup
+	$(KUBECTL) exec $(SYSBENCH_POD) -- /scripts/sysbench-cleanup.sh
 
 sysbench-shell: ## Open shell in sysbench container
 	$(KUBECTL) exec -it $(SYSBENCH_POD) -- /bin/bash

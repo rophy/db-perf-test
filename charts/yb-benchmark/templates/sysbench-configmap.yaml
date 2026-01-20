@@ -1,0 +1,121 @@
+{{- if .Values.sysbench.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "yb-benchmark.fullname" . }}-sysbench-scripts
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sysbench
+data:
+  sysbench-prepare.sh: |
+    #!/bin/bash
+    set -e
+
+    # Sysbench prepare script - generated from Helm values
+    # Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/
+
+    WORKLOAD="{{ .Values.sysbench.workload }}"
+
+    # Database connection flags
+    DB_OPTS=(
+      --db-driver=pgsql
+      --pgsql-host={{ .Values.sysbench.db.host }}
+      --pgsql-port={{ .Values.sysbench.db.port }}
+      --pgsql-user={{ .Values.sysbench.db.user }}
+      --pgsql-password={{ .Values.sysbench.db.password }}
+      --pgsql-db={{ .Values.sysbench.db.name }}
+      --tables={{ .Values.sysbench.tables }}
+      --table_size={{ .Values.sysbench.tableSize }}
+    )
+
+    # YugabyteDB-specific prepare flags
+    YB_OPTS=(
+      --range_key_partitioning={{ .Values.sysbench.rangeKeyPartitioning }}
+      --serial_cache_size={{ .Values.sysbench.serialCacheSize }}
+      --create_secondary={{ .Values.sysbench.createSecondary }}
+    )
+
+    echo "=== Sysbench Prepare ==="
+    echo "Workload: ${WORKLOAD}"
+    echo "Tables: {{ .Values.sysbench.tables }} x {{ .Values.sysbench.tableSize }} rows"
+    echo ""
+
+    exec sysbench "${WORKLOAD}" "${DB_OPTS[@]}" "${YB_OPTS[@]}" prepare
+
+  sysbench-run.sh: |
+    #!/bin/bash
+    set -e
+
+    # Sysbench run script - generated from Helm values
+    # Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/
+
+    WORKLOAD="{{ .Values.sysbench.workload }}"
+
+    # Database connection flags
+    DB_OPTS=(
+      --db-driver=pgsql
+      --pgsql-host={{ .Values.sysbench.db.host }}
+      --pgsql-port={{ .Values.sysbench.db.port }}
+      --pgsql-user={{ .Values.sysbench.db.user }}
+      --pgsql-password={{ .Values.sysbench.db.password }}
+      --pgsql-db={{ .Values.sysbench.db.name }}
+      --tables={{ .Values.sysbench.tables }}
+      --table_size={{ .Values.sysbench.tableSize }}
+    )
+
+    # YugabyteDB-specific and workload tuning flags
+    # CRITICAL: range_selects=false prevents 100x slowdown from cross-tablet scans
+    YB_OPTS=(
+      --range_key_partitioning={{ .Values.sysbench.rangeKeyPartitioning }}
+      --serial_cache_size={{ .Values.sysbench.serialCacheSize }}
+      --create_secondary={{ .Values.sysbench.createSecondary }}
+      --range_selects={{ .Values.sysbench.rangeSelects }}
+      --point_selects={{ .Values.sysbench.pointSelects }}
+      --index_updates={{ .Values.sysbench.indexUpdates }}
+      --non_index_updates={{ .Values.sysbench.nonIndexUpdates }}
+      --num_rows_in_insert={{ .Values.sysbench.numRowsInInsert }}
+      --thread-init-timeout={{ .Values.sysbench.threadInitTimeout }}
+    )
+
+    # Run parameters
+    RUN_OPTS=(
+      --threads={{ .Values.sysbench.threads }}
+      --time={{ .Values.sysbench.time }}
+      --warmup-time={{ .Values.sysbench.warmupTime }}
+      --report-interval={{ .Values.sysbench.reportInterval }}
+    )
+
+    echo "=== Sysbench Benchmark ==="
+    echo "Workload: ${WORKLOAD}"
+    echo "Threads: {{ .Values.sysbench.threads }}"
+    echo "Duration: {{ .Values.sysbench.time }}s (warmup: {{ .Values.sysbench.warmupTime }}s)"
+    echo ""
+
+    exec sysbench "${WORKLOAD}" "${DB_OPTS[@]}" "${YB_OPTS[@]}" "${RUN_OPTS[@]}" run
+
+  sysbench-cleanup.sh: |
+    #!/bin/bash
+    set -e
+
+    # Sysbench cleanup script - generated from Helm values
+
+    WORKLOAD="{{ .Values.sysbench.workload }}"
+
+    # Database connection flags
+    DB_OPTS=(
+      --db-driver=pgsql
+      --pgsql-host={{ .Values.sysbench.db.host }}
+      --pgsql-port={{ .Values.sysbench.db.port }}
+      --pgsql-user={{ .Values.sysbench.db.user }}
+      --pgsql-password={{ .Values.sysbench.db.password }}
+      --pgsql-db={{ .Values.sysbench.db.name }}
+      --tables={{ .Values.sysbench.tables }}
+      --table_size={{ .Values.sysbench.tableSize }}
+    )
+
+    echo "=== Sysbench Cleanup ==="
+    echo "Dropping benchmark tables..."
+    echo ""
+
+    exec sysbench "${WORKLOAD}" "${DB_OPTS[@]}" cleanup
+{{- end }}

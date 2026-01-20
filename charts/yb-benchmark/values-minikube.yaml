@@ -1,7 +1,71 @@
 # Minikube-specific values - minimal resources for local development
-# Override default values.yaml for minikube deployment
+# Override default values-aws.yaml for minikube deployment
+
+fullnameOverride: ""
+
+# Sysbench configuration - smaller scale for minikube
+sysbench:
+  enabled: true
+  image:
+    repository: rophy/sysbench
+    tag: yugabyte-20260119
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+  # Database connection
+  db:
+    host: yb-tserver-service
+    port: 5433
+    user: yugabyte
+    password: yugabyte
+    name: yugabyte
+
+  # Benchmark parameters - reduced for minikube
+  tables: 5
+  tableSize: 100000
+  threads: 10
+  time: 300
+  warmupTime: 60
+  reportInterval: 10
+  workload: oltp_read_write
+
+  # YugabyteDB-specific flags
+  rangeKeyPartitioning: false
+  serialCacheSize: 1000
+  createSecondary: true
+
+  # Workload tuning flags (CRITICAL: rangeSelects=false prevents 100x slowdown)
+  rangeSelects: false
+  pointSelects: 10
+  indexUpdates: 10
+  nonIndexUpdates: 10
+  numRowsInInsert: 10
+  threadInitTimeout: 90
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.48.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  retention: 7d
 
 yugabyte:
+  enabled: true
   replicas:
     master: 1
     tserver: 1
@@ -31,3 +95,17 @@ yugabyte:
     tserver:
       yb_num_shards_per_tserver: 2
       ysql_num_shards_per_tserver: 2
+  enableLoadBalancer: false
+  serviceEndpoints:
+    - name: yb-tserver-service
+      type: ClusterIP
+      app: yb-tserver
+      ports:
+        tcp-ysql-port: "5433"
+  ysql:
+    enabled: true
+    port: 5433
+  ycql:
+    enabled: false
+  metrics:
+    enabled: true

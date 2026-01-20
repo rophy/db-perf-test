@@ -39,10 +39,10 @@ make deploy-aws KUBE_CONTEXT=my-eks-cluster
 # Wait for YugabyteDB pods to be ready
 make status
 
-# Prepare sysbench tables (20 tables x 5M rows)
+# Prepare sysbench tables (parameters from values file)
 make sysbench-prepare
 
-# Run benchmark (30 min with 5 min warmup)
+# Run benchmark (parameters from values file)
 make sysbench-run
 
 # Generate HTML performance report
@@ -56,15 +56,17 @@ Reports are saved to `reports/<timestamp>/report.html`.
 ```
 .
 ├── charts/
-│   └── yb-benchmark/           # Helm chart
-│       ├── Chart.yaml          # YugabyteDB as optional dependency
-│       ├── values.yaml         # Default values
+│   └── yb-benchmark/              # Helm chart
+│       ├── Chart.yaml             # YugabyteDB as optional dependency
+│       ├── values-aws.yaml        # AWS production settings
+│       ├── values-minikube.yaml   # Minikube dev settings
 │       └── templates/
-│           ├── sysbench.yaml   # Sysbench deployment
-│           └── prometheus.yaml # Prometheus stack
+│           ├── sysbench.yaml           # Sysbench deployment
+│           ├── sysbench-configmap.yaml # Sysbench scripts (prepare/run/cleanup)
+│           └── prometheus.yaml         # Prometheus stack
 ├── scripts/
-│   └── report-generator/       # HTML report generation
-├── Makefile                    # Single source of truth for sysbench parameters
+│   └── report-generator/          # HTML report generation
+├── Makefile                       # Deployment and benchmark targets
 └── README.md
 ```
 
@@ -83,8 +85,8 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 | Target | Description |
 |--------|-------------|
-| `make sysbench-prepare` | Create tables and load test data |
-| `make sysbench-run` | Run benchmark (30 min with 5 min in-run warmup) |
+| `make sysbench-prepare` | Create tables and load test data (params from values file) |
+| `make sysbench-run` | Run benchmark (params from values file) |
 | `make sysbench-cleanup` | Drop benchmark tables |
 | `make sysbench-shell` | Open shell in sysbench container |
 | `make report` | Generate HTML performance report |
@@ -99,38 +101,33 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 ## Configuration
 
-All sysbench parameters are defined in the Makefile (single source of truth).
+All sysbench parameters are defined in Helm values files (single source of truth).
 
 ### Sysbench Settings
 
 Parameters follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/).
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SYSBENCH_TABLES` | 20 | Number of tables |
-| `SYSBENCH_TABLE_SIZE` | 5000000 | Rows per table |
-| `SYSBENCH_THREADS` | 60 | Concurrent threads |
-| `SYSBENCH_TIME` | 1800 | Test duration (seconds) |
-| `SYSBENCH_WARMUP` | 300 | In-run warmup (seconds) |
-| `SYSBENCH_WORKLOAD` | oltp_read_write | Workload type |
+| Parameter | AWS Default | Minikube Default | Description |
+|-----------|-------------|------------------|-------------|
+| `sysbench.tables` | 20 | 5 | Number of tables |
+| `sysbench.tableSize` | 5000000 | 100000 | Rows per table |
+| `sysbench.threads` | 60 | 10 | Concurrent threads |
+| `sysbench.time` | 1800 | 300 | Test duration (seconds) |
+| `sysbench.warmupTime` | 300 | 60 | In-run warmup (seconds) |
+| `sysbench.workload` | oltp_read_write | oltp_read_write | Workload type |
 
-Example with custom settings:
-```bash
-make sysbench-prepare SYSBENCH_TABLES=10
-make sysbench-run SYSBENCH_THREADS=120 SYSBENCH_TIME=3600
-make report
-```
+To customize, edit `charts/yb-benchmark/values-*.yaml` and redeploy.
 
 ### YugabyteDB-specific Flags
 
-These flags are hardcoded in the Makefile per YugabyteDB docs:
+These flags are configured in `sysbench.*` per YugabyteDB docs:
 
-| Flag | Value | Description |
-|------|-------|-------------|
-| `--range_selects` | false | **CRITICAL**: Prevents 100x slowdown from cross-tablet scans |
-| `--range_key_partitioning` | false | Use hash partitioning |
-| `--serial_cache_size` | 1000 | Serial column cache size |
-| `--create_secondary` | true | Create secondary index |
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `sysbench.rangeSelects` | false | **CRITICAL**: Prevents 100x slowdown from cross-tablet scans |
+| `sysbench.rangeKeyPartitioning` | false | Use hash partitioning |
+| `sysbench.serialCacheSize` | 1000 | Serial column cache size |
+| `sysbench.createSecondary` | true | Create secondary index |
 
 ### Available Workloads
 
@@ -154,11 +151,17 @@ The report includes:
 The chart can be used standalone:
 
 ```bash
-# Full stack
-helm install yb-bench ./charts/yb-benchmark -n yugabyte-test --create-namespace
+# AWS production
+helm install yb-bench ./charts/yb-benchmark -n yugabyte-test --create-namespace \
+  -f ./charts/yb-benchmark/values-aws.yaml
+
+# Minikube development
+helm install yb-bench ./charts/yb-benchmark -n yugabyte-test --create-namespace \
+  -f ./charts/yb-benchmark/values-minikube.yaml
 
 # Benchmarks only (existing YugabyteDB)
 helm install yb-bench ./charts/yb-benchmark -n yugabyte-test \
+  -f ./charts/yb-benchmark/values-minikube.yaml \
   --set yugabyte.enabled=false
 ```
 

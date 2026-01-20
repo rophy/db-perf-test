@@ -2,7 +2,7 @@
 set -e
 
 # Wrapper script to run sysbench with timestamp recording for report generation
-# Runs sysbench directly with flags passed from Makefile
+# Uses in-cluster script from ConfigMap (parameters defined in Helm values)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -10,16 +10,14 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
 RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
-SYSBENCH_WORKLOAD="${SYSBENCH_WORKLOAD:-oltp_read_write}"
-SYSBENCH_RUN_OPTS="${SYSBENCH_RUN_OPTS:-}"
 
 # Create output directory
 OUTPUT_DIR="${PROJECT_ROOT}/output/sysbench"
 mkdir -p "$OUTPUT_DIR"
 
 echo "=== Sysbench Benchmark Runner ==="
-echo "Workload: ${SYSBENCH_WORKLOAD}"
-echo "Options: ${SYSBENCH_RUN_OPTS}"
+echo "Context: ${KUBE_CONTEXT}"
+echo "Namespace: ${NAMESPACE}"
 echo ""
 
 # Record start time
@@ -28,9 +26,9 @@ echo "$START_TIME" > "${OUTPUT_DIR}/RUN_START_TIME.txt"
 echo "Start time: $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
-# Run sysbench directly
+# Run sysbench via in-cluster script (parameters from Helm values)
 kubectl --context "${KUBE_CONTEXT}" exec -n "${NAMESPACE}" deployment/${RELEASE_NAME}-sysbench -- \
-    sysbench ${SYSBENCH_WORKLOAD} ${SYSBENCH_RUN_OPTS} run | tee "${OUTPUT_DIR}/sysbench_output.txt"
+    /scripts/sysbench-run.sh | tee "${OUTPUT_DIR}/sysbench_output.txt"
 
 # Record end time
 END_TIME=$(date +%s)

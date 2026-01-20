@@ -1,6 +1,6 @@
 {{- if .Values.sysbench.enabled }}
 # Sysbench deployment for YugabyteDB benchmarking
-# Run sysbench commands via: kubectl exec deployment/sysbench -- sysbench ...
+# Run benchmarks via: kubectl exec deployment/sysbench -- /scripts/sysbench-run.sh
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,4 +27,13 @@ spec:
         command: ["sleep", "infinity"]
         resources:
           {{- toYaml .Values.sysbench.resources | nindent 10 }}
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+      volumes:
+      - name: scripts
+        configMap:
+          name: {{ include "yb-benchmark.fullname" . }}-sysbench-scripts
+          defaultMode: 0755
 {{- end }}
