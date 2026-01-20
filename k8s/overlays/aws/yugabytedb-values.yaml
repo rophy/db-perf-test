@@ -2,7 +2,7 @@
 
 replicas:
   master: 3
-  tserver: 3
+  tserver: 4
 
 resource:
   master:

@@ -70,6 +70,66 @@ Using YugabyteDB fork with recommended settings:
 | Latency (95th) | **27x faster** |
 | Error Rate | **77% reduction** |
 
+## Scaling Tests
+
+### Service Type: Headless vs ClusterIP
+
+The default YugabyteDB Helm chart creates a headless service (`yb-tservers`) which doesn't load-balance connections. Configuring a ClusterIP service (`yb-tserver-service`) enables proper load distribution.
+
+**Test Configuration:**
+- 3 tservers, 180 threads, 300s duration
+- 10 tables x 100,000 rows
+
+| Service Type | TPS | QPS | 95th Latency | Avg CPU/tserver |
+|--------------|-----|-----|--------------|-----------------|
+| Headless (`yb-tservers`) | 213.32 | 7,587 | 1,304ms | ~200% (unbalanced) |
+| ClusterIP (`yb-tserver-service`) | **321.63** | **11,481** | **877ms** | **560%** (balanced) |
+
+**Improvement:** 51% higher TPS, 33% lower latency
+
+**Load Distribution with ClusterIP (3 tservers):**
+
+| TServer | Avg CPU | Share of Load |
+|---------|---------|---------------|
+| yb-tserver-0 | 534% | 31.8% |
+| yb-tserver-1 | 586% | 34.8% |
+| yb-tserver-2 | 562% | 33.4% |
+
+### Horizontal Scaling: 3 vs 4 TServers
+
+**Test Configuration:**
+- ClusterIP service, 180 threads, 300s duration
+- 10 tables x 100,000 rows
+
+| TServers | TPS | QPS | 95th Latency | Avg CPU/tserver |
+|----------|-----|-----|--------------|-----------------|
+| 3 | 321.63 | 11,481 | 877ms | 560% |
+| 4 | **409.87** | **14,625** | **682ms** | 554% |
+
+**Improvement:** 27% higher TPS, 22% lower latency
+
+**Load Distribution with 4 tservers:**
+
+| TServer | Avg CPU | Share of Load |
+|---------|---------|---------------|
+| yb-tserver-0 | 550% | 24.8% |
+| yb-tserver-1 | 578% | 26.1% |
+| yb-tserver-2 | 546% | 24.6% |
+| yb-tserver-3 | 541% | 24.4% |
+
+### Scaling Summary
+
+| Configuration | TPS | Scaling Factor |
+|---------------|-----|----------------|
+| 3 tservers (headless) | 213 | 1.0x (baseline) |
+| 3 tservers (ClusterIP) | 322 | 1.51x |
+| 4 tservers (ClusterIP) | 410 | 1.92x |
+
+**Key Findings:**
+1. **ClusterIP is essential** - Headless services don't load-balance, causing uneven CPU distribution
+2. **Near-linear scaling** - Adding 33% more tservers (3→4) yielded 27% more throughput
+3. **CPU saturation** - Each tserver peaks at ~800% CPU (8 cores), indicating compute-bound workload
+
 ## Key Optimizations Explained
 
 ### 1. Disable Range Selects (`--range_selects=false`)
