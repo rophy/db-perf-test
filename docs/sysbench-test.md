@@ -117,18 +117,36 @@ The default YugabyteDB Helm chart creates a headless service (`yb-tservers`) whi
 | yb-tserver-2 | 546% | 24.6% |
 | yb-tserver-3 | 541% | 24.4% |
 
+### Thread Count Optimization (4 TServers)
+
+Testing different thread counts to find the saturation point:
+
+| Threads | TPS | QPS | 95th Latency | Avg CPU | Errors/s |
+|---------|-----|-----|--------------|---------|----------|
+| 180 | **409.87** | **14,625** | **682ms** | 554% | 32.29 |
+| 240 | 396.65 | 14,381 | 1,051ms | 590% | 41.59 |
+
+At 240 threads, performance degrades:
+- TPS decreased 3.2%
+- Latency increased 54%
+- Error rate increased 29%
+
+**Optimal: ~45 threads per tserver** (180 threads / 4 tservers)
+
 ### Scaling Summary
 
 | Configuration | TPS | Scaling Factor |
 |---------------|-----|----------------|
 | 3 tservers (headless) | 213 | 1.0x (baseline) |
 | 3 tservers (ClusterIP) | 322 | 1.51x |
-| 4 tservers (ClusterIP) | 410 | 1.92x |
+| 4 tservers (ClusterIP), 180 threads | 410 | 1.92x |
+| 4 tservers (ClusterIP), 240 threads | 397 | 1.86x (saturated) |
 
 **Key Findings:**
 1. **ClusterIP is essential** - Headless services don't load-balance, causing uneven CPU distribution
 2. **Near-linear scaling** - Adding 33% more tservers (3→4) yielded 27% more throughput
 3. **CPU saturation** - Each tserver peaks at ~800% CPU (8 cores), indicating compute-bound workload
+4. **Optimal thread count** - ~45 threads per tserver maximizes throughput without saturation
 
 ## Key Optimizations Explained
 
