@@ -7,6 +7,7 @@ Generates HTML reports with Chart.js visualizations from Prometheus metrics.
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -379,7 +380,38 @@ class ReportGenerator:
             f.write(html_content)
 
         print(f"Report saved to: {output_file}")
+
+        # Copy sysbench output file if it exists
+        sysbench_output = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_output.txt"
+        if sysbench_output.exists():
+            shutil.copy(sysbench_output, output_dir / "sysbench_output.txt")
+            print(f"Copied sysbench output to: {output_dir / 'sysbench_output.txt'}")
+
+        # Save sysbench configmap (contains rendered parameters)
+        self._save_sysbench_configmap(output_dir)
+
         return output_file
+
+    def _save_sysbench_configmap(self, output_dir: Path):
+        """Save the sysbench scripts configmap to capture exact parameters used."""
+        configmap_name = f"{self.config.release_name}-sysbench-scripts"
+        cmd = [
+            "kubectl", "--context", self.config.kube_context,
+            "-n", self.config.namespace,
+            "get", "configmap", configmap_name,
+            "-o", "yaml"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                configmap_file = output_dir / "sysbench-configmap.yaml"
+                with open(configmap_file, "w") as f:
+                    f.write(result.stdout)
+                print(f"Saved sysbench configmap to: {configmap_file}")
+            else:
+                print(f"Warning: Could not get sysbench configmap: {result.stderr}", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Failed to save sysbench configmap: {e}", file=sys.stderr)
 
 
 def format_number(value: float, suffix: str = "") -> str:
