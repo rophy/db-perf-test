@@ -237,6 +237,44 @@ class ReportGenerator:
         self.metrics_data = {}
         self.cluster_spec = {}
 
+    def validate_connectivity(self):
+        """Validate kubectl and prometheus connectivity before proceeding."""
+        # Check kubectl can reach the cluster
+        cmd = [
+            "kubectl", "--context", self.config.kube_context,
+            "get", "namespace", self.config.namespace,
+            "-o", "name"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                print(f"Error: Cannot access namespace '{self.config.namespace}' in context '{self.config.kube_context}'", file=sys.stderr)
+                print(f"kubectl error: {result.stderr}", file=sys.stderr)
+                sys.exit(1)
+        except subprocess.TimeoutExpired:
+            print(f"Error: kubectl timed out connecting to context '{self.config.kube_context}'", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: kubectl failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Check prometheus deployment exists
+        cmd = [
+            "kubectl", "--context", self.config.kube_context,
+            "-n", self.config.namespace,
+            "get", f"deployment/{self.config.release_name}-prometheus",
+            "-o", "name"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                print(f"Error: Prometheus deployment '{self.config.release_name}-prometheus' not found in namespace '{self.config.namespace}'", file=sys.stderr)
+                print(f"kubectl error: {result.stderr}", file=sys.stderr)
+                sys.exit(1)
+        except Exception as e:
+            print(f"Error: Failed to check prometheus deployment: {e}", file=sys.stderr)
+            sys.exit(1)
+
     def collect_container_metrics(self):
         """Collect CPU, memory, network, disk metrics for pods."""
         pods_regex = "|".join(self.config.pods)
@@ -462,6 +500,7 @@ def main():
     )
 
     generator = ReportGenerator(config)
+    generator.validate_connectivity()
     html = generator.generate_report()
     generator.save_report(html)
 
