@@ -109,11 +109,11 @@ Parameters follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com
 
 | Parameter | AWS Default | Minikube Default | Description |
 |-----------|-------------|------------------|-------------|
-| `sysbench.tables` | 20 | 5 | Number of tables |
-| `sysbench.tableSize` | 5000000 | 100000 | Rows per table |
-| `sysbench.threads` | 60 | 10 | Concurrent threads |
-| `sysbench.time` | 1800 | 300 | Test duration (seconds) |
-| `sysbench.warmupTime` | 300 | 60 | In-run warmup (seconds) |
+| `sysbench.tables` | 20 | 2 | Number of tables |
+| `sysbench.tableSize` | 5000000 | 1000 | Rows per table |
+| `sysbench.threads` | 60 | 2 | Concurrent threads |
+| `sysbench.time` | 1800 | 60 | Test duration (seconds) |
+| `sysbench.warmupTime` | 300 | 10 | In-run warmup (seconds) |
 | `sysbench.workload` | oltp_read_write | oltp_read_write | Workload type |
 
 To customize, edit `charts/yb-benchmark/values-*.yaml` and redeploy.

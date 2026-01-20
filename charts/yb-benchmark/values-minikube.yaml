@@ -26,13 +26,13 @@ sysbench:
     password: yugabyte
     name: yugabyte
 
-  # Benchmark parameters - reduced for minikube
-  tables: 5
-  tableSize: 100000
-  threads: 10
-  time: 300
-  warmupTime: 60
-  reportInterval: 10
+  # Benchmark parameters - minimal for quick script testing
+  tables: 2
+  tableSize: 1000
+  threads: 2
+  time: 60
+  warmupTime: 10
+  reportInterval: 5
   workload: oltp_read_write
 
   # YugabyteDB-specific flags
