@@ -17,39 +17,32 @@ Benchmark infrastructure for evaluating YugabyteDB performance using sysbench OL
 
 **Components:**
 - **Sysbench** - Database benchmark tool using YugabyteDB's fork with YB-specific optimizations
-- **YugabyteDB** - Distributed PostgreSQL-compatible database
+- **YugabyteDB** - Distributed PostgreSQL-compatible database (deployed as Helm subchart)
 - **Prometheus** - Metrics collection for performance reports
 
 ## Prerequisites
 
-- Docker
 - kubectl
-- Minikube (for local testing) or AWS CLI (for cloud deployment)
 - Helm 3.x
-- Python 3 with Jinja2 (`pip install Jinja2`)
+- Kubernetes cluster (minikube for local, or remote cluster)
+- Python 3 with Jinja2 (`pip install Jinja2`) for report generation
 
-## Quick Start (Minikube)
+## Quick Start
 
 ```bash
-# 1. Setup minikube with YugabyteDB
-make setup-minikube
+# 1. Deploy full stack (YugabyteDB + sysbench + Prometheus)
+make deploy KUBE_CONTEXT=minikube
 
 # 2. Wait for YugabyteDB pods to be ready
-kubectl --context minikube get pods -n yugabyte-test -w
+make status
 
-# 3. Deploy sysbench and Prometheus
-make deploy ENV=minikube
-
-# 4. Prepare sysbench tables
+# 3. Prepare sysbench tables (20 tables x 5M rows)
 make sysbench-prepare
 
-# 5. Warmup run (5 min, no metrics captured)
-make sysbench-warm
-
-# 6. Run benchmark (records timestamps for report)
+# 4. Run benchmark (30 min with 5 min warmup)
 make sysbench-run
 
-# 7. Generate HTML performance report
+# 5. Generate HTML performance report
 make report
 ```
 
@@ -59,54 +52,54 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 ```
 .
-├── config/
-│   └── sysbench/              # Sysbench entrypoint script
-├── docker/
-│   └── sysbench-yb/           # YugabyteDB sysbench fork Dockerfile
-├── k8s/
-│   ├── base/
-│   │   ├── databases/
-│   │   │   └── yugabytedb/    # YugabyteDB Helm values
-│   │   ├── sysbench/          # Sysbench deployment
-│   │   └── prometheus/        # Monitoring
-│   └── overlays/
-│       ├── minikube/          # Minikube-specific patches
-│       └── aws/               # AWS-specific patches
+├── charts/
+│   └── yb-benchmark/           # Helm chart
+│       ├── Chart.yaml          # YugabyteDB as optional dependency
+│       ├── values.yaml         # Default values
+│       └── templates/
+│           ├── sysbench.yaml   # Sysbench deployment
+│           └── prometheus.yaml # Prometheus stack
 ├── scripts/
-│   └── report-generator/      # HTML report generation
-└── Makefile
+│   └── report-generator/       # HTML report generation
+├── Makefile                    # Single source of truth for sysbench parameters
+└── README.md
 ```
 
 ## Makefile Targets
+
+### Deployment
+
+| Target | Description |
+|--------|-------------|
+| `make deploy` | Deploy full stack (YugabyteDB + sysbench + Prometheus) |
+| `make deploy-benchmarks` | Deploy benchmarks only (use existing YugabyteDB) |
+| `make clean` | Delete all resources |
 
 ### Sysbench Operations
 
 | Target | Description |
 |--------|-------------|
 | `make sysbench-prepare` | Create tables and load test data |
-| `make sysbench-warm` | Warmup run (5 min default, no metrics captured) |
-| `make sysbench-run` | Run benchmark with timestamps for report |
+| `make sysbench-run` | Run benchmark (30 min with 5 min in-run warmup) |
 | `make sysbench-cleanup` | Drop benchmark tables |
-| `make sysbench-config` | Show current configuration |
 | `make sysbench-shell` | Open shell in sysbench container |
 | `make report` | Generate HTML performance report |
 
-### Infrastructure
+### Utilities
 
 | Target | Description |
 |--------|-------------|
-| `make setup-minikube` | Setup minikube with YugabyteDB |
-| `make deploy` | Deploy sysbench and Prometheus |
 | `make status` | Show status of all components |
 | `make ysql` | Connect to YugabyteDB YSQL shell |
 | `make port-forward-prometheus` | Port forward Prometheus to localhost:9090 |
-| `make clean` | Delete all resources |
 
 ## Configuration
 
+All sysbench parameters are defined in the Makefile (single source of truth).
+
 ### Sysbench Settings
 
-Defaults follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/).
+Parameters follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -114,42 +107,36 @@ Defaults follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com/s
 | `SYSBENCH_TABLE_SIZE` | 5000000 | Rows per table |
 | `SYSBENCH_THREADS` | 60 | Concurrent threads |
 | `SYSBENCH_TIME` | 1800 | Test duration (seconds) |
-| `SYSBENCH_WARM_TIME` | 300 | Warmup duration (seconds) |
-| `SYSBENCH_WARMUP` | 0 | In-run warmup (deprecated, use sysbench-warm instead) |
+| `SYSBENCH_WARMUP` | 300 | In-run warmup (seconds) |
 | `SYSBENCH_WORKLOAD` | oltp_read_write | Workload type |
 
 Example with custom settings:
 ```bash
-make sysbench-prepare SYSBENCH_TABLES=20 SYSBENCH_TABLE_SIZE=5000000
-make sysbench-warm SYSBENCH_THREADS=60
-make sysbench-run SYSBENCH_THREADS=60
+make sysbench-prepare SYSBENCH_TABLES=10
+make sysbench-run SYSBENCH_THREADS=120 SYSBENCH_TIME=3600
 make report
 ```
 
-### YugabyteDB-specific Options
+### YugabyteDB-specific Flags
 
-The sysbench image uses YugabyteDB's fork which includes optimizations:
+These flags are hardcoded in the Makefile per YugabyteDB docs:
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `SYSBENCH_RANGE_KEY_PARTITIONING` | false | Use range partitioning |
-| `SYSBENCH_SERIAL_CACHE_SIZE` | 1000 | Serial column cache size |
-| `SYSBENCH_CREATE_SECONDARY` | true | Create secondary index |
+| Flag | Value | Description |
+|------|-------|-------------|
+| `--range_selects` | false | **CRITICAL**: Prevents 100x slowdown from cross-tablet scans |
+| `--range_key_partitioning` | false | Use hash partitioning |
+| `--serial_cache_size` | 1000 | Serial column cache size |
+| `--create_secondary` | true | Create secondary index |
 
 ### Available Workloads
 
-- `oltp_read_write` - Mixed read/write transactions
+- `oltp_read_write` - Mixed read/write transactions (default)
 - `oltp_read_only` - Read-only transactions
 - `oltp_write_only` - Write-only transactions
-- `oltp_update_index` - Index update operations
-- `oltp_update_non_index` - Non-index update operations
-- `oltp_insert` - Insert operations
-- `oltp_delete` - Delete operations
 
 ## Performance Reports
 
-After running `make sysbench-warm` and `make sysbench-run`, generate a report with `make report`.
-The warmup phase ensures the system is warmed up before metrics are captured.
+After `make sysbench-run`, generate a report with `make report`.
 
 The report includes:
 - CPU utilization per pod
@@ -158,26 +145,18 @@ The report includes:
 - Min/Avg/Max summary table
 - Interactive Chart.js visualizations
 
-## Monitoring
+## Helm Chart
 
-### Prometheus Metrics
+The chart can be used standalone:
 
-Access Prometheus UI:
 ```bash
-make port-forward-prometheus
-# Open http://localhost:9090
+# Full stack
+helm install yb-bench ./charts/yb-benchmark -n yugabyte-test --create-namespace
+
+# Benchmarks only (existing YugabyteDB)
+helm install yb-bench ./charts/yb-benchmark -n yugabyte-test \
+  --set yugabyte.enabled=false
 ```
-
-YugabyteDB exposes metrics on port 9000 for both masters and tservers.
-
-## HammerDB (Deprecated)
-
-> **Note:** HammerDB support is outdated and needs revisiting. The TPROC-C workload did not generate sufficient CPU pressure on YugabyteDB in our tests. Use sysbench instead.
-
-Legacy HammerDB targets still exist but are not maintained:
-- `make hammerdb-build`
-- `make hammerdb-run`
-- `make hammerdb-delete`
 
 ## Troubleshooting
 
@@ -185,15 +164,8 @@ Legacy HammerDB targets still exist but are not maintained:
 
 Check that YugabyteDB is running:
 ```bash
-kubectl --context minikube get svc -n yugabyte-test
+make status
 kubectl --context minikube get pods -n yugabyte-test
-```
-
-### Pod scheduling issues
-
-Minikube has limited resources. Check node capacity:
-```bash
-kubectl --context minikube describe node minikube | grep -A 10 "Allocated resources"
 ```
 
 ### View logs

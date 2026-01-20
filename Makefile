@@ -41,6 +41,9 @@ SYSBENCH_PREPARE_OPTS := $(SYSBENCH_DB_OPTS) \
 
 # YugabyteDB-specific run flags (CRITICAL: range_selects=false prevents 100x slowdown)
 SYSBENCH_RUN_OPTS := $(SYSBENCH_DB_OPTS) \
+	--range_key_partitioning=false \
+	--serial_cache_size=1000 \
+	--create_secondary=true \
 	--threads=$(SYSBENCH_THREADS) \
 	--time=$(SYSBENCH_TIME) \
 	--warmup-time=$(SYSBENCH_WARMUP) \
