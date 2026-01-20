@@ -1,90 +1,128 @@
-.PHONY: help deploy deploy-yugabyte clean status ysql
-.PHONY: hammerdb-build hammerdb-run hammerdb-shell hammerdb-logs
-.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-config
+.PHONY: help deploy clean status ysql
+.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs
 .PHONY: report
 
 KUBE_CONTEXT ?= minikube
+NAMESPACE ?= yugabyte-test
+RELEASE_NAME ?= yb-bench
+CHART_DIR := charts/yb-benchmark
+
+# Database connection
+PG_HOST ?= yb-tserver-service
+PG_PORT ?= 5433
+PG_USER ?= yugabyte
+PG_PASS ?= yugabyte
+PG_DB ?= yugabyte
+
+# Sysbench parameters (per YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/)
+SYSBENCH_TABLES ?= 20
+SYSBENCH_TABLE_SIZE ?= 5000000
+SYSBENCH_THREADS ?= 60
+SYSBENCH_TIME ?= 1800
+SYSBENCH_WARMUP ?= 300
+SYSBENCH_WORKLOAD ?= oltp_read_write
+
+# Common sysbench flags
+SYSBENCH_DB_OPTS := \
+	--db-driver=pgsql \
+	--pgsql-host=$(PG_HOST) \
+	--pgsql-port=$(PG_PORT) \
+	--pgsql-user=$(PG_USER) \
+	--pgsql-password=$(PG_PASS) \
+	--pgsql-db=$(PG_DB) \
+	--tables=$(SYSBENCH_TABLES) \
+	--table_size=$(SYSBENCH_TABLE_SIZE)
+
+# YugabyteDB-specific prepare flags
+SYSBENCH_PREPARE_OPTS := $(SYSBENCH_DB_OPTS) \
+	--range_key_partitioning=false \
+	--serial_cache_size=1000 \
+	--create_secondary=true
+
+# YugabyteDB-specific run flags (CRITICAL: range_selects=false prevents 100x slowdown)
+SYSBENCH_RUN_OPTS := $(SYSBENCH_DB_OPTS) \
+	--threads=$(SYSBENCH_THREADS) \
+	--time=$(SYSBENCH_TIME) \
+	--warmup-time=$(SYSBENCH_WARMUP) \
+	--report-interval=10 \
+	--range_selects=false \
+	--point_selects=10 \
+	--index_updates=10 \
+	--non_index_updates=10 \
+	--num_rows_in_insert=10 \
+	--thread-init-timeout=90
+
+KUBECTL := kubectl --context $(KUBE_CONTEXT) -n $(NAMESPACE)
+SYSBENCH_POD := deployment/$(RELEASE_NAME)-sysbench
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # Deployment
-deploy: ## Deploy sysbench, hammerdb, prometheus
-	@KUBE_CONTEXT=$(KUBE_CONTEXT) ./scripts/deploy.sh
-
-deploy-yugabyte: ## Deploy YugabyteDB via helm
+deploy: ## Deploy full stack (YugabyteDB + benchmarks + prometheus)
 	@helm repo add yugabytedb https://charts.yugabyte.com 2>/dev/null || true
 	@helm repo update yugabytedb
-	@helm upgrade --install yugabyte yugabytedb/yugabyte \
+	@helm dependency build $(CHART_DIR)
+	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
-		--namespace yugabyte-test \
+		--namespace $(NAMESPACE) \
 		--create-namespace \
-		--values k8s/yugabytedb-values.yaml \
+		--set fullnameOverride=$(RELEASE_NAME) \
 		--wait --timeout 15m
 
-# Sysbench operations (uses entrypoint with YugabyteDB-optimized flags)
+deploy-benchmarks: ## Deploy benchmarks only (use existing YugabyteDB)
+	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
+		--kube-context $(KUBE_CONTEXT) \
+		--namespace $(NAMESPACE) \
+		--set yugabyte.enabled=false \
+		--set fullnameOverride=$(RELEASE_NAME) \
+		--wait --timeout 5m
+
+# Sysbench operations - runs sysbench DIRECTLY with YugabyteDB-optimized flags
 sysbench-prepare: ## Prepare sysbench tables (20 tables x 5M rows per YB docs)
-	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
-		/scripts/entrypoint.sh prepare
+	$(KUBECTL) exec $(SYSBENCH_POD) -- \
+		sysbench $(SYSBENCH_WORKLOAD) $(SYSBENCH_PREPARE_OPTS) prepare
 
 sysbench-run: ## Run sysbench benchmark (1800s per YB docs)
-	@KUBE_CONTEXT=$(KUBE_CONTEXT) ./scripts/sysbench-run-with-timestamps.sh
+	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) \
+		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
+		SYSBENCH_RUN_OPTS="$(SYSBENCH_RUN_OPTS)" \
+		./scripts/sysbench-run-with-timestamps.sh
 
 sysbench-cleanup: ## Cleanup sysbench tables
-	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
-		/scripts/entrypoint.sh cleanup
-
-sysbench-config: ## Show sysbench configuration
-	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
-		/scripts/entrypoint.sh config
+	$(KUBECTL) exec $(SYSBENCH_POD) -- \
+		sysbench $(SYSBENCH_WORKLOAD) $(SYSBENCH_DB_OPTS) cleanup
 
 sysbench-shell: ## Open shell in sysbench container
-	@kubectl --context $(KUBE_CONTEXT) exec -it -n yugabyte-test deployment/sysbench -- /bin/bash
+	$(KUBECTL) exec -it $(SYSBENCH_POD) -- /bin/bash
 
 sysbench-logs: ## Show sysbench container logs
-	@kubectl --context $(KUBE_CONTEXT) logs -f deployment/sysbench -n yugabyte-test
-
-# HammerDB operations
-hammerdb-build: ## Build TPROC-C schema
-	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/hammerdb -- \
-		/scripts/entrypoint.sh build
-
-hammerdb-run: ## Run TPROC-C benchmark
-	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/hammerdb -- \
-		/scripts/entrypoint.sh run
-
-hammerdb-shell: ## Open HammerDB shell
-	@kubectl --context $(KUBE_CONTEXT) exec -it -n yugabyte-test deployment/hammerdb -- \
-		/scripts/entrypoint.sh shell
-
-hammerdb-logs: ## Show HammerDB logs
-	@kubectl --context $(KUBE_CONTEXT) logs -f deployment/hammerdb -n yugabyte-test
+	$(KUBECTL) logs -f $(SYSBENCH_POD)
 
 # Report generation
 report: ## Generate performance report from last benchmark run
-	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=yugabyte-test ./scripts/report-generator/report.sh
+	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) ./scripts/report-generator/report.sh
 
 # Utilities
 status: ## Show status of all components
 	@echo "=== Pods ==="
-	@kubectl --context $(KUBE_CONTEXT) get pods -n yugabyte-test -o wide
+	@$(KUBECTL) get pods -o wide
 	@echo ""
 	@echo "=== Services ==="
-	@kubectl --context $(KUBE_CONTEXT) get svc -n yugabyte-test
+	@$(KUBECTL) get svc
 
 ysql: ## Connect to YugabyteDB YSQL shell
-	@kubectl --context $(KUBE_CONTEXT) exec -it -n yugabyte-test yb-tserver-0 -- \
-		/home/yugabyte/bin/ysqlsh -h yb-tserver-service
+	$(KUBECTL) exec -it yb-tserver-0 -- /home/yugabyte/bin/ysqlsh -h yb-tserver-service
 
 port-forward-prometheus: ## Port forward Prometheus to localhost:9090
-	@kubectl --context $(KUBE_CONTEXT) port-forward svc/prometheus 9090:9090 -n yugabyte-test
+	$(KUBECTL) port-forward svc/$(RELEASE_NAME)-prometheus 9090:9090
 
 # Cleanup
 clean: ## Delete all resources
-	@echo "Uninstalling YugabyteDB..."
-	@helm --kube-context $(KUBE_CONTEXT) uninstall yugabyte -n yugabyte-test 2>/dev/null || true
+	@echo "Uninstalling $(RELEASE_NAME)..."
+	@helm --kube-context $(KUBE_CONTEXT) uninstall $(RELEASE_NAME) -n $(NAMESPACE) 2>/dev/null || true
 	@echo "Deleting PVCs..."
-	@kubectl --context $(KUBE_CONTEXT) delete pvc -n yugabyte-test -l app=yb-tserver 2>/dev/null || true
-	@kubectl --context $(KUBE_CONTEXT) delete pvc -n yugabyte-test -l app=yb-master 2>/dev/null || true
+	@$(KUBECTL) delete pvc -l app=yb-tserver 2>/dev/null || true
+	@$(KUBECTL) delete pvc -l app=yb-master 2>/dev/null || true
 	@echo "Deleting namespace..."
-	@kubectl --context $(KUBE_CONTEXT) delete namespace yugabyte-test --ignore-not-found
+	@kubectl --context $(KUBE_CONTEXT) delete namespace $(NAMESPACE) --ignore-not-found

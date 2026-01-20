@@ -29,3 +29,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Helm dependencies
+charts/*/charts/
+charts/*/Chart.lock

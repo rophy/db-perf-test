@@ -2,25 +2,24 @@
 set -e
 
 # Wrapper script to run sysbench with timestamp recording for report generation
-# Uses the entrypoint script which has all YugabyteDB-optimized flags
+# Runs sysbench directly with flags passed from Makefile
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
+NAMESPACE="${NAMESPACE:-yugabyte-test}"
+RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
+SYSBENCH_WORKLOAD="${SYSBENCH_WORKLOAD:-oltp_read_write}"
+SYSBENCH_RUN_OPTS="${SYSBENCH_RUN_OPTS:-}"
 
 # Create output directory
 OUTPUT_DIR="${PROJECT_ROOT}/output/sysbench"
 mkdir -p "$OUTPUT_DIR"
 
 echo "=== Sysbench Benchmark Runner ==="
-echo "Using entrypoint script with YugabyteDB-optimized flags"
-echo ""
-
-# Show current config
-kubectl --context "${KUBE_CONTEXT}" exec -n yugabyte-test deployment/sysbench -- \
-    /scripts/entrypoint.sh config
-
+echo "Workload: ${SYSBENCH_WORKLOAD}"
+echo "Options: ${SYSBENCH_RUN_OPTS}"
 echo ""
 
 # Record start time
@@ -29,9 +28,9 @@ echo "$START_TIME" > "${OUTPUT_DIR}/RUN_START_TIME.txt"
 echo "Start time: $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
-# Run sysbench via entrypoint (includes all YugabyteDB flags)
-kubectl --context "${KUBE_CONTEXT}" exec -n yugabyte-test deployment/sysbench -- \
-    /scripts/entrypoint.sh run | tee "${OUTPUT_DIR}/sysbench_output.txt"
+# Run sysbench directly
+kubectl --context "${KUBE_CONTEXT}" exec -n "${NAMESPACE}" deployment/${RELEASE_NAME}-sysbench -- \
+    sysbench ${SYSBENCH_WORKLOAD} ${SYSBENCH_RUN_OPTS} run | tee "${OUTPUT_DIR}/sysbench_output.txt"
 
 # Record end time
 END_TIME=$(date +%s)

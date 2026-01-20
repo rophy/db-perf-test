@@ -1,14 +1,19 @@
-# Prometheus for collecting benchmark metrics
+{{- if .Values.prometheus.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: prometheus
-  namespace: yugabyte-test
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: prometheus
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
 rules:
 - apiGroups: [""]
   resources: [nodes, nodes/proxy, nodes/metrics, services, endpoints, pods]
@@ -22,21 +27,26 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: prometheus
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: prometheus
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
 subjects:
 - kind: ServiceAccount
-  name: prometheus
-  namespace: yugabyte-test
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: prometheus-config
-  namespace: yugabyte-test
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus-config
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
 data:
   prometheus.yml: |
     global:
@@ -69,36 +79,37 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus
-  namespace: yugabyte-test
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prometheus
+      {{- include "yb-benchmark.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus
   template:
     metadata:
       labels:
+        {{- include "yb-benchmark.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: prometheus
         app: prometheus
     spec:
-      serviceAccountName: prometheus
+      serviceAccountName: {{ include "yb-benchmark.fullname" . }}-prometheus
       containers:
       - name: prometheus
-        image: prom/prometheus:v2.48.0
+        image: "{{ .Values.prometheus.image.repository }}:{{ .Values.prometheus.image.tag }}"
+        imagePullPolicy: {{ .Values.prometheus.image.pullPolicy }}
         args:
         - "--config.file=/etc/prometheus/prometheus.yml"
         - "--storage.tsdb.path=/prometheus"
-        - "--storage.tsdb.retention.time=7d"
+        - "--storage.tsdb.retention.time={{ .Values.prometheus.retention }}"
         - "--web.enable-lifecycle"
         ports:
         - containerPort: 9090
         resources:
-          requests:
-            cpu: "500m"
-            memory: "1Gi"
-          limits:
-            cpu: "1"
-            memory: "2Gi"
+          {{- toYaml .Values.prometheus.resources | nindent 10 }}
         volumeMounts:
         - name: config
           mountPath: /etc/prometheus
@@ -107,19 +118,23 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: prometheus-config
+          name: {{ include "yb-benchmark.fullname" . }}-prometheus-config
       - name: storage
         emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: prometheus
-  namespace: yugabyte-test
+  name: {{ include "yb-benchmark.fullname" . }}-prometheus
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
 spec:
   type: ClusterIP
   ports:
   - port: 9090
     targetPort: 9090
   selector:
-    app: prometheus
+    {{- include "yb-benchmark.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+{{- end }}

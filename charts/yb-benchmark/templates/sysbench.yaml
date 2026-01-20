@@ -1,0 +1,30 @@
+{{- if .Values.sysbench.enabled }}
+# Sysbench deployment for YugabyteDB benchmarking
+# Run sysbench commands via: kubectl exec deployment/sysbench -- sysbench ...
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yb-benchmark.fullname" . }}-sysbench
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sysbench
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "yb-benchmark.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: sysbench
+  template:
+    metadata:
+      labels:
+        {{- include "yb-benchmark.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: sysbench
+    spec:
+      containers:
+      - name: sysbench
+        image: "{{ .Values.sysbench.image.repository }}:{{ .Values.sysbench.image.tag }}"
+        imagePullPolicy: {{ .Values.sysbench.image.pullPolicy }}
+        command: ["sleep", "infinity"]
+        resources:
+          {{- toYaml .Values.sysbench.resources | nindent 10 }}
+{{- end }}

@@ -1,0 +1,85 @@
+# YugabyteDB Benchmark Suite - Default Values
+
+# Override chart fullname (default: <release>-yb-benchmark)
+fullnameOverride: ""
+
+# Sysbench configuration
+# Benchmark parameters are defined in Makefile (single source of truth)
+sysbench:
+  enabled: true
+  image:
+    repository: rophy/sysbench
+    tag: yugabyte-20260119
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.48.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+  retention: 7d
+
+# YugabyteDB subchart configuration
+yugabyte:
+  enabled: true
+  replicas:
+    master: 3
+    tserver: 3
+  resource:
+    master:
+      requests:
+        cpu: "1"
+        memory: "4Gi"
+      limits:
+        cpu: "2"
+        memory: "8Gi"
+    tserver:
+      requests:
+        cpu: "6"
+        memory: "15Gi"
+      limits:
+        cpu: "8"
+        memory: "16Gi"
+  storage:
+    master:
+      storageClass: ""
+      size: 10Gi
+    tserver:
+      storageClass: ""
+      size: 50Gi
+  enableLoadBalancer: false
+  serviceEndpoints:
+    - name: yb-tserver-service
+      type: ClusterIP
+      app: yb-tserver
+      ports:
+        tcp-ysql-port: "5433"
+  ysql:
+    enabled: true
+    port: 5433
+  ycql:
+    enabled: false
+  metrics:
+    enabled: true
+  gflags:
+    master:
+      replication_factor: 3
+    tserver:
+      yb_num_shards_per_tserver: 4
+      ysql_num_shards_per_tserver: 4
