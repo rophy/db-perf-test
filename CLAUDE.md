@@ -6,7 +6,14 @@
 
 ### Running Benchmarks
 - **ALWAYS** follow `README.md` for benchmark instructions
-- Use Makefile targets (`make sysbench-prepare`, `make sysbench-run`, `make report`) instead of ad-hoc commands
+- **ALWAYS** use Makefile targets (`make sysbench-prepare`, `make sysbench-run`, `make report`) instead of ad-hoc commands
+- **NEVER** run `sysbench` directly via `kubectl exec ... -- sysbench ...`
+  - This bypasses the entrypoint script which sets critical YugabyteDB-specific flags (e.g., `--range_selects=false`)
+  - Missing these flags causes 100x+ performance degradation due to cross-tablet range scans
+- If you need to run with different parameters, use environment variables with the entrypoint:
+  ```bash
+  kubectl exec deployment/sysbench -- env SYSBENCH_THREADS=90 /scripts/entrypoint.sh run
+  ```
 
 ### Kubernetes Resource Changes
 - **NEVER** update Kubernetes resources manually with `kubectl set`, `kubectl patch`, or `kubectl create`
