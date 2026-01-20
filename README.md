@@ -30,19 +30,22 @@ Benchmark infrastructure for evaluating YugabyteDB performance using sysbench OL
 ## Quick Start
 
 ```bash
-# 1. Deploy full stack (YugabyteDB + sysbench + Prometheus)
-make deploy KUBE_CONTEXT=minikube
+# For minikube (local development)
+make deploy-minikube KUBE_CONTEXT=minikube
 
-# 2. Wait for YugabyteDB pods to be ready
+# For AWS (production benchmarks)
+make deploy-aws KUBE_CONTEXT=my-eks-cluster
+
+# Wait for YugabyteDB pods to be ready
 make status
 
-# 3. Prepare sysbench tables (20 tables x 5M rows)
+# Prepare sysbench tables (20 tables x 5M rows)
 make sysbench-prepare
 
-# 4. Run benchmark (30 min with 5 min warmup)
+# Run benchmark (30 min with 5 min warmup)
 make sysbench-run
 
-# 5. Generate HTML performance report
+# Generate HTML performance report
 make report
 ```
 
@@ -71,7 +74,8 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 | Target | Description |
 |--------|-------------|
-| `make deploy` | Deploy full stack (YugabyteDB + sysbench + Prometheus) |
+| `make deploy-minikube` | Deploy with minikube-optimized settings (1 master, 1 tserver) |
+| `make deploy-aws` | Deploy with AWS-optimized settings (3 masters, 3 tservers) |
 | `make deploy-benchmarks` | Deploy benchmarks only (use existing YugabyteDB) |
 | `make clean` | Delete all resources |
 

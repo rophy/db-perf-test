@@ -1,4 +1,4 @@
-.PHONY: help deploy clean status ysql
+.PHONY: help deploy-aws deploy-minikube clean status ysql
 .PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs
 .PHONY: report
 
@@ -62,7 +62,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # Deployment
-deploy: ## Deploy full stack (YugabyteDB + benchmarks + prometheus)
+deploy-aws: ## Deploy full stack with AWS-optimized settings
 	@helm repo add yugabytedb https://charts.yugabyte.com 2>/dev/null || true
 	@helm repo update yugabytedb
 	@helm dependency build $(CHART_DIR)
@@ -71,6 +71,19 @@ deploy: ## Deploy full stack (YugabyteDB + benchmarks + prometheus)
 		--namespace $(NAMESPACE) \
 		--create-namespace \
 		--set fullnameOverride=$(RELEASE_NAME) \
+		-f $(CHART_DIR)/values-aws.yaml \
+		--wait --timeout 15m
+
+deploy-minikube: ## Deploy full stack with minikube-optimized settings
+	@helm repo add yugabytedb https://charts.yugabyte.com 2>/dev/null || true
+	@helm repo update yugabytedb
+	@helm dependency build $(CHART_DIR)
+	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
+		--kube-context $(KUBE_CONTEXT) \
+		--namespace $(NAMESPACE) \
+		--create-namespace \
+		--set fullnameOverride=$(RELEASE_NAME) \
+		-f $(CHART_DIR)/values-minikube.yaml \
 		--wait --timeout 15m
 
 deploy-benchmarks: ## Deploy benchmarks only (use existing YugabyteDB)
