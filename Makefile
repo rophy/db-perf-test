@@ -1,6 +1,6 @@
 .PHONY: help setup-minikube setup-aws deploy clean status ysql
 .PHONY: hammerdb-build hammerdb-run hammerdb-delete hammerdb-shell hammerdb-logs
-.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-config
+.PHONY: sysbench-prepare sysbench-warm sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-config
 .PHONY: report
 
 ENV ?= minikube
@@ -12,12 +12,13 @@ HAMMERDB_VUS ?= 4
 HAMMERDB_DURATION ?= 5
 HAMMERDB_RAMPUP ?= 1
 
-# Sysbench settings (minimal defaults for development)
-SYSBENCH_TABLES ?= 1
-SYSBENCH_TABLE_SIZE ?= 1000
-SYSBENCH_THREADS ?= 1
-SYSBENCH_TIME ?= 60
-SYSBENCH_WARMUP ?= 10
+# Sysbench settings (per YugabyteDB official docs)
+SYSBENCH_TABLES ?= 20
+SYSBENCH_TABLE_SIZE ?= 5000000
+SYSBENCH_THREADS ?= 60
+SYSBENCH_TIME ?= 1800
+SYSBENCH_WARMUP ?= 0
+SYSBENCH_WARM_TIME ?= 300
 SYSBENCH_WORKLOAD ?= oltp_read_write
 
 help: ## Show this help
@@ -66,6 +67,17 @@ sysbench-prepare: ## Prepare sysbench tables and load data
 		env SYSBENCH_TABLES=$(SYSBENCH_TABLES) SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
 		SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
 		/scripts/entrypoint.sh prepare
+
+sysbench-warm: ## Warmup run (5 min default, no metrics captured)
+	@echo "Running sysbench warmup ($(SYSBENCH_WARM_TIME)s)..."
+	@kubectl --context $(KUBE_CONTEXT) exec -n yugabyte-test deployment/sysbench -- \
+		env SYSBENCH_TABLES=$(SYSBENCH_TABLES) \
+			SYSBENCH_TABLE_SIZE=$(SYSBENCH_TABLE_SIZE) \
+			SYSBENCH_THREADS=$(SYSBENCH_THREADS) \
+			SYSBENCH_TIME=$(SYSBENCH_WARM_TIME) \
+			SYSBENCH_WARMUP=0 \
+			SYSBENCH_WORKLOAD=$(SYSBENCH_WORKLOAD) \
+		/scripts/entrypoint.sh run
 
 sysbench-run: ## Run sysbench benchmark with timestamps for report
 	@KUBE_CONTEXT=$(KUBE_CONTEXT) \

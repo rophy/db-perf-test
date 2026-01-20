@@ -1,24 +1,51 @@
 # YugabyteDB Helm values for AWS (kube-sandbox testing)
+# Cluster: 3 x c6i.2xlarge (tservers) + 1 x t3.2xlarge (masters/others)
 
 replicas:
   master: 3
-  tserver: 4
+  tserver: 3
 
 resource:
   master:
     requests:
-      cpu: "2"
-      memory: "8Gi"
+      cpu: "1"
+      memory: "4Gi"
     limits:
       cpu: "2"
       memory: "8Gi"
   tserver:
     requests:
-      cpu: "4"
-      memory: "16Gi"
+      cpu: "6"
+      memory: "15Gi"
     limits:
-      cpu: "4"
+      cpu: "8"
       memory: "16Gi"
+
+# Node affinity to place tservers on c6i.2xlarge nodes (worker1-3)
+tserver:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: role
+                operator: In
+                values:
+                  - worker1
+                  - worker2
+                  - worker3
+
+# Place masters on t3.2xlarge node (worker4)
+master:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: role
+                operator: In
+                values:
+                  - worker4
 
 storage:
   master:

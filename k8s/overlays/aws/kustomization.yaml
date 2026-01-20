@@ -52,6 +52,15 @@ patches:
       spec:
         template:
           spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: role
+                          operator: In
+                          values:
+                            - worker4
             containers:
               - name: sysbench
                 image: rophy/sysbench:yugabyte-20260119
@@ -74,17 +83,17 @@ patches:
                     value: "yugabyte"
                   - name: PG_DB
                     value: "yugabyte"
-                  # Sysbench settings tuned per YugabyteDB docs
+                  # Sysbench settings per YugabyteDB official docs
                   - name: SYSBENCH_TABLES
-                    value: "10"
+                    value: "20"
                   - name: SYSBENCH_TABLE_SIZE
-                    value: "100000"
+                    value: "5000000"
                   - name: SYSBENCH_THREADS
                     value: "60"
                   - name: SYSBENCH_TIME
-                    value: "300"
+                    value: "1800"
                   - name: SYSBENCH_WARMUP
-                    value: "60"
+                    value: "0"
                   - name: SYSBENCH_WORKLOAD
                     value: "oltp_read_write"
                   # YugabyteDB recommended settings (from official docs)
@@ -102,14 +111,31 @@ patches:
       kind: Deployment
       name: sysbench
 
-  # Scale Prometheus for higher cardinality
+  # Scale Prometheus for higher cardinality and place on t3.2xlarge
   - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: "2Gi"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: "4Gi"
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: prometheus
+      spec:
+        template:
+          spec:
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: role
+                          operator: In
+                          values:
+                            - worker4
+            containers:
+              - name: prometheus
+                resources:
+                  requests:
+                    memory: "2Gi"
+                  limits:
+                    memory: "4Gi"
     target:
       kind: Deployment
       name: prometheus

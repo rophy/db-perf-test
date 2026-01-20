@@ -136,6 +136,93 @@ class PrometheusClient:
             return []
 
 
+class ClusterSpecCollector:
+    """Collects YugabyteDB cluster specifications via kubectl."""
+
+    def __init__(self, kube_context: str, namespace: str):
+        self.kube_context = kube_context
+        self.namespace = namespace
+
+    def _run_kubectl(self, args: list[str]) -> Optional[str]:
+        """Run kubectl command and return output."""
+        cmd = ["kubectl", "--context", self.kube_context, "-n", self.namespace] + args
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                return result.stdout.strip()
+            return None
+        except Exception:
+            return None
+
+    def _get_statefulset_spec(self, name: str) -> dict:
+        """Get StatefulSet specification."""
+        output = self._run_kubectl([
+            "get", "statefulset", name, "-o",
+            "jsonpath={.spec.replicas},{.spec.template.spec.containers[0].resources.requests.cpu},"
+            "{.spec.template.spec.containers[0].resources.requests.memory},"
+            "{.spec.template.spec.containers[0].resources.limits.cpu},"
+            "{.spec.template.spec.containers[0].resources.limits.memory}"
+        ])
+        if not output:
+            return {}
+
+        parts = output.split(",")
+        if len(parts) >= 5:
+            return {
+                "replicas": int(parts[0]) if parts[0] else 0,
+                "cpu_request": parts[1] or "N/A",
+                "mem_request": parts[2] or "N/A",
+                "cpu_limit": parts[3] or "N/A",
+                "mem_limit": parts[4] or "N/A",
+            }
+        return {}
+
+    def _get_pvc_info(self, label_selector: str) -> dict:
+        """Get PVC information."""
+        output = self._run_kubectl([
+            "get", "pvc", "-l", label_selector, "-o",
+            "jsonpath={.items[0].spec.storageClassName},{.items[0].spec.resources.requests.storage}"
+        ])
+        if not output:
+            return {}
+
+        parts = output.split(",")
+        if len(parts) >= 2:
+            return {
+                "storage_class": parts[0] or "N/A",
+                "size": parts[1] or "N/A",
+            }
+        return {}
+
+    def _get_yugabyte_version(self) -> str:
+        """Get YugabyteDB version from tserver pod."""
+        output = self._run_kubectl([
+            "get", "pod", "-l", "app=yb-tserver", "-o",
+            "jsonpath={.items[0].spec.containers[0].image}"
+        ])
+        if output:
+            # Extract version from image tag (e.g., yugabytedb/yugabyte:2.20.0.0-b100)
+            if ":" in output:
+                return output.split(":")[-1]
+        return "N/A"
+
+    def collect(self) -> dict:
+        """Collect all cluster specifications."""
+        print("Collecting cluster specifications...")
+
+        master_spec = self._get_statefulset_spec("yb-master")
+        tserver_spec = self._get_statefulset_spec("yb-tserver")
+        pvc_info = self._get_pvc_info("app=yb-tserver")
+        yb_version = self._get_yugabyte_version()
+
+        return {
+            "yugabyte_version": yb_version,
+            "master": master_spec,
+            "tserver": tserver_spec,
+            "storage": pvc_info,
+        }
+
+
 class ReportGenerator:
     """Generates stress test reports."""
 
@@ -143,7 +230,9 @@ class ReportGenerator:
         self.config = config
         self.executor = QueryExecutor(config.kube_context, config.namespace)
         self.prometheus = PrometheusClient(self.executor, config.prometheus_url)
+        self.cluster_collector = ClusterSpecCollector(config.kube_context, config.namespace)
         self.metrics_data = {}
+        self.cluster_spec = {}
 
     def collect_container_metrics(self):
         """Collect CPU, memory, network, disk metrics for pods."""
@@ -240,6 +329,9 @@ class ReportGenerator:
 
     def generate_report(self) -> str:
         """Generate HTML report."""
+        # Collect cluster specifications
+        self.cluster_spec = self.cluster_collector.collect()
+
         # Collect metrics
         print("Collecting container metrics...")
         self.collect_container_metrics()
@@ -268,6 +360,7 @@ class ReportGenerator:
             "duration": f"{duration_min:.1f} minutes",
             "pods": self.config.pods,
             "metrics": self.metrics_data,
+            "cluster_spec": self.cluster_spec,
             "format_number": format_number,
         }
 

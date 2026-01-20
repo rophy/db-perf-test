@@ -43,10 +43,13 @@ make deploy ENV=minikube
 # 4. Prepare sysbench tables
 make sysbench-prepare
 
-# 5. Run benchmark (records timestamps for report)
+# 5. Warmup run (5 min, no metrics captured)
+make sysbench-warm
+
+# 6. Run benchmark (records timestamps for report)
 make sysbench-run
 
-# 6. Generate HTML performance report
+# 7. Generate HTML performance report
 make report
 ```
 
@@ -81,6 +84,7 @@ Reports are saved to `reports/<timestamp>/report.html`.
 | Target | Description |
 |--------|-------------|
 | `make sysbench-prepare` | Create tables and load test data |
+| `make sysbench-warm` | Warmup run (5 min default, no metrics captured) |
 | `make sysbench-run` | Run benchmark with timestamps for report |
 | `make sysbench-cleanup` | Drop benchmark tables |
 | `make sysbench-config` | Show current configuration |
@@ -102,19 +106,23 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 ### Sysbench Settings
 
+Defaults follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/).
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SYSBENCH_TABLES` | 1 | Number of tables |
-| `SYSBENCH_TABLE_SIZE` | 1000 | Rows per table |
-| `SYSBENCH_THREADS` | 1 | Concurrent threads |
-| `SYSBENCH_TIME` | 60 | Test duration (seconds) |
-| `SYSBENCH_WARMUP` | 10 | Warmup time (seconds) |
+| `SYSBENCH_TABLES` | 20 | Number of tables |
+| `SYSBENCH_TABLE_SIZE` | 5000000 | Rows per table |
+| `SYSBENCH_THREADS` | 60 | Concurrent threads |
+| `SYSBENCH_TIME` | 1800 | Test duration (seconds) |
+| `SYSBENCH_WARM_TIME` | 300 | Warmup duration (seconds) |
+| `SYSBENCH_WARMUP` | 0 | In-run warmup (deprecated, use sysbench-warm instead) |
 | `SYSBENCH_WORKLOAD` | oltp_read_write | Workload type |
 
 Example with custom settings:
 ```bash
-make sysbench-prepare SYSBENCH_TABLES=10 SYSBENCH_TABLE_SIZE=100000
-make sysbench-run SYSBENCH_THREADS=4 SYSBENCH_TIME=300
+make sysbench-prepare SYSBENCH_TABLES=20 SYSBENCH_TABLE_SIZE=5000000
+make sysbench-warm SYSBENCH_THREADS=60
+make sysbench-run SYSBENCH_THREADS=60
 make report
 ```
 
@@ -140,7 +148,8 @@ The sysbench image uses YugabyteDB's fork which includes optimizations:
 
 ## Performance Reports
 
-After running `make sysbench-run`, generate a report with `make report`.
+After running `make sysbench-warm` and `make sysbench-run`, generate a report with `make report`.
+The warmup phase ensures the system is warmed up before metrics are captured.
 
 The report includes:
 - CPU utilization per pod
