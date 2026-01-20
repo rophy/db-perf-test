@@ -94,12 +94,6 @@ yugabyte:
       storageClass: ""
       size: 50Gi
   enableLoadBalancer: false
-  serviceEndpoints:
-    - name: yb-tserver-service
-      type: ClusterIP
-      app: yb-tserver
-      ports:
-        tcp-ysql-port: "5433"
   ysql:
     enabled: true
     port: 5433

@@ -1,0 +1,19 @@
+{{- if .Values.yugabyte.enabled }}
+# ClusterIP service for connecting to YugabyteDB tservers
+# This provides a stable endpoint for sysbench to connect to
+apiVersion: v1
+kind: Service
+metadata:
+  name: yb-tserver-service
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app: yb-tserver
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-ysql-port
+      port: 5433
+      targetPort: 5433
+  selector:
+    app: yb-tserver
+{{- end }}

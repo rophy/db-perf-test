@@ -10,8 +10,9 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # Configuration
 KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
+RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
-PROMETHEUS_URL="${PROMETHEUS_URL:-http://prometheus:9090}"
+PROMETHEUS_URL="${PROMETHEUS_URL:-http://${RELEASE_NAME}-prometheus:9090}"
 
 # Read timestamps
 START_FILE="${PROJECT_ROOT}/output/sysbench/RUN_START_TIME.txt"
@@ -45,6 +46,7 @@ python3 "${SCRIPT_DIR}/generate_report.py" \
     --end "$END_TIME" \
     --kube-context "$KUBE_CONTEXT" \
     --namespace "$NAMESPACE" \
+    --release-name "$RELEASE_NAME" \
     --prometheus-url "$PROMETHEUS_URL" \
     --output-dir "$OUTPUT_DIR" \
     --title "Sysbench Stress Test Report" \

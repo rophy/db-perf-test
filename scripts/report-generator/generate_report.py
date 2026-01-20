@@ -55,7 +55,8 @@ class ReportConfig:
     step: int = 30
     kube_context: str = "minikube"
     namespace: str = "yugabyte-test"
-    prometheus_url: str = "http://prometheus:9090"
+    release_name: str = "yb-bench"
+    prometheus_url: str = "http://yb-bench-prometheus:9090"
     pods: list[str] = field(default_factory=list)
     rate_metrics: list[str] = field(default_factory=list)
     total_metrics: list[str] = field(default_factory=list)
@@ -70,15 +71,16 @@ class ReportConfig:
 class QueryExecutor:
     """Executes queries via kubectl exec using wget."""
 
-    def __init__(self, kube_context: str, namespace: str):
+    def __init__(self, kube_context: str, namespace: str, release_name: str = "yb-bench"):
         self.kube_context = kube_context
         self.namespace = namespace
+        self.release_name = release_name
 
     def exec_curl(self, url: str) -> Optional[str]:
         """Execute wget command inside prometheus pod (curl not available)."""
         cmd = [
             "kubectl", "--context", self.kube_context,
-            "exec", "-n", self.namespace, "deployment/prometheus",
+            "exec", "-n", self.namespace, f"deployment/{self.release_name}-prometheus",
             "--", "wget", "-q", "-O", "-", url
         ]
         try:
@@ -228,7 +230,7 @@ class ReportGenerator:
 
     def __init__(self, config: ReportConfig):
         self.config = config
-        self.executor = QueryExecutor(config.kube_context, config.namespace)
+        self.executor = QueryExecutor(config.kube_context, config.namespace, config.release_name)
         self.prometheus = PrometheusClient(self.executor, config.prometheus_url)
         self.cluster_collector = ClusterSpecCollector(config.kube_context, config.namespace)
         self.metrics_data = {}
@@ -399,7 +401,8 @@ def main():
     parser.add_argument("--step", type=int, default=30, help="Query step in seconds (default: 30)")
     parser.add_argument("--kube-context", default="minikube", help="Kubernetes context")
     parser.add_argument("--namespace", default="yugabyte-test", help="Kubernetes namespace")
-    parser.add_argument("--prometheus-url", default="http://prometheus:9090", help="Prometheus URL (inside cluster)")
+    parser.add_argument("--release-name", default="yb-bench", help="Helm release name")
+    parser.add_argument("--prometheus-url", default="http://yb-bench-prometheus:9090", help="Prometheus URL (inside cluster)")
     parser.add_argument("--pods", nargs="+", default=["yb-tserver.*", "yb-master.*", "sysbench.*"],
                         help="Pod name patterns to monitor")
     parser.add_argument("--rate-of", action="append", dest="rate_metrics", default=[],
@@ -417,6 +420,7 @@ def main():
         step=args.step,
         kube_context=args.kube_context,
         namespace=args.namespace,
+        release_name=args.release_name,
         prometheus_url=args.prometheus_url,
         pods=args.pods,
         rate_metrics=args.rate_metrics,

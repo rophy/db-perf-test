@@ -96,12 +96,6 @@ yugabyte:
       yb_num_shards_per_tserver: 2
       ysql_num_shards_per_tserver: 2
   enableLoadBalancer: false
-  serviceEndpoints:
-    - name: yb-tserver-service
-      type: ClusterIP
-      app: yb-tserver
-      ports:
-        tcp-ysql-port: "5433"
   ysql:
     enabled: true
     port: 5433
