@@ -18,6 +18,9 @@ sysbench:
     limits:
       cpu: "2"
       memory: "2Gi"
+  # Schedule on worker nodes
+  nodeSelector:
+    role: worker
 
   # Database connection
   db:
@@ -64,6 +67,9 @@ prometheus:
       cpu: "1"
       memory: "2Gi"
   retention: 7d
+  # Schedule on worker nodes
+  nodeSelector:
+    role: worker
 
 # YugabyteDB subchart configuration
 yugabyte:
@@ -81,11 +87,8 @@ yugabyte:
         memory: "8Gi"
     tserver:
       requests:
-        cpu: "6"
-        memory: "15Gi"
-      limits:
-        cpu: "8"
-        memory: "16Gi"
+        cpu: "2"
+        memory: "10Gi"
   storage:
     master:
       storageClass: ""
@@ -107,3 +110,25 @@ yugabyte:
     tserver:
       yb_num_shards_per_tserver: 4
       ysql_num_shards_per_tserver: 4
+  # Schedule masters on worker nodes (32GB)
+  master:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - worker
+  # Schedule tservers on db nodes (16GB each)
+  tserver:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - db

@@ -31,6 +31,10 @@ spec:
         - name: scripts
           mountPath: /scripts
           readOnly: true
+      {{- with .Values.sysbench.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
       - name: scripts
         configMap:
