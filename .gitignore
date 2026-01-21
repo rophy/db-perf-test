@@ -33,3 +33,5 @@ Thumbs.db
 # Helm dependencies
 charts/*/charts/
 charts/*/Chart.lock
+
+output/
