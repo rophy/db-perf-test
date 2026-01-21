@@ -1,0 +1,21 @@
+=== Tserver Node Specs ===
+Tservers: 5
+  yb-tserver-0 -> ip-10-0-1-169.ap-east-2.compute.internal: 4 CPU, 16086132Ki
+  yb-tserver-1 -> ip-10-0-1-81.ap-east-2.compute.internal: 4 CPU, 16086132Ki
+  yb-tserver-2 -> ip-10-0-1-49.ap-east-2.compute.internal: 4 CPU, 16086132Ki
+  yb-tserver-3 -> ip-10-0-1-233.ap-east-2.compute.internal: 4 CPU, 16086124Ki
+  yb-tserver-4 -> ip-10-0-1-174.ap-east-2.compute.internal: 4 CPU, 16086132Ki
+=== Tserver Metrics ===
+Tservers: 5
+CPU: 284.7%
+Memory: 8380 MB
+Network: RX 5.9 MB/s, TX 5.9 MB/s
+Disk IOPS: Read 150, Write 1278
+
+=== Sysbench Results ===
+TPS: 168.48
+QPS: 5728.57
+Errors: 135 (0.07/s)
+Reconnects: 0 (0.00/s)
+Latency (95th): 943.16 ms
+Duration: 1800.6s

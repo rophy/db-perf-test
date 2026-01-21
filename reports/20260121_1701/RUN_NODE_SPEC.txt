@@ -1,0 +1,4 @@
+pod_name	node_name	cpu	memory
+yb-tserver-0	ip-10-0-1-213.ap-east-2.compute.internal	4	16086132Ki
+yb-tserver-1	ip-10-0-1-170.ap-east-2.compute.internal	4	16086124Ki
+yb-tserver-2	ip-10-0-1-234.ap-east-2.compute.internal	4	16086132Ki
