@@ -41,7 +41,7 @@ echo ""
 
 # Execute
 echo "Generating report..."
-python3 "${SCRIPT_DIR}/generate_report.py" \
+REPORT_OUTPUT=$(python3 "${SCRIPT_DIR}/generate_report.py" \
     --start "$START_TIME" \
     --end "$END_TIME" \
     --kube-context "$KUBE_CONTEXT" \
@@ -50,7 +50,18 @@ python3 "${SCRIPT_DIR}/generate_report.py" \
     --prometheus-url "$PROMETHEUS_URL" \
     --output-dir "$OUTPUT_DIR" \
     --title "Sysbench Stress Test Report" \
-    --pods "yb-tserver.*" "yb-master.*" "sysbench.*"
+    --pods "yb-tserver.*" "yb-master.*" "sysbench.*")
+
+echo "$REPORT_OUTPUT"
+
+# Extract report directory and run parser
+REPORT_DIR=$(echo "$REPORT_OUTPUT" | grep "Report saved to:" | sed 's|Report saved to: ||' | xargs dirname)
+if [[ -n "$REPORT_DIR" && -d "$REPORT_DIR" ]]; then
+    echo ""
+    echo "=== Running Report Parser ==="
+    python3 "${PROJECT_ROOT}/scripts/report-parser.py" "$REPORT_DIR" | tee "${REPORT_DIR}/summary.txt"
+    echo "Summary saved to: ${REPORT_DIR}/summary.txt"
+fi
 
 echo ""
 echo "=== Report Generation Complete ==="
