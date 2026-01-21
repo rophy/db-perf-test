@@ -425,6 +425,12 @@ class ReportGenerator:
             shutil.copy(sysbench_output, output_dir / "sysbench_output.txt")
             print(f"Copied sysbench output to: {output_dir / 'sysbench_output.txt'}")
 
+        # Copy node spec file if it exists
+        node_spec = Path(self.config.output_dir).parent / "output" / "sysbench" / "RUN_NODE_SPEC.txt"
+        if node_spec.exists():
+            shutil.copy(node_spec, output_dir / "RUN_NODE_SPEC.txt")
+            print(f"Copied node spec to: {output_dir / 'RUN_NODE_SPEC.txt'}")
+
         # Save sysbench configmap (contains rendered parameters)
         self._save_sysbench_configmap(output_dir)
 

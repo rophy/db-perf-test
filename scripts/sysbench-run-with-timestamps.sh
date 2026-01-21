@@ -20,6 +20,17 @@ echo "Context: ${KUBE_CONTEXT}"
 echo "Namespace: ${NAMESPACE}"
 echo ""
 
+# Collect tserver pod to node mapping with node allocatable specs
+echo "Collecting node specs..."
+echo -e "pod_name\tnode_name\tcpu\tmemory" > "${OUTPUT_DIR}/RUN_NODE_SPEC.txt"
+for pod in $(kubectl --context "${KUBE_CONTEXT}" -n "${NAMESPACE}" get pods -l app=yb-tserver -o jsonpath='{.items[*].metadata.name}'); do
+    node=$(kubectl --context "${KUBE_CONTEXT}" -n "${NAMESPACE}" get pod "$pod" -o jsonpath='{.spec.nodeName}')
+    read -r cpu mem <<< "$(kubectl --context "${KUBE_CONTEXT}" get node "$node" -o jsonpath='{.status.allocatable.cpu} {.status.allocatable.memory}')"
+    echo -e "${pod}\t${node}\t${cpu}\t${mem}" >> "${OUTPUT_DIR}/RUN_NODE_SPEC.txt"
+done
+echo "Node specs saved to: ${OUTPUT_DIR}/RUN_NODE_SPEC.txt"
+echo ""
+
 # Record start time
 START_TIME=$(date +%s)
 echo "$START_TIME" > "${OUTPUT_DIR}/RUN_START_TIME.txt"
