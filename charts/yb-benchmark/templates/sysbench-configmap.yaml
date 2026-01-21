@@ -17,6 +17,7 @@ data:
     echo "=== Sysbench Prepare ==="
     echo "Workload: {{ .Values.sysbench.workload }}"
     echo "Tables: {{ .Values.sysbench.tables | int }} x {{ .Values.sysbench.tableSize | int }} rows"
+    echo "Threads: {{ .Values.sysbench.threads | int }}"
     echo ""
 
     exec sysbench {{ .Values.sysbench.workload }} \
@@ -28,6 +29,7 @@ data:
       --pgsql-db={{ .Values.sysbench.db.name }} \
       --tables={{ .Values.sysbench.tables | int }} \
       --table_size={{ .Values.sysbench.tableSize | int }} \
+      --threads={{ .Values.sysbench.threads | int }} \
       --range_key_partitioning={{ .Values.sysbench.rangeKeyPartitioning }} \
       --serial_cache_size={{ .Values.sysbench.serialCacheSize | int }} \
       --create_secondary={{ .Values.sysbench.createSecondary }} \
