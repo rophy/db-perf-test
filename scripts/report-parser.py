@@ -89,10 +89,10 @@ def parse_sysbench(report_path):
     tps_match = re.search(r'transactions:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
     # Parse queries per sec
     qps_match = re.search(r'queries:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
-    # Parse errors
-    errors_match = re.search(r'ignored errors:\s+(\d+)', content)
-    # Parse reconnects
-    reconnects_match = re.search(r'reconnects:\s+(\d+)', content)
+    # Parse errors (with rate)
+    errors_match = re.search(r'ignored errors:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
+    # Parse reconnects (with rate)
+    reconnects_match = re.search(r'reconnects:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
     # Parse 95th percentile latency
     latency_match = re.search(r'95th percentile:\s+([\d.]+)', content)
     # Parse execution time
@@ -104,9 +104,11 @@ def parse_sysbench(report_path):
     if qps_match:
         print(f"QPS: {float(qps_match.group(2)):.2f}")
     if errors_match:
-        print(f"Errors: {errors_match.group(1)}")
+        errors = int(errors_match.group(1))
+        error_rate = float(errors_match.group(2))
+        print(f"Errors: {errors} ({error_rate:.2f}/s)")
     if reconnects_match:
-        print(f"Reconnects: {reconnects_match.group(1)}")
+        print(f"Reconnects: {reconnects_match.group(1)} ({float(reconnects_match.group(2)):.2f}/s)")
     if latency_match:
         print(f"Latency (95th): {float(latency_match.group(1)):.2f} ms")
     if time_match:
