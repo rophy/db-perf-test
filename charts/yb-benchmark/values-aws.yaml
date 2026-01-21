@@ -89,6 +89,9 @@ yugabyte:
       requests:
         cpu: "2"
         memory: "10Gi"
+      limits:
+        cpu: null
+        memory: null
   storage:
     master:
       storageClass: ""
