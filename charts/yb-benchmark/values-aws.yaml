@@ -33,7 +33,7 @@ sysbench:
   # Benchmark parameters (per YugabyteDB docs)
   tables: 20
   tableSize: 5000000
-  threads: 60
+  threads: 120
   time: 1800
   warmupTime: 300
   reportInterval: 10
@@ -76,7 +76,7 @@ yugabyte:
   enabled: true
   replicas:
     master: 3
-    tserver: 3
+    tserver: 8
   resource:
     master:
       requests:
