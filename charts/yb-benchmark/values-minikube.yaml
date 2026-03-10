@@ -1,9 +1,10 @@
-# Minikube-specific values - minimal resources for local development
-# Override default values-aws.yaml for minikube deployment
+# Minikube multi-node values - horizontal scalability testing
+# Node layout: 1 master node (role=master) + 3 db nodes (role=db)
+# All nodes: 4 CPUs / 8 GB RAM each
 
 fullnameOverride: ""
 
-# Sysbench configuration - smaller scale for minikube
+# Sysbench configuration
 sysbench:
   enabled: true
   image:
@@ -12,11 +13,13 @@ sysbench:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: "250m"
+      cpu: "500m"
       memory: "512Mi"
     limits:
-      cpu: "1"
+      cpu: "2"
       memory: "1Gi"
+  nodeSelector:
+    role: master
 
   # Database connection
   db:
@@ -26,13 +29,13 @@ sysbench:
     password: yugabyte
     name: yugabyte
 
-  # Benchmark parameters - minimal for quick script testing
-  tables: 2
-  tableSize: 1000
-  threads: 2
-  time: 60
-  warmupTime: 10
-  reportInterval: 5
+  # Benchmark parameters
+  tables: 10
+  tableSize: 100000
+  threads: 24
+  time: 120
+  warmupTime: 30
+  reportInterval: 10
   workload: oltp_read_write
 
   # YugabyteDB-specific flags
@@ -63,35 +66,53 @@ prometheus:
       cpu: "500m"
       memory: "1Gi"
   retention: 7d
+  nodeSelector:
+    role: master
 
+# Node exporter - host-level CPU/memory/disk metrics
+nodeExporter:
+  enabled: true
+  image:
+    repository: prom/node-exporter
+    tag: v1.7.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "32Mi"
+    limits:
+      cpu: "200m"
+      memory: "64Mi"
+
+# YugabyteDB - 3 masters + 3 tservers, RF=3
 yugabyte:
   enabled: true
   replicas:
-    master: 1
-    tserver: 1
+    master: 3
+    tserver: 3
   resource:
     master:
       requests:
         cpu: "0.5"
-        memory: "0.5Gi"
+        memory: "1Gi"
       limits:
         cpu: "1"
-        memory: "1Gi"
+        memory: "2Gi"
     tserver:
       requests:
-        cpu: "0.5"
-        memory: "0.5Gi"
+        cpu: "2"
+        memory: "4Gi"
       limits:
-        cpu: "1"
-        memory: "1Gi"
+        cpu: null
+        memory: null
   storage:
     master:
       size: 5Gi
     tserver:
-      size: 5Gi
+      size: 10Gi
   gflags:
     master:
-      replication_factor: 1
+      replication_factor: 3
     tserver:
       yb_num_shards_per_tserver: 2
       ysql_num_shards_per_tserver: 2
@@ -103,3 +124,34 @@ yugabyte:
     enabled: false
   metrics:
     enabled: true
+  # Pin masters to master node
+  master:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - master
+  # Pin tservers to db nodes, one per node
+  tserver:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - db
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - yb-tserver
+          topologyKey: kubernetes.io/hostname

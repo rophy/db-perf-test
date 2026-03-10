@@ -62,7 +62,7 @@ def parse_metrics(report_path):
     tserver_disk_read = get_tserver_avg('disk_read_iops')
     tserver_disk_write = get_tserver_avg('disk_write_iops')
 
-    print("=== Tserver Metrics ===")
+    print("=== Tserver Metrics (container-level) ===")
     print(f"Tservers: {len(tserver_cpu)}")
     if tserver_cpu:
         print(f"CPU: {sum(tserver_cpu)/len(tserver_cpu):.1f}%")
@@ -76,6 +76,30 @@ def parse_metrics(report_path):
         avg_read = sum(tserver_disk_read) / len(tserver_disk_read)
         avg_write = sum(tserver_disk_write) / len(tserver_disk_write)
         print(f"Disk IOPS: Read {avg_read:.0f}, Write {avg_write:.0f}")
+
+    # Node-level CPU metrics (from node_exporter)
+    def get_node_avg(metric_name):
+        """Get average values for all nodes"""
+        metric = data.get(metric_name, {})
+        values = []
+        for series in metric.get('series', []):
+            vals = series['values']
+            if vals:
+                values.append((series['name'], sum(vals) / len(vals)))
+        return values
+
+    node_cpu = get_node_avg('node_cpu')
+    if node_cpu:
+        print("\n=== Node Metrics (VM-level) ===")
+        print(f"Nodes: {len(node_cpu)}")
+        for name, val in node_cpu:
+            print(f"  {name}: {val:.1f}% total CPU")
+        # Print CPU breakdown
+        for mode in ['user', 'system', 'iowait', 'steal', 'softirq']:
+            mode_data = get_node_avg(f'node_cpu_{mode}')
+            if mode_data:
+                avg = sum(v for _, v in mode_data) / len(mode_data)
+                print(f"  avg {mode}: {avg:.1f}%")
 
 
 def parse_sysbench(report_path):

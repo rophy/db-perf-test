@@ -71,6 +71,21 @@ prometheus:
   nodeSelector:
     role: worker
 
+# Node exporter - host-level CPU/memory/disk metrics
+nodeExporter:
+  enabled: true
+  image:
+    repository: prom/node-exporter
+    tag: v1.7.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "32Mi"
+    limits:
+      cpu: "200m"
+      memory: "64Mi"
+
 # YugabyteDB subchart configuration
 yugabyte:
   enabled: true

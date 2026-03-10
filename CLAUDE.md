@@ -1,5 +1,11 @@
 **IMPORTANT**: The host machine may run multiple projects with different Kubernetes clusters simultaneously. To prevent conflicts:
 
+### Analysis & Debugging
+- **NEVER** make claims about root causes or bottlenecks without direct measurement evidence
+- **ALWAYS** clearly distinguish between measured facts and hypotheses
+- When a measurement disproves a hypothesis, acknowledge it — do not shift to a new unverified claim
+- If the root cause is unknown, say so — do not speculate as if it were fact
+
 ### Shell Scripts
 - **NEVER** use bare `kubectl` commands that rely on the current context
 - **ALWAYS** use explicit `--context` flag: `kubectl --context minikube ...`

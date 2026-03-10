@@ -314,6 +314,60 @@ class ReportGenerator:
         disk_write_throughput_query = f'sum(rate(container_fs_writes_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}[30s])) by (pod) / 1024 / 1024'
         self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)")
 
+    def collect_node_metrics(self):
+        """Collect node-level CPU metrics from node_exporter."""
+        # Node CPU usage by mode (percentage) - grouped by instance
+        # Total CPU utilization (100% - idle%)
+        node_cpu_query = '(1 - avg(rate(node_cpu_seconds_total{mode="idle"}[30s])) by (instance)) * 100'
+        self.metrics_data["node_cpu"] = self._query_and_aggregate_by_instance(node_cpu_query, "Node CPU Total (%)")
+
+        # CPU breakdown by mode
+        for mode in ["user", "system", "iowait", "steal", "softirq"]:
+            query = f'avg(rate(node_cpu_seconds_total{{mode="{mode}"}}[30s])) by (instance) * 100'
+            self.metrics_data[f"node_cpu_{mode}"] = self._query_and_aggregate_by_instance(query, f"Node CPU {mode} (%)")
+
+    def _query_and_aggregate_by_instance(self, query: str, display_name: str) -> dict:
+        """Query metrics and aggregate results, grouped by instance (node)."""
+        series_list = self.prometheus.query_range(
+            query,
+            self.config.start_time,
+            self.config.end_time,
+            self.config.step
+        )
+
+        all_values = []
+        for series in series_list:
+            if series.values:
+                all_values.extend(series.values)
+
+        if not all_values:
+            min_val = 0
+            avg_val = 0
+            max_val = 0
+        else:
+            non_zero = [v for v in all_values if v > 0]
+            min_val = min(non_zero) if non_zero else 0
+            max_val = max(all_values)
+            avg_val = sum(non_zero) / len(non_zero) if non_zero else 0
+
+        total_val = avg_val * self.config.duration_seconds
+
+        return {
+            "name": display_name,
+            "min": min_val,
+            "avg": avg_val,
+            "max": max_val,
+            "total": total_val,
+            "series": [
+                {
+                    "name": s.labels.get("instance", s.name),
+                    "timestamps": s.timestamps,
+                    "values": s.values
+                }
+                for s in series_list
+            ]
+        }
+
     def collect_custom_metrics(self):
         """Collect custom rate and total metrics."""
         for metric_expr in self.config.rate_metrics:
@@ -379,6 +433,9 @@ class ReportGenerator:
         # Collect metrics
         print("Collecting container metrics...")
         self.collect_container_metrics()
+
+        print("Collecting node metrics...")
+        self.collect_node_metrics()
 
         print("Collecting custom metrics...")
         self.collect_custom_metrics()
