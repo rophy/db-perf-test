@@ -116,29 +116,87 @@ Same config as Test 2, with 2ms per-I/O latency injected via dm-delay on tserver
 | Write IOPS | 541 |
 | Errors | 37 (0.31/s) |
 
+### Test 6: 1 slow node (4ms dm-delay on worker-3 only)
+
+Same config as Test 2, but dm-delay applied to only 1 of 3 workers.
+tserver-0 on worker-3 (slow), tserver-1/2 on worker-1/2 (normal).
+
+| Metric | Value |
+|---|---|
+| TPS | 37.39 |
+| QPS | 1275.91 |
+| 95th latency | 909.80 ms |
+| Thread fairness stddev | 31.58 (vs 18.9 normal) |
+| Errors | 50 (0.41/s) |
+
 ### Full Comparison (2 dedicated vCPUs)
 
-| Metric | No delay (run 1) | No delay (run 2) | 2ms delay | 4ms delay |
-|---|---|---|---|---|
-| TPS | 44.41 | 47.16 | 33.97 | 30.90 |
-| QPS | 1517.75 | 1608.59 | 1158.24 | 1053.79 |
-| 95th latency | 658 ms | 601 ms | 894 ms | 1051 ms |
-| Container CPU | 129.9% | 121.3% | 67.1% | 69.1% |
-| System CPU | 14.6% | 14.6% | 25.4% | 29.8% |
-| I/O wait | 3.5% | 3.4% | 5.8% | 4.6% |
-| Write IOPS | 310 | 289 | 632 | 541 |
+| Metric | No delay (run 1) | No delay (run 2) | 2ms all | 4ms all | 4ms 1-node |
+|---|---|---|---|---|---|
+| TPS | 44.41 | 47.16 | 33.97 | 30.90 | 37.39 |
+| QPS | 1517.75 | 1608.59 | 1158.24 | 1053.79 | 1275.91 |
+| 95th latency | 658 ms | 601 ms | 894 ms | 1051 ms | 910 ms |
+| Container CPU | 129.9% | 121.3% | 67.1% | 69.1% | — |
+| System CPU | 14.6% | 14.6% | 25.4% | 29.8% | — |
 
 Run-to-run variance (no delay): ~6% TPS, consistent infrastructure metrics.
 
-### Observations
+## YugabyteDB Internal Metrics
 
+Captured from tserver Prometheus endpoints (`/prometheus-metrics`) during benchmark runs.
+
+### No delay (baseline)
+
+| Metric | tserver-0 | tserver-1 | tserver-2 |
+|---|---|---|---|
+| WAL fsync (log_sync_latency) | 3.5 ms | 4.6 ms | 4.3 ms |
+| WAL group commit | 0.13 ms | 0.13 ms | 0.13 ms |
+| WAL append | 0.10 ms | 0.10 ms | 0.10 ms |
+| Write RPC | 6.3 ms | 8.3 ms | 6.0 ms |
+| Read RPC | 0.26 ms | 0.34 ms | 0.24 ms |
+| Raft UpdateConsensus | 0.68 ms | 1.17 ms | 0.53 ms |
+
+### 4ms dm-delay (all 3 nodes)
+
+| Metric | tserver-0 | tserver-1 | tserver-2 |
+|---|---|---|---|
+| WAL fsync (log_sync_latency) | 32.0 ms | 32.6 ms | 31.8 ms |
+| WAL group commit | 1.3 ms | 1.7 ms | 1.3 ms |
+| Write RPC | 11.8 ms | 13.5 ms | 12.9 ms |
+| Read RPC | 0.42 ms | 0.43 ms | 0.41 ms |
+| Raft UpdateConsensus | 2.7 ms | 2.4 ms | 2.2 ms |
+
+### 4ms dm-delay (1 slow node: tserver-0 on worker-3)
+
+| Metric | tserver-0 (SLOW) | tserver-1 (normal) | tserver-2 (normal) |
+|---|---|---|---|
+| WAL fsync (log_sync_latency) | **32.0 ms** | 3.2 ms | 3.2 ms |
+| WAL group commit | **1.7 ms** | 0.09 ms | 0.11 ms |
+| Write RPC | **16.2 ms** | 4.3 ms | 4.2 ms |
+| Read RPC | **0.59 ms** | 0.21 ms | 0.23 ms |
+| Raft UpdateConsensus | **6.3 ms** | 0.5 ms | 0.6 ms |
+
+## Observations
+
+### CPU pinning (Tests 1-3)
 - 2 dedicated vCPUs outperformed 4 shared vCPUs despite having half the cores.
 - Main factor: reduced steal time (14% → 7%) from CPU pinning eliminates scheduling jitter.
 - Tservers use ~130% of 200% available CPU — moderately loaded, not fully saturated.
 - Both no-delay configs are CPU-bound (low I/O wait, write IOPS similar).
 - Run-to-run variance is ~6% for no-delay tests — acceptable for this environment.
+
+### Disk latency impact (Tests 4-5)
 - **2ms disk delay dropped TPS by ~26%** (avg 45.8 → 34.0), shifting the bottleneck from CPU to I/O.
 - **4ms delay dropped TPS by ~33%** (avg 45.8 → 30.9), further degradation but diminishing impact per ms.
 - Container CPU dropped from ~126% to ~68% with any delay — tservers become I/O-bound immediately.
 - System CPU rose from 14.6% to 30% — kernel doing more I/O scheduling work under delay.
-- Write IOPS increased with delay (300 → 540-630) — likely more frequent smaller flushes under I/O pressure.
+- WAL fsync latency amplified ~8x relative to dm-delay (4ms delay → 32ms fsync) because each fsync batches multiple I/O operations.
+- Read RPCs barely affected (~0.3ms regardless of delay) — served from memory/block cache.
+
+### Asymmetric slow node (Test 6)
+- **1 slow node out of 3 caused a 21% TPS drop** — much more than the expected ~0% if majority-ack were the only factor.
+- Root cause: the slow tserver is also a **tablet leader** for ~1/3 of tablets. As leader, it must sync its local WAL (32ms) before responding, regardless of follower speed.
+- Write RPC on the slow node (16.2ms) was 4x slower than normal nodes (4.2ms).
+- Raft UpdateConsensus on the slow node (6.3ms) was 12x slower than normal nodes (0.5ms) — followers receiving consensus from the slow leader wait for its disk.
+- Thread fairness stddev nearly doubled (18.9 → 31.6), confirming uneven query distribution across fast vs slow tablets.
+- Even reads were 2.5x slower on the slow node (0.59ms vs 0.21ms), suggesting some read path overhead from the slow disk (possibly WAL reads or compaction).
