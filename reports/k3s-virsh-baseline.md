@@ -248,3 +248,20 @@ Captured from tserver Prometheus endpoints (`/prometheus-metrics`) during benchm
 - IOPS throttle creates **queuing delay** — unpredictable, affects both reads and writes equally.
 - At comparable TPS impact levels, IOPS throttle produces worse tail latency (2.2s vs 1.1s at 95th percentile) due to queuing amplification.
 - IOPS throttle is more representative of cloud environments where IOPS are provisioned (e.g., AWS EBS gp3 baseline: 3000 IOPS).
+
+### In-VM vs host-level dm-delay
+- **In-VM dm-delay consumes significant VM CPU**: the `dm-delay` kernel thread used 63.6% of a CPU core inside the VM, leaving less for YugabyteDB.
+- **Host-level dm-delay has zero VM CPU overhead**: the delay runs in the host kernel; the VM sees a genuinely slow disk.
+- Measured impact with 4ms delay, 4 tservers, 48 threads:
+
+| Metric | In-VM dm-delay | Host dm-delay | Delta |
+|---|---|---|---|
+| TPS | 34.3 | **53.8** | **+57%** |
+| System CPU (VM) | 48.5% | 22.5% | -53% |
+| User CPU (VM) | 30.7% | 49.3% | +61% |
+| WAL fsync | 55 ms | 32 ms | -42% |
+| dm-delay process in VM | 63.6% CPU | **none** | eliminated |
+
+- Host dm-delay is created via privileged Docker container (no sudo required).
+- The in-VM dm-delay inflated system CPU and suppressed WAL fsync batching, masking the true I/O-bound behavior.
+- **Recommendation: always use host-level dm-delay** (`setup-host-dm-delay.sh`) for realistic disk latency simulation.
