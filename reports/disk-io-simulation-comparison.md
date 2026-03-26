@@ -11,31 +11,44 @@ Compare three approaches to simulating constrained disk I/O for YugabyteDB perfo
 
 All VMs: Ubuntu 24.04, 2 vCPU, 4 GB RAM, 20 GB qcow2 disk (`cache=none, io=native`).
 
-## Test Results
+## Raw Performance (no throttling)
+
+Measured inside a VM with no dm-delay or IOPS cap. This is the baseline that the throttled VMs are compared against.
+
+| Test | Speed | Effective IOPS | Latency |
+|---|---|---|---|
+| 4k sequential write (O_DIRECT) | 89.1 MB/s | ~22,275 | 0.23 ms |
+| 4k sequential read (O_DIRECT) | 14.1 MB/s | ~3,525 | 0.40 ms |
+| 1M sequential write (O_DIRECT) | 1.3 GB/s | — | — |
+| 4k write stress (iostat) | 312 IOPS / 9.8 MB/s | 312 | 0.23 ms |
+
+The host machine uses NVMe SSD. VMs use qcow2 with `cache=none, io=native`.
+
+## Throttled Performance
 
 ### Sequential Write (4k x 500, O_DIRECT)
 
-| VM | Speed | Effective IOPS |
-|---|---|---|
-| Normal | 89.1 MB/s | ~22,275 |
-| dm-delay 1ms | 4.1 MB/s | ~1,025 |
-| IOPS 200 | 784 KB/s | ~196 |
+| VM | Speed | Effective IOPS | vs Raw |
+|---|---|---|---|
+| Raw (no throttle) | 89.1 MB/s | ~22,275 | — |
+| dm-delay 1ms | 4.1 MB/s | ~1,025 | **-95%** |
+| IOPS 200 | 784 KB/s | ~196 | **-99%** |
 
 ### Sequential Read (4k x 500, O_DIRECT)
 
-| VM | Speed | Effective IOPS |
-|---|---|---|
-| Normal | 14.1 MB/s | ~3,525 |
-| dm-delay 1ms | 2.0 MB/s | ~500 |
-| IOPS 200 | 418 KB/s | ~105 |
+| VM | Speed | Effective IOPS | vs Raw |
+|---|---|---|---|
+| Raw (no throttle) | 14.1 MB/s | ~3,525 | — |
+| dm-delay 1ms | 2.0 MB/s | ~500 | -86% |
+| IOPS 200 | 418 KB/s | ~105 | -97% |
 
 ### Large Block Write (1M x 50, O_DIRECT)
 
-| VM | Speed |
-|---|---|
-| Normal | 1.3 GB/s |
-| dm-delay 1ms | 711 MB/s |
-| IOPS 200 | 356 MB/s |
+| VM | Speed | vs Raw |
+|---|---|---|
+| Raw (no throttle) | 1.3 GB/s | — |
+| dm-delay 1ms | 711 MB/s | -45% |
+| IOPS 200 | 356 MB/s | -73% |
 
 ### iostat During 4k Write Stress
 
