@@ -89,6 +89,8 @@ nodeExporter:
 # YugabyteDB subchart configuration
 yugabyte:
   enabled: true
+  Image:
+    tag: 2025.2.2.1-b1
   replicas:
     master: 3
     tserver: 8

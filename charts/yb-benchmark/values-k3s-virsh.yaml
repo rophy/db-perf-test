@@ -88,6 +88,8 @@ nodeExporter:
 # YugabyteDB - 3 masters + 3 tservers, RF=3
 yugabyte:
   enabled: true
+  Image:
+    tag: 2025.2.2.1-b1
   replicas:
     master: 3
     tserver: 3
