@@ -165,6 +165,42 @@ qcow2 format adds a metadata layer (copy-on-write, thin provisioning) that ampli
 
 **Key finding:** qcow2's raw 4k write speed (89 MB/s) appears faster than raw (43 MB/s) because qcow2 batches writes through its metadata layer, but this comes at the cost of unpredictable I/O amplification under throttling. Raw format gives predictable, linear latency scaling.
 
+## fio IOPS Benchmark (raw format)
+
+Measured with `fio` inside VMs using `libaio` engine and `O_DIRECT`.
+
+### 4k Random Write (iodepth=32, 10s)
+
+| VM | IOPS | Avg Latency | 99th Latency |
+|---|---|---|---|
+| Raw baseline | 189,110 | 0.17 ms | 0.51 ms |
+| dm-delay 1ms | 19,110 (-90%) | 1.67 ms | 3.39 ms |
+| IOPS 200 | 193 (-99.9%) | 165.8 ms | 625 ms |
+
+### 4k Random Read (iodepth=32, 10s)
+
+| VM | IOPS | Avg Latency | 99th Latency |
+|---|---|---|---|
+| Raw baseline | 212,725 | 0.15 ms | 0.26 ms |
+| dm-delay 1ms | 20,000 (-91%) | 1.60 ms | 3.03 ms |
+| IOPS 200 | 6,754 (-97%) | 4.74 ms | 160 ms |
+
+### 4k Random Write (iodepth=1, single-threaded)
+
+| VM | IOPS | Avg Latency |
+|---|---|---|
+| Raw baseline | 30,632 | 0.03 ms |
+| dm-delay 1ms | 999 | **1.00 ms** (exact match) |
+| IOPS 200 | 199 | 5.01 ms |
+
+### fio Observations
+
+- **dm-delay 1ms at iodepth=1**: exactly 999 IOPS and 1.00ms latency — confirms raw format gives 1:1 delay mapping.
+- **dm-delay 1ms at iodepth=32**: 19K IOPS — high parallelism overcomes per-I/O delay (32 in-flight × 1ms = theoretical 32K IOPS max).
+- **IOPS 200 writes**: 193-199 IOPS — precisely hitting the configured cap.
+- **IOPS 200 reads (read-only test)**: 6,754 IOPS — reads aren't as severely capped when not competing with writes. Under mixed workload, reads would be much slower.
+- **99th latency with IOPS 200**: 625ms writes — severe queuing tail latency.
+
 ## Methodology Notes
 
 - dm-delay is created on the host via privileged Docker container, filesystem mounted via `nsenter`.
