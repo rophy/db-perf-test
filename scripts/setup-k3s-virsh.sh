@@ -66,9 +66,9 @@ create_vm() {
 
     echo "  $name: creating VM ($cpus CPU, ${memory}MB RAM, $DISK_SIZE disk)..."
 
-    # Create disk from cloud image
-    cp "$CLOUD_IMG" "$VM_DIR/${name}.qcow2"
-    qemu-img resize "$VM_DIR/${name}.qcow2" "$DISK_SIZE" >/dev/null 2>&1
+    # Create raw disk from cloud image (raw format avoids qcow2 I/O amplification)
+    qemu-img convert -f qcow2 -O raw "$CLOUD_IMG" "$VM_DIR/${name}.raw"
+    truncate -s "$DISK_SIZE" "$VM_DIR/${name}.raw"
 
     # Generate cloud-init
     mkdir -p "/tmp/cloud-init-${name}"
@@ -103,7 +103,7 @@ EOF
         --name "$name" \
         --memory "$memory" \
         --vcpus "$cpus" \
-        --disk "path=$VM_DIR/${name}.qcow2,format=qcow2,cache=none,io=native" \
+        --disk "path=$VM_DIR/${name}.raw,format=raw,cache=none,io=native" \
         --disk "path=$VM_DIR/${name}-cidata.iso,device=cdrom" \
         --os-variant "$OS_VARIANT" \
         --network "network=$NETWORK" \
