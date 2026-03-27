@@ -651,6 +651,11 @@ def parse_sysbench_configmap(filepath: Path) -> Optional[dict]:
             if m2:
                 params["workload"] = m2.group(1)
 
+    # Remove sensitive parameters
+    sensitive_keys = {"pgsql-user", "pgsql-password", "pgsql-host", "pgsql-port", "db-driver"}
+    for k in sensitive_keys:
+        params.pop(k, None)
+
     return params if params else None
 
 
