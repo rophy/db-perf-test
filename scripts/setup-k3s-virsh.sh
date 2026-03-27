@@ -4,10 +4,13 @@ set -euo pipefail
 # Configuration
 KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-ygdb}"
 VM_PREFIX="${VM_PREFIX:-ygdb}"
-CONTROL_CPUS="${CONTROL_CPUS:-4}"
+CONTROL_CPUS="${CONTROL_CPUS:-2}"
 CONTROL_MEMORY="${CONTROL_MEMORY:-8192}"
-WORKER_CPUS="${WORKER_CPUS:-4}"
+WORKER_CPUS="${WORKER_CPUS:-3}"
 WORKER_MEMORY="${WORKER_MEMORY:-8192}"
+# CPU pinning for worker VMs: comma-separated cpuset per worker (e.g. "0,2,4 6,8,10 1,3,5")
+# Leave empty for shared CPUs (no pinning)
+WORKER_CPU_PINNING="${WORKER_CPU_PINNING:-}"
 DISK_SIZE="${DISK_SIZE:-20G}"
 WORKER_COUNT="${WORKER_COUNT:-3}"
 NETWORK="${NETWORK:-default}"
@@ -25,6 +28,9 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLeve
 echo "=== YugabyteDB Performance Tuning Lab Setup (virsh + k3s) ==="
 echo "VMs: 1 control ($CONTROL_CPUS CPU / ${CONTROL_MEMORY}MB) + $WORKER_COUNT workers ($WORKER_CPUS CPU / ${WORKER_MEMORY}MB)"
 echo "Kube context: $KUBE_CONTEXT"
+if [ -n "$WORKER_CPU_PINNING" ]; then
+    echo "Worker CPU pinning: $WORKER_CPU_PINNING"
+fi
 echo ""
 
 # --- Prerequisites ---
@@ -50,6 +56,7 @@ create_vm() {
     local name="$1"
     local cpus="$2"
     local memory="$3"
+    local cpuset="${4:-}"
 
     # Skip if already running
     if virsh domstate "$name" 2>/dev/null | grep -q "running"; then
@@ -99,10 +106,16 @@ EOF
     rm -rf "/tmp/cloud-init-${name}"
 
     # Create VM
+    local cpuset_flag=""
+    if [ -n "$cpuset" ]; then
+        cpuset_flag="--cpuset=$cpuset"
+    fi
+
     virt-install \
         --name "$name" \
         --memory "$memory" \
         --vcpus "$cpus" \
+        $cpuset_flag \
         --disk "path=$VM_DIR/${name}.raw,format=raw,cache=none,io=native" \
         --disk "path=$VM_DIR/${name}-cidata.iso,device=cdrom" \
         --os-variant "$OS_VARIANT" \
@@ -117,9 +130,17 @@ EOF
 
 echo ""
 echo "Creating VMs..."
+
+# Parse CPU pinning into array
+IFS=' ' read -ra PIN_ARRAY <<< "$WORKER_CPU_PINNING"
+
 create_vm "${VM_PREFIX}-control" "$CONTROL_CPUS" "$CONTROL_MEMORY"
 for i in $(seq 1 "$WORKER_COUNT"); do
-    create_vm "${VM_PREFIX}-worker-${i}" "$WORKER_CPUS" "$WORKER_MEMORY"
+    worker_cpuset="${PIN_ARRAY[$((i-1))]:-}"
+    if [ -n "$worker_cpuset" ]; then
+        echo "  (pinning worker-${i} to CPUs: $worker_cpuset)"
+    fi
+    create_vm "${VM_PREFIX}-worker-${i}" "$WORKER_CPUS" "$WORKER_MEMORY" "$worker_cpuset"
 done
 
 # --- Wait for IPs ---
