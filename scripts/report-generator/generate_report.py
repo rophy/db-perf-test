@@ -7,6 +7,7 @@ Generates HTML reports with Chart.js visualizations from Prometheus metrics.
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -454,6 +455,13 @@ class ReportGenerator:
         end_dt = datetime.fromtimestamp(self.config.end_time)
         duration_min = self.config.duration_seconds / 60
 
+        # Parse sysbench output and configmap if available
+        sysbench_output_path = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_output.txt"
+        sysbench_results = parse_sysbench_output(sysbench_output_path)
+
+        # Get sysbench params from live configmap
+        sysbench_params = self._get_sysbench_params()
+
         report_data = {
             "title": self.config.title,
             "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
@@ -462,6 +470,8 @@ class ReportGenerator:
             "pods": self.config.pods,
             "metrics": self.metrics_data,
             "cluster_spec": self.cluster_spec,
+            "sysbench_results": sysbench_results,
+            "sysbench_params": sysbench_params,
             "format_number": format_number,
         }
 
@@ -496,6 +506,30 @@ class ReportGenerator:
 
         return output_file
 
+    def _get_sysbench_params(self) -> Optional[dict]:
+        """Get sysbench parameters from the live configmap."""
+        configmap_name = f"{self.config.release_name}-sysbench-scripts"
+        cmd = [
+            "kubectl", "--context", self.config.kube_context,
+            "-n", self.config.namespace,
+            "get", "configmap", configmap_name,
+            "-o", "yaml"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                # Write to a temp path and parse
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                    f.write(result.stdout)
+                    tmp_path = Path(f.name)
+                params = parse_sysbench_configmap(tmp_path)
+                tmp_path.unlink()
+                return params
+        except Exception:
+            pass
+        return None
+
     def _save_sysbench_configmap(self, output_dir: Path):
         """Save the sysbench scripts configmap to capture exact parameters used."""
         configmap_name = f"{self.config.release_name}-sysbench-scripts"
@@ -516,6 +550,108 @@ class ReportGenerator:
                 print(f"Warning: Could not get sysbench configmap: {result.stderr}", file=sys.stderr)
         except Exception as e:
             print(f"Warning: Failed to save sysbench configmap: {e}", file=sys.stderr)
+
+
+def parse_sysbench_output(filepath: Path) -> Optional[dict]:
+    """Parse sysbench_output.txt and extract results."""
+    if not filepath.exists():
+        return None
+
+    text = filepath.read_text()
+    result = {}
+
+    # Parse interval reports: [ 10s ] thds: 24 tps: 98.19 qps: 3372.21 (r/w/o: 997.53/2176.67/198.01) lat (ms,95%): 297.92 err/s: 1.02 reconn/s: 0.00
+    intervals = []
+    for m in re.finditer(
+        r'\[\s*(\d+)s\s*\]\s*thds:\s*(\d+)\s*tps:\s*([\d.]+)\s*qps:\s*([\d.]+)\s*'
+        r'\(r/w/o:\s*([\d.]+)/([\d.]+)/([\d.]+)\)\s*lat\s*\(ms,95%\):\s*([\d.]+)\s*'
+        r'err/s:\s*([\d.]+)',
+        text
+    ):
+        intervals.append({
+            "time": int(m.group(1)),
+            "threads": int(m.group(2)),
+            "tps": float(m.group(3)),
+            "qps": float(m.group(4)),
+            "read_qps": float(m.group(5)),
+            "write_qps": float(m.group(6)),
+            "other_qps": float(m.group(7)),
+            "lat_95": float(m.group(8)),
+            "err_s": float(m.group(9)),
+        })
+    result["intervals"] = intervals
+
+    # Parse SQL statistics
+    sql_stats = {}
+    for key in ["read", "write", "other", "total"]:
+        m = re.search(rf'^\s*{key}:\s+(\d+)', text, re.MULTILINE)
+        if m:
+            sql_stats[key] = int(m.group(1))
+    result["sql_stats"] = sql_stats
+
+    # Parse summary stats
+    m = re.search(r'transactions:\s+(\d+)\s+\(([\d.]+) per sec\.\)', text)
+    if m:
+        result["transactions"] = int(m.group(1))
+        result["tps"] = float(m.group(2))
+
+    m = re.search(r'queries:\s+(\d+)\s+\(([\d.]+) per sec\.\)', text)
+    if m:
+        result["queries"] = int(m.group(1))
+        result["qps"] = float(m.group(2))
+
+    m = re.search(r'ignored errors:\s+(\d+)\s+\(([\d.]+) per sec\.\)', text)
+    if m:
+        result["errors"] = int(m.group(1))
+        result["errors_per_sec"] = float(m.group(2))
+
+    # Latency
+    for key, label in [("min", "min"), ("avg", "avg"), ("max", "max"), ("95th percentile", "p95")]:
+        m = re.search(rf'^\s*{re.escape(key)}:\s+([\d.]+)', text, re.MULTILINE)
+        if m:
+            result[f"lat_{label}"] = float(m.group(1))
+
+    # Thread fairness
+    m = re.search(r'events \(avg/stddev\):\s+([\d.]+)/([\d.]+)', text)
+    if m:
+        result["fairness_avg"] = float(m.group(1))
+        result["fairness_stddev"] = float(m.group(2))
+
+    m = re.search(r'time elapsed:\s+([\d.]+)', text)
+    if m:
+        result["elapsed"] = float(m.group(1))
+
+    return result
+
+
+def parse_sysbench_configmap(filepath: Path) -> Optional[dict]:
+    """Parse sysbench-configmap.yaml and extract run parameters."""
+    if not filepath.exists():
+        return None
+
+    text = filepath.read_text()
+
+    # Extract sysbench-run.sh section and parse flags
+    params = {}
+    in_run_script = False
+    for line in text.split('\n'):
+        if 'sysbench-run.sh' in line:
+            in_run_script = True
+            continue
+        if in_run_script:
+            if line.strip().startswith('sysbench-') and line.strip().endswith('.sh: |'):
+                break  # next script section
+            m = re.match(r'\s*--(\S+?)(?:=(.+?))?\s*\\?\s*$', line)
+            if m:
+                key = m.group(1)
+                val = (m.group(2) or "true").rstrip(' \\')
+                params[key] = val
+            # Also capture the workload name (e.g. "exec sysbench oltp_read_write")
+            m2 = re.match(r'\s*exec sysbench\s+(\S+)', line)
+            if m2:
+                params["workload"] = m2.group(1)
+
+    return params if params else None
 
 
 def format_number(value: float, suffix: str = "") -> str:

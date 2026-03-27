@@ -250,6 +250,152 @@
         </section>
         {% endif %}
 
+        {% if sysbench_results %}
+        <section class="section">
+            <h2>Sysbench Results</h2>
+            <div class="spec-grid">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sysbench_results.tps is defined %}
+                        <tr>
+                            <td>Transactions per Second (TPS)</td>
+                            <td class="stat-value">{{ "%.2f"|format(sysbench_results.tps) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sysbench_results.qps is defined %}
+                        <tr>
+                            <td>Queries per Second (QPS)</td>
+                            <td class="stat-value">{{ "%.2f"|format(sysbench_results.qps) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sysbench_results.transactions is defined %}
+                        <tr>
+                            <td>Total Transactions</td>
+                            <td class="stat-value">{{ sysbench_results.transactions }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sysbench_results.queries is defined %}
+                        <tr>
+                            <td>Total Queries</td>
+                            <td class="stat-value">{{ sysbench_results.queries }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sysbench_results.sql_stats %}
+                        <tr>
+                            <td>Queries (Read / Write / Other)</td>
+                            <td class="stat-value">{{ sysbench_results.sql_stats.get('read', 'N/A') }} / {{ sysbench_results.sql_stats.get('write', 'N/A') }} / {{ sysbench_results.sql_stats.get('other', 'N/A') }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if sysbench_results.errors is defined %}
+                        <tr>
+                            <td>Errors (total / per sec)</td>
+                            <td class="stat-value">{{ sysbench_results.errors }} ({{ "%.2f"|format(sysbench_results.errors_per_sec) }}/s)</td>
+                        </tr>
+                        {% endif %}
+                        {% if sysbench_results.elapsed is defined %}
+                        <tr>
+                            <td>Elapsed Time</td>
+                            <td class="stat-value">{{ "%.1f"|format(sysbench_results.elapsed) }}s</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Latency</th>
+                            <th>Value (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sysbench_results.lat_min is defined %}
+                        <tr><td>Min</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_min) }}</td></tr>
+                        {% endif %}
+                        {% if sysbench_results.lat_avg is defined %}
+                        <tr><td>Avg</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_avg) }}</td></tr>
+                        {% endif %}
+                        {% if sysbench_results.lat_p95 is defined %}
+                        <tr><td>95th Percentile</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_p95) }}</td></tr>
+                        {% endif %}
+                        {% if sysbench_results.lat_max is defined %}
+                        <tr><td>Max</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_max) }}</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+
+                {% if sysbench_results.fairness_avg is defined %}
+                <div class="spec-info">
+                    <div class="metadata-item">
+                        <span class="metadata-label">Thread Fairness (events avg/stddev):</span>
+                        <span>{{ "%.2f"|format(sysbench_results.fairness_avg) }} / {{ "%.2f"|format(sysbench_results.fairness_stddev) }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if sysbench_results.intervals %}
+        <section class="section">
+            <h2>Sysbench Time Series</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>TPS over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-tps-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>95th Percentile Latency over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-lat-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>QPS Breakdown (Read/Write/Other)</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-qps-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Errors per Second</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-err-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+        {% endif %}
+
+        {% if sysbench_params %}
+        <section class="section">
+            <h2>Sysbench Parameters</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for key, value in sysbench_params.items() %}
+                    <tr>
+                        <td>{{ key }}</td>
+                        <td class="stat-value">{{ value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+
         <section class="section">
             <h2>Metrics Summary</h2>
             <table class="summary-table">
@@ -546,6 +692,59 @@
                 createChart('chart-' + key, metricsData[key].series, 'Value');
             }
         });
+
+        // Sysbench interval charts
+        {% if sysbench_results and sysbench_results.intervals %}
+        const sysbenchIntervals = {{ sysbench_results.intervals | tojson }};
+
+        function createSimpleChart(canvasId, labels, datasets, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { title: { display: true, text: 'Time (s)' } },
+                        y: { beginAtZero: true, title: { display: true, text: yAxisLabel } }
+                    },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
+        }
+
+        const sbLabels = sysbenchIntervals.map(i => i.time + 's');
+
+        createSimpleChart('sysbench-tps-chart', sbLabels, [{
+            label: 'TPS',
+            data: sysbenchIntervals.map(i => i.tps),
+            borderColor: colors[0], backgroundColor: colorsBg[0],
+            fill: true, tension: 0.3, pointRadius: 3,
+        }], 'TPS');
+
+        createSimpleChart('sysbench-lat-chart', sbLabels, [{
+            label: '95th %ile (ms)',
+            data: sysbenchIntervals.map(i => i.lat_95),
+            borderColor: colors[4], backgroundColor: colorsBg[4],
+            fill: true, tension: 0.3, pointRadius: 3,
+        }], 'Latency (ms)');
+
+        createSimpleChart('sysbench-qps-chart', sbLabels, [
+            { label: 'Read', data: sysbenchIntervals.map(i => i.read_qps), borderColor: colors[0], backgroundColor: colorsBg[0], fill: false, tension: 0.3, pointRadius: 2 },
+            { label: 'Write', data: sysbenchIntervals.map(i => i.write_qps), borderColor: colors[1], backgroundColor: colorsBg[1], fill: false, tension: 0.3, pointRadius: 2 },
+            { label: 'Other', data: sysbenchIntervals.map(i => i.other_qps), borderColor: colors[2], backgroundColor: colorsBg[2], fill: false, tension: 0.3, pointRadius: 2 },
+        ], 'QPS');
+
+        createSimpleChart('sysbench-err-chart', sbLabels, [{
+            label: 'Errors/s',
+            data: sysbenchIntervals.map(i => i.err_s),
+            borderColor: colors[4], backgroundColor: colorsBg[4],
+            fill: true, tension: 0.3, pointRadius: 3,
+        }], 'Errors/s');
+        {% endif %}
     </script>
 </body>
 </html>
