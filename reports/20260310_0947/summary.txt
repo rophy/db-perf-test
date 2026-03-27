@@ -1,0 +1,30 @@
+=== Tserver Node Specs ===
+Tservers: 3
+  yb-tserver-0 -> minikube-m04: 4 CPU, 8123952Ki
+  yb-tserver-1 -> minikube-m03: 4 CPU, 8123948Ki
+  yb-tserver-2 -> minikube-m02: 4 CPU, 8123948Ki
+=== Tserver Metrics (container-level) ===
+Tservers: 3
+CPU: 248.6%
+Memory: 1602 MB
+Disk IOPS: Read 0, Write 327
+
+=== Node Metrics (VM-level) ===
+Nodes: 4
+  minikube: 10.6% total CPU
+  minikube-m02: 77.1% total CPU
+  minikube-m03: 70.8% total CPU
+  minikube-m04: 71.4% total CPU
+  avg user: 33.4%
+  avg system: 14.7%
+  avg iowait: 1.3%
+  avg steal: 2.0%
+  avg softirq: 4.8%
+
+=== Sysbench Results ===
+TPS: 79.63
+QPS: 2719.36
+Errors: 88 (0.73/s)
+Reconnects: 0 (0.00/s)
+Latency (95th): 369.77 ms
+Duration: 120.3s

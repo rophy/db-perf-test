@@ -1,0 +1,18 @@
+=== Tserver Node Specs ===
+Tservers: 3
+  yb-tserver-0 -> minikube-m03: 4 CPU, 8123948Ki
+  yb-tserver-1 -> minikube-m02: 4 CPU, 8123948Ki
+  yb-tserver-2 -> minikube-m04: 4 CPU, 8123952Ki
+=== Tserver Metrics ===
+Tservers: 3
+CPU: 244.4%
+Memory: 1382 MB
+Disk IOPS: Read 0, Write 343
+
+=== Sysbench Results ===
+TPS: 60.59
+QPS: 2065.11
+Errors: 77 (0.26/s)
+Reconnects: 0 (0.00/s)
+Latency (95th): 231.53 ms
+Duration: 300.2s

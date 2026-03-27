@@ -1,0 +1,4 @@
+pod_name	node_name	cpu	memory
+yb-tserver-0	minikube-m03	4	8123948Ki
+yb-tserver-1	minikube-m02	4	8123948Ki
+yb-tserver-2	minikube-m04	4	8123952Ki
