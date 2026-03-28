@@ -91,11 +91,36 @@ Disk is **not the bottleneck**. IOPS well below cap, iowait negligible.
 
 | Metric | Value |
 |--------|-------|
-| Container memory | 2,839 MB avg |
+| Container memory (avg per tserver) | 2,839 MB |
 | Node memory | 8,132 MB |
 | Utilization | 35% |
 
-Memory has ample headroom.
+Memory scaling across runs (same WAL tuning, oltp_insert + triggers):
+
+| Threads | TPS | Memory (avg/tserver) | Change from 48t |
+|---------|-----|---------------------|-----------------|
+| 48 | 952 | 1,428 MB | baseline |
+| 512 | 1,436 | 2,839 MB | **+99%** |
+
+Memory nearly doubled from 48 to 512 threads. Three factors contribute:
+
+1. **Connection state**: 512 sysbench connections ÷ 3 tservers ≈ 170 connections each. Each PostgreSQL connection consumes memory for session state, prepared statements, and transaction tracking. At ~5-8 MB per connection, this accounts for ~1-1.4 GB of the increase.
+
+2. **Buffered WAL data**: With `interval_durable_wal_write_ms=5000`, up to 5 seconds of writes accumulate in memory before syncing. At ~1 MB/s per tserver, this is ~5 MB — negligible.
+
+3. **RocksDB memtables**: Higher write throughput fills memtables faster. More immutable memtables may exist concurrently while background flush threads process them.
+
+At 35% utilization, memory is not a constraint. However, if scaling to 1024+ threads or increasing WAL buffer sizes (`bytes_durable_wal_write_mb`), memory should be monitored to avoid OOM.
+
+**Memory overhead of WAL tuning**: Comparing the 1s vs 5s WAL interval at 24 threads (oltp_read_write + triggers):
+
+| WAL interval | TPS | Memory |
+|-------------|-----|--------|
+| 1s (default) | 17.5 | 1,052 MB |
+| 5s (tuned) | 23.3 | 1,163 MB |
+| Delta | +33% TPS | **+111 MB (+11%)** |
+
+The 5s WAL interval added only 111 MB of memory overhead — a modest cost for 33% more throughput. The WAL buffer memory scales with write rate × interval, so at higher TPS (~1,400) the buffer is proportionally larger but still small relative to total memory.
 
 ## Bottleneck Identification
 
@@ -127,11 +152,39 @@ This is a cascade: CPU saturation → slower request processing → longer queue
 | Network | 2.8 MB/s — low |
 | Transaction conflicts | 0/s |
 
+## Effect of WAL Tuning
+
+The `interval_durable_wal_write_ms=5000` tuning transformed this cluster from disk-bound to CPU-bound:
+
+| Metric | Default WAL (1s) | Tuned WAL (5s) |
+|--------|-----------------|----------------|
+| WAL sync rate | 29 ops/s/tserver | 6-7 ops/s/tserver |
+| Disk Write IOPS | 84 (at 80 cap) | 24-36 (30-45% of cap) |
+| iowait | 16-28% | 1-3% |
+| Bottleneck | Disk IOPS | CPU |
+
+With the default 1s interval, disk was saturated at 80 IOPS and TPS was capped at 17.5. With 5s interval, disk I/O became negligible and the cluster could sustain 1,436 TPS — an **82x improvement** over the disk-bound configuration (comparing same trigger workload).
+
+The tradeoff: up to 5 seconds of WAL data may be unsynced per node. With RF=3 Raft replication, data loss requires simultaneous failure of all 3 nodes within the 5s window.
+
 ## Conclusion
 
 At 512 threads, the cluster is **CPU-saturated** (91-93% total, 9-11% stolen by hypervisor). The observable symptom is 7x write RPC latency increase from internal queueing. TPS plateaus at ~1,400 because the tservers cannot process requests faster with the available CPU.
 
-To push beyond 1,400 TPS with triggers, the cluster would need:
+### Resource Summary
+
+| Resource | Status | Evidence |
+|----------|--------|----------|
+| **CPU** | **Saturated** | 91-93% total, 7-10% idle, 9-11% steal |
+| Disk IOPS | Idle | 30-45% of 80 cap |
+| Disk latency | Not a factor | iowait 1-3%, WAL sync 72-85ms (background) |
+| Memory | Headroom | 2,839 MB / 8,132 MB (35%) |
+| Network | Low | 2.8 MB/s |
+| Conflicts | Zero | oltp_insert has no row contention |
+
+### To push beyond 1,400 TPS with triggers
+
 1. **More physical CPU**: either more P-cores per worker or fewer workers with more cores
-2. **Less CPU steal**: dedicate host cores exclusively to workers (isolate control node and host OS)
-3. **Trigger optimization**: reduce per-insert CPU cost (e.g., simpler trigger logic, fewer dynamic SQL evaluations)
+2. **Less CPU steal**: dedicate host cores exclusively to workers (isolate control node and host OS to E-cores)
+3. **Trigger optimization**: reduce per-insert CPU cost (e.g., simpler trigger logic, fewer dynamic SQL evaluations via `EXECUTE format(...)`)
+4. **Connection pooling**: reduce the 512 direct connections to lower context-switching overhead (system CPU 18%)
