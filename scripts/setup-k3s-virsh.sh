@@ -12,6 +12,8 @@ WORKER_MEMORY="${WORKER_MEMORY:-8192}"
 # Leave empty for shared CPUs (no pinning)
 WORKER_CPU_PINNING="${WORKER_CPU_PINNING:-}"
 DISK_SIZE="${DISK_SIZE:-20G}"
+DISK_CACHE="${DISK_CACHE:-none}"
+DISK_IO="${DISK_IO:-native}"
 WORKER_COUNT="${WORKER_COUNT:-3}"
 NETWORK="${NETWORK:-default}"
 OS_VARIANT="${OS_VARIANT:-ubuntu24.04}"
@@ -155,9 +157,18 @@ instance-id: ${name}
 local-hostname: ${name}
 EOF
 
+    # Network config: enable DHCP (required for pre-baked images after cloud-init clean)
+    cat > "/tmp/cloud-init-${name}/network-config" << EOF
+version: 2
+ethernets:
+  enp1s0:
+    dhcp4: true
+EOF
+
     genisoimage -output "$VM_DIR/${name}-cidata.iso" \
         -volid cidata -joliet -rock -input-charset utf-8 \
         "/tmp/cloud-init-${name}/user-data" "/tmp/cloud-init-${name}/meta-data" \
+        "/tmp/cloud-init-${name}/network-config" \
         >/dev/null 2>&1
 
     rm -rf "/tmp/cloud-init-${name}"
@@ -173,7 +184,7 @@ EOF
         --memory "$memory" \
         --vcpus "$cpus" \
         $cpuset_flag \
-        --disk "path=$VM_DIR/${name}.raw,format=raw,cache=none,io=native" \
+        --disk "path=$VM_DIR/${name}.raw,format=raw,cache=${DISK_CACHE},io=${DISK_IO}" \
         --disk "path=$VM_DIR/${name}-cidata.iso,device=cdrom" \
         --os-variant "$OS_VARIANT" \
         --network "network=$NETWORK" \
