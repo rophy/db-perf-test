@@ -19,8 +19,21 @@ OS_VARIANT="${OS_VARIANT:-ubuntu24.04}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 VM_DIR="$PROJECT_DIR/.vms"
+# Use pre-baked image (with k3s + dmsetup) if available, otherwise fall back to cloud image
+VM_BASE_IMG="${VM_BASE_IMG:-}"
 CLOUD_IMG="$VM_DIR/ubuntu-24.04-cloudimg.img"
 CLOUD_IMG_URL="https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+if [ -z "$VM_BASE_IMG" ]; then
+    if [ -f "$VM_DIR/ubuntu-24.04-k3s.img" ]; then
+        VM_BASE_IMG="$VM_DIR/ubuntu-24.04-k3s.img"
+    else
+        VM_BASE_IMG="$CLOUD_IMG"
+    fi
+fi
+AIRGAP_MODE=false
+if [ "$VM_BASE_IMG" != "$CLOUD_IMG" ]; then
+    AIRGAP_MODE=true
+fi
 
 SSH_KEY=$(cat ~/.ssh/id_ed25519.pub 2>/dev/null || cat ~/.ssh/id_rsa.pub 2>/dev/null)
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5"
@@ -28,6 +41,10 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLeve
 echo "=== YugabyteDB Performance Tuning Lab Setup (virsh + k3s) ==="
 echo "VMs: 1 control ($CONTROL_CPUS CPU / ${CONTROL_MEMORY}MB) + $WORKER_COUNT workers ($WORKER_CPUS CPU / ${WORKER_MEMORY}MB)"
 echo "Kube context: $KUBE_CONTEXT"
+echo "Base image: $VM_BASE_IMG"
+if [ "$AIRGAP_MODE" = true ]; then
+    echo "Mode: air-gap (pre-baked image, no internet required)"
+fi
 if [ -n "$WORKER_CPU_PINNING" ]; then
     echo "Worker CPU pinning: $WORKER_CPU_PINNING"
 fi
@@ -44,11 +61,17 @@ if [ -z "$SSH_KEY" ]; then
     exit 1
 fi
 
-# --- Cloud image ---
+# --- Base image ---
 mkdir -p "$VM_DIR"
-if [ ! -f "$CLOUD_IMG" ]; then
-    echo "Downloading Ubuntu 24.04 cloud image..."
-    wget -q --show-progress -O "$CLOUD_IMG" "$CLOUD_IMG_URL"
+if [ ! -f "$VM_BASE_IMG" ]; then
+    if [ "$VM_BASE_IMG" = "$CLOUD_IMG" ]; then
+        echo "Downloading Ubuntu 24.04 cloud image..."
+        wget -q --show-progress -O "$CLOUD_IMG" "$CLOUD_IMG_URL"
+    else
+        echo "ERROR: Base image not found: $VM_BASE_IMG" >&2
+        echo "Run ./scripts/build-vm-image.sh first, or unset VM_BASE_IMG to download from internet." >&2
+        exit 1
+    fi
 fi
 
 # --- VM creation ---
@@ -73,13 +96,28 @@ create_vm() {
 
     echo "  $name: creating VM ($cpus CPU, ${memory}MB RAM, $DISK_SIZE disk)..."
 
-    # Create raw disk from cloud image (raw format avoids qcow2 I/O amplification)
-    qemu-img convert -f qcow2 -O raw "$CLOUD_IMG" "$VM_DIR/${name}.raw"
+    # Create raw disk from base image (raw format avoids qcow2 I/O amplification)
+    local src_format
+    src_format=$(qemu-img info --output=json "$VM_BASE_IMG" | python3 -c "import sys,json; print(json.load(sys.stdin)['format'])")
+    qemu-img convert -f "$src_format" -O raw "$VM_BASE_IMG" "$VM_DIR/${name}.raw"
     truncate -s "$DISK_SIZE" "$VM_DIR/${name}.raw"
 
     # Generate cloud-init
     mkdir -p "/tmp/cloud-init-${name}"
-    cat > "/tmp/cloud-init-${name}/user-data" << EOF
+    if [ "$AIRGAP_MODE" = true ]; then
+        # Pre-baked image already has dmsetup installed
+        cat > "/tmp/cloud-init-${name}/user-data" << EOF
+#cloud-config
+hostname: ${name}
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${SSH_KEY}
+EOF
+    else
+        cat > "/tmp/cloud-init-${name}/user-data" << EOF
 #cloud-config
 hostname: ${name}
 users:
@@ -92,6 +130,7 @@ packages:
   - dmsetup
 package_update: true
 EOF
+    fi
 
     cat > "/tmp/cloud-init-${name}/meta-data" << EOF
 instance-id: ${name}
@@ -199,7 +238,11 @@ done
 # --- Install k3s server ---
 echo ""
 echo "Installing k3s server on ${VM_PREFIX}-control..."
-ssh $SSH_OPTS "ubuntu@${CONTROL_IP}" "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--disable=traefik' sh -" >/dev/null 2>&1
+if [ "$AIRGAP_MODE" = true ]; then
+    ssh $SSH_OPTS "ubuntu@${CONTROL_IP}" "INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC='--disable=traefik' /usr/local/bin/install-k3s.sh" >/dev/null 2>&1
+else
+    ssh $SSH_OPTS "ubuntu@${CONTROL_IP}" "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--disable=traefik' sh -" >/dev/null 2>&1
+fi
 echo "  k3s server installed"
 
 # Get join token
@@ -213,9 +256,15 @@ for i in $(seq 1 "$WORKER_COUNT"); do
     vm="${VM_PREFIX}-worker-${i}"
     ip="${VM_IPS[$vm]}"
     echo "  $vm ($ip)..."
-    ssh $SSH_OPTS "ubuntu@${ip}" \
-        "curl -sfL https://get.k3s.io | K3S_URL='${K3S_URL}' K3S_TOKEN='${K3S_TOKEN}' sh -" \
-        >/dev/null 2>&1
+    if [ "$AIRGAP_MODE" = true ]; then
+        ssh $SSH_OPTS "ubuntu@${ip}" \
+            "INSTALL_K3S_SKIP_DOWNLOAD=true K3S_URL='${K3S_URL}' K3S_TOKEN='${K3S_TOKEN}' /usr/local/bin/install-k3s.sh" \
+            >/dev/null 2>&1
+    else
+        ssh $SSH_OPTS "ubuntu@${ip}" \
+            "curl -sfL https://get.k3s.io | K3S_URL='${K3S_URL}' K3S_TOKEN='${K3S_TOKEN}' sh -" \
+            >/dev/null 2>&1
+    fi
     echo "  $vm: k3s agent installed"
 done
 
