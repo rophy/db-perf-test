@@ -12,6 +12,7 @@ WORKER_MEMORY="${WORKER_MEMORY:-8192}"
 # Leave empty for shared CPUs (no pinning)
 WORKER_CPU_PINNING="${WORKER_CPU_PINNING:-}"
 DISK_SIZE="${DISK_SIZE:-20G}"
+DISK_FORMAT="${DISK_FORMAT:-raw}"
 DISK_CACHE="${DISK_CACHE:-none}"
 DISK_IO="${DISK_IO:-native}"
 WORKER_COUNT="${WORKER_COUNT:-3}"
@@ -98,11 +99,17 @@ create_vm() {
 
     echo "  $name: creating VM ($cpus CPU, ${memory}MB RAM, $DISK_SIZE disk)..."
 
-    # Create raw disk from base image (raw format avoids qcow2 I/O amplification)
-    local src_format
+    # Create disk from base image
+    local src_format disk_ext disk_file
     src_format=$(qemu-img info --output=json "$VM_BASE_IMG" | python3 -c "import sys,json; print(json.load(sys.stdin)['format'])")
-    qemu-img convert -f "$src_format" -O raw "$VM_BASE_IMG" "$VM_DIR/${name}.raw"
-    truncate -s "$DISK_SIZE" "$VM_DIR/${name}.raw"
+    disk_ext="${DISK_FORMAT}"
+    disk_file="$VM_DIR/${name}.${disk_ext}"
+    qemu-img convert -f "$src_format" -O "$DISK_FORMAT" "$VM_BASE_IMG" "$disk_file"
+    if [ "$DISK_FORMAT" = "raw" ]; then
+        truncate -s "$DISK_SIZE" "$disk_file"
+    else
+        qemu-img resize "$disk_file" "$DISK_SIZE"
+    fi
 
     # Generate cloud-init
     mkdir -p "/tmp/cloud-init-${name}"
@@ -184,7 +191,7 @@ EOF
         --memory "$memory" \
         --vcpus "$cpus" \
         $cpuset_flag \
-        --disk "path=$VM_DIR/${name}.raw,format=raw,cache=${DISK_CACHE},io=${DISK_IO}" \
+        --disk "path=${disk_file},format=${DISK_FORMAT},cache=${DISK_CACHE},io=${DISK_IO}" \
         --disk "path=$VM_DIR/${name}-cidata.iso,device=cdrom" \
         --os-variant "$OS_VARIANT" \
         --network "network=$NETWORK" \
