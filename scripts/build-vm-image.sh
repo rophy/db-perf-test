@@ -186,6 +186,8 @@ ssh $SSH_OPTS "ubuntu@${BUILD_IP}" "k3s --version && dpkg -l dmsetup | tail -1 &
 echo ""
 echo "Cleaning up VM state for reuse..."
 ssh $SSH_OPTS "ubuntu@${BUILD_IP}" "
+    sudo apt-get clean
+    sudo rm -rf /var/lib/apt/lists/*
     sudo cloud-init clean --logs --seed
     sudo rm -f /etc/ssh/ssh_host_*
     sudo rm -f /etc/machine-id && sudo touch /etc/machine-id
