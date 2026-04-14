@@ -1,0 +1,24 @@
+=== ygdb-worker-1 ===
+  <cputune>
+    <vcpupin vcpu='0' cpuset='0'/>
+    <vcpupin vcpu='1' cpuset='1'/>
+    <vcpupin vcpu='2' cpuset='2'/>
+    <vcpupin vcpu='3' cpuset='3'/>
+  </cputune>
+  <resource>
+=== ygdb-worker-2 ===
+  <cputune>
+    <vcpupin vcpu='0' cpuset='4'/>
+    <vcpupin vcpu='1' cpuset='5'/>
+    <vcpupin vcpu='2' cpuset='6'/>
+    <vcpupin vcpu='3' cpuset='7'/>
+  </cputune>
+  <resource>
+=== ygdb-worker-3 ===
+  <cputune>
+    <vcpupin vcpu='0' cpuset='8'/>
+    <vcpupin vcpu='1' cpuset='9'/>
+    <vcpupin vcpu='2' cpuset='10'/>
+    <vcpupin vcpu='3' cpuset='11'/>
+  </cputune>
+  <resource>
