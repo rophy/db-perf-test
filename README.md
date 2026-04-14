@@ -83,8 +83,11 @@ make deploy-k3s-virsh KUBE_CONTEXT=k3s-ygdb
 make sysbench-prepare KUBE_CONTEXT=k3s-ygdb
 make sysbench-run KUBE_CONTEXT=k3s-ygdb
 
-# Optional: throttle disk throughput on running cluster
+# Optional: throttle disk throughput on running cluster (non-destructive)
 DISK_BW_MBPS=10 ./scripts/setup-slow-throughput.sh
+
+# Optional: change dm-delay latency without reformatting the disk
+DISK_DELAY_MS=5 ./scripts/adjust-disk-delay.sh
 
 # Cleanup
 make clean KUBE_CONTEXT=k3s-ygdb
@@ -155,8 +158,9 @@ Reports are saved to `reports/<timestamp>/report.html`.
 |--------|-------------|
 | `make setup-k3s-virsh` | Create VMs and install k3s cluster |
 | `make teardown-k3s-virsh` | Destroy VMs and cleanup |
-| `make setup-slow-disk` | Setup tserver storage with dm-delay (`DISK_DELAY_MS=50`) |
-| `make setup-slow-throughput` | Throttle VM disk throughput (`DISK_BW_MBPS=10 DISK_IOPS=200`) |
+| `make setup-slow-disk` | Create tserver storage with dm-delay (`DISK_DELAY_MS=50`). **Destructive** — reformats disk, wipes YB data. Use for initial setup or full reset. |
+| `make adjust-disk-delay` | Change dm-delay live (`DISK_DELAY_MS=5`). **Non-destructive** — data preserved via `dmsetup suspend/reload/resume`. Use to iterate on latency. |
+| `make setup-slow-throughput` | Throttle VM disk throughput (`DISK_BW_MBPS=10 DISK_IOPS=200`). **Non-destructive** — `virsh blkdeviotune --live`. Safe to re-run with new values. |
 
 ## Configuration
 

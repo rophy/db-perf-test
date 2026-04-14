@@ -3,7 +3,7 @@
 .PHONY: report
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
-.PHONY: setup-k3s-virsh teardown-k3s-virsh setup-slow-disk setup-slow-throughput
+.PHONY: setup-k3s-virsh teardown-k3s-virsh setup-slow-disk setup-slow-throughput adjust-disk-delay
 
 KUBE_CONTEXT ?= minikube
 NAMESPACE ?= yugabyte-test
@@ -130,6 +130,9 @@ setup-slow-disk: ## Setup tserver storage with optional dm-delay (DISK_DELAY_MS=
 
 setup-slow-throughput: ## Throttle VM disk throughput (DISK_BW_MBPS=10 DISK_IOPS=200)
 	@DISK_BW_MBPS=$(DISK_BW_MBPS) DISK_IOPS=$(DISK_IOPS) ./scripts/setup-slow-throughput.sh
+
+adjust-disk-delay: ## Change dm-delay live without destroying data (DISK_DELAY_MS=5)
+	@DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/adjust-disk-delay.sh
 
 # Cleanup
 clean: ## Delete all resources
