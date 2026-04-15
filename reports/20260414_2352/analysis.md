@@ -1,3 +1,14 @@
+> **INVALID — METHODOLOGY ERROR.** No `sysbench-cleanup` + `sysbench-prepare` was
+> run between the 7 experiments in this analysis. Row counts grew monotonically
+> across runs (sbtest1 drifted from 100K → 136K+). The trigger's
+> SELECT-before-INSERT slows as tables grow, so per-op cost drifted and TPS
+> numbers across runs are not comparable. Crash attributions (Zlib, rate-limit,
+> disable_compactions) may also be contaminated — a clean baseline re-run with
+> the same config subsequently failed the same way, proving the cluster state
+> was the fault, not the gflag under test. All conclusions below must be
+> re-validated on freshly-prepared tables. A fresh re-run is underway; see the
+> next analysis folder for valid numbers.
+
 # Session Analysis: Can RocksDB Trade Memory/CPU for IOPS Like WAL Can?
 
 Spans runs `20260414_2225` (baseline) through `20260414_2352` (disable_compactions). All runs on the same k3s-virsh lab: 3 workers (4 vCPU, 8 GB, 2 P-cores pinned each), RF=3, sysbench oltp_insert + `cleanup_duplicate_k` trigger, 512 threads, 150 s window (30 s warmup + 120 s measure), dm-delay=5 ms, IOPS cap=80.
