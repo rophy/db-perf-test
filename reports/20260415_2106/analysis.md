@@ -60,6 +60,78 @@ Ramp scaled roughly linearly with thread count: 3000 threads → 40s ramp; 6000 
 
 Load is now much more evenly distributed — the 17-node avg is 82.7% with very tight spread (min 79%, max 84% per-node averaged over the window), and the hottest node still hits 97.5% only in bursts. YB's tablet balancer has evened out compared with iter 3 (where one node averaged 88% vs cluster 75%).
 
+## Per-Tserver Load Distribution (steady-state)
+
+### Write RPC rate per tserver (req/s)
+
+| tserver | rate | | tserver | rate |
+|---|---:|---|---|---:|
+| ts-13 | **26,226** | | ts-12 | 17,048 |
+| ts-16 | **26,218** | | ts-8 | 16,680 |
+| ts-0 | **25,074** | | ts-7 | 15,867 |
+| ts-5 | 20,376 | | ts-11 | 15,284 |
+| ts-15 | 19,457 | | ts-6 | 14,703 |
+| ts-2 | 18,837 | | ts-14 | 14,528 |
+| ts-9 | 18,125 | | ts-4 | 13,503 |
+| ts-10 | 17,294 | | ts-3 | **10,216** |
+| ts-1 | 17,056 | |  |  |
+
+Mean 15,325 · range 10,216–26,226 · **max/min = 2.57×**, spread = 171% of mean.
+
+### Write RPC avg latency per tserver (ms)
+
+| tserver | ms | | tserver | ms |
+|---|---:|---|---|---:|
+| **ts-5** | **196.09** | | ts-1 | 8.56 |
+| ts-11 | 38.82 | | ts-8 | 8.23 |
+| ts-13 | 20.86 | | ts-3 | 7.91 |
+| ts-0 | 16.84 | | ts-4 | 7.75 |
+| ts-12 | 13.58 | | ts-15 | 6.71 |
+| ts-2 | 11.76 | | ts-14 | 6.53 |
+| ts-9 | 11.69 | | ts-16 | 6.37 |
+| ts-6 | 9.35 | | ts-7 | 6.35 |
+|  |  | | ts-10 | **5.88** |
+
+ts-5 is an extreme outlier: 196 ms latency with only 20K req/s (moderate rate). ts-11 at 39 ms and ts-13/ts-0 at 17-21 ms are secondary hot spots.
+
+### RAFT leader count per tserver (fairly balanced)
+
+`is_raft_leader` sum: 5-8 per tserver, mean 6.1. Not the source of skew.
+
+### log_sync latency per tserver (uniform)
+
+6.79 – 7.08 ms across all 17 tservers (< 5% spread) — **disk I/O is not the cause of any hot-spot**.
+
+### VM CPU per db node (moderate skew)
+
+| node | CPU | node | CPU |
+|---|---:|---|---:|
+| ip-62 | 89.7% | ip-75 | 80.5% |
+| ip-197 | 87.4% | ip-24 | 79.4% |
+| ip-193 | 86.1% | ip-102 | 77.7% |
+| ip-194 | 85.7% | ip-209 | 75.0% |
+| ... avg 82.7% | range 75-90% (15 pp) |  |
+
+## Load Distribution Diagnosis
+
+Three signals disagree:
+1. **RAFT leader counts are uniform** (5-8 per tserver, mean 6).
+2. **Write RPC rates are massively uneven** (10K – 26K, 2.6× spread).
+3. **Latency is catastrophically uneven** (5.9 – 196 ms, 33× spread).
+
+Disk and WAL are fine everywhere (log_sync uniform at 7 ms). The skew is **inside the tserver write pipeline** — likely a few tablet leaders are the majority of writes (leader count ≠ request count), and one tablet on ts-5 is pathologically slow.
+
+Hypothesis: sysbench hashes inserts across 24 sbtest tables × `ysql_num_shards_per_tserver=2` — with 17 tservers that's a small shard count per table, so a few tablets catch most writes. Leader placement is balanced, but the *load per leader* isn't.
+
+## Implication for 200K
+
+The 185K peak ceiling **is not cluster-wide saturation**. It's a handful of hot tservers (ts-5 severely, ts-0/13/16 moderately) serializing writes. If load were uniform across the 17 nodes at the *coldest* tserver's rate (10K req/s × 17 = 170K RPCs/s, but more evenly distributed), or even at the *mean* rate (15K × 17 = 260K), peak TPS could plausibly exceed 250K.
+
+Levers to unlock this on the current hardware:
+1. **Increase shard count** per table — raise `ysql_num_shards_per_tserver` from 2 to 4 or 8. With 17 tservers × 4 = 68 shards per table, hot-spot probability drops sharply.
+2. **Range-partitioning on primary key** instead of hash — but would require workload changes.
+3. **Investigate ts-5's pathological tablet** — 196 ms latency with moderate rate suggests a specific hot row or lock. Could be the `cleanup_duplicate_k` trigger's indexed SELECT hitting one table's hot range.
+
 ## Full Scaling Comparison
 
 | | Iter 1 | Iter 2 | Iter 3 | Iter 4 |
