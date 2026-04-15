@@ -122,7 +122,8 @@ yugabyte:
       yb_num_shards_per_tserver: 2
       ysql_num_shards_per_tserver: 2
       bytes_durable_wal_write_mb: 4
-      interval_durable_wal_write_ms: 5000
+      interval_durable_wal_write_ms: 10000
+      compression_type: Zlib
   enableLoadBalancer: false
   ysql:
     enabled: true
