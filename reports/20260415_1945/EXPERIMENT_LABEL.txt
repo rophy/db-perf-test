@@ -1,0 +1,29 @@
+AWS first successful run — 200K TPS calibration, iteration 1.
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (tainted dedicated=db:NoSchedule)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- 1× t3.small — k3s master (control-plane only)
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Workload:
+- oltp_insert, 24 tables × 100,000 rows, 1200 threads, 120s (30s warmup)
+- cleanup_duplicate_k trigger installed on all 24 tables
+- gflags mirror values-k3s-virsh.yaml (bytes_durable_wal_write_mb=4, interval_durable_wal_write_ms=10000, ysql_num_shards_per_tserver=2)
+
+Result:
+- TPS: 37,761.67
+- QPS: 37,761.67
+- p95 latency: 41.85 ms
+- avg latency: 31.98 ms
+- 0 errors
+
+Constraints hit during iteration:
+- 3000 threads → CoreDNS saturation on resolving yb-tserver-service (single CoreDNS replica); worked around by patching ConfigMap to use ClusterIP 10.43.134.230 directly.
+- 3000 threads → "sorry, too many clients already" (YSQL default max_connections=300/tserver × 6 = 1800 cap). Reduced threads to 1200 for this run.
+
+Next iterations needed to reach 200K:
+- Raise ysql_max_connections gflag → drive 3000+ threads
+- Larger dataset (10M rows/table) so working set doesn't fit in RAM
+- Scale CoreDNS replicas OR keep ClusterIP shortcut

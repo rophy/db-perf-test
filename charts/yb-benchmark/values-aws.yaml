@@ -1,10 +1,15 @@
-# YugabyteDB Benchmark Suite - Default Values
+# AWS EKS/K3s values — 6× tserver scale-up, 200K TPS calibration
+# Node layout:
+#   - role=db (tainted dedicated=db:NoSchedule): 6× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
+#   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
+#   - role=system: 1× c6i.2xlarge (Intel Ice Lake) — 3 yb-masters + prometheus
+# CPU note: ap-east-2 does not offer c6a; c6i.8xlarge hit InsufficientInstanceCapacity.
+# Using c7i.8xlarge (Sapphire Rapids, 32 vCPU / 64 GB). Record in EXPERIMENT_LABEL.txt per run.
+# gflags intentionally mirror values-k3s-virsh.yaml (no RocksDB re-tuning).
 
-# Override chart fullname (default: <release>-yb-benchmark)
 fullnameOverride: ""
 
-# Sysbench configuration
-# Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/
+# Sysbench — oltp_insert with cleanup_duplicate_k trigger, same as k3s-virsh baseline
 sysbench:
   enabled: true
   image:
@@ -13,16 +18,14 @@ sysbench:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: "500m"
-      memory: "1Gi"
+      cpu: "4"
+      memory: "4Gi"
     limits:
-      cpu: "2"
-      memory: "2Gi"
-  # Schedule on worker nodes
+      cpu: "28"
+      memory: "16Gi"
   nodeSelector:
-    role: worker
+    role: client
 
-  # Database connection
   db:
     host: yb-tserver-service
     port: 5433
@@ -30,29 +33,25 @@ sysbench:
     password: yugabyte
     name: yugabyte
 
-  # Benchmark parameters (per YugabyteDB docs)
-  tables: 20
-  tableSize: 5000000
-  threads: 120
-  time: 1800
-  warmupTime: 300
+  tables: 24
+  tableSize: 100000
+  threads: 3000  # client-side target; ysql_max_connections=1024/tserver gives 6144 cluster cap
+  time: 120
+  warmupTime: 30
   reportInterval: 10
-  workload: oltp_read_write
+  workload: oltp_insert
 
-  # YugabyteDB-specific flags
   rangeKeyPartitioning: false
   serialCacheSize: 1000
   createSecondary: true
 
-  # Workload tuning flags (CRITICAL: rangeSelects=false prevents 100x slowdown)
   rangeSelects: false
-  pointSelects: 10
-  indexUpdates: 10
-  nonIndexUpdates: 10
+  pointSelects: 2
+  indexUpdates: 20
+  nonIndexUpdates: 20
   numRowsInInsert: 10
-  threadInitTimeout: 90
+  threadInitTimeout: 120
 
-# Prometheus configuration
 prometheus:
   enabled: true
   image:
@@ -64,14 +63,12 @@ prometheus:
       cpu: "500m"
       memory: "1Gi"
     limits:
-      cpu: "1"
-      memory: "2Gi"
+      cpu: "2"
+      memory: "4Gi"
   retention: 7d
-  # Schedule on worker nodes
   nodeSelector:
-    role: worker
+    role: system
 
-# Node exporter - host-level CPU/memory/disk metrics
 nodeExporter:
   enabled: true
   image:
@@ -84,38 +81,48 @@ nodeExporter:
       memory: "32Mi"
     limits:
       cpu: "200m"
-      memory: "64Mi"
+      memory: "128Mi"
 
-# YugabyteDB subchart configuration
+# YugabyteDB — 3 masters on role=system, 6 tservers on role=db (RF=3)
 yugabyte:
   enabled: true
   Image:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 8
+    tserver: 6
   resource:
     master:
       requests:
-        cpu: "1"
-        memory: "4Gi"
+        cpu: "500m"
+        memory: "1Gi"
       limits:
         cpu: "2"
-        memory: "8Gi"
+        memory: "4Gi"
     tserver:
       requests:
-        cpu: "2"
-        memory: "10Gi"
+        cpu: "16"
+        memory: "32Gi"
       limits:
         cpu: null
         memory: null
   storage:
     master:
-      storageClass: ""
       size: 10Gi
+      storageClass: ebs-gp3
     tserver:
-      storageClass: ""
-      size: 50Gi
+      count: 1
+      size: 200Gi
+      storageClass: ebs-gp3-db
+  gflags:
+    master:
+      replication_factor: 3
+    tserver:
+      yb_num_shards_per_tserver: 2
+      ysql_num_shards_per_tserver: 2
+      bytes_durable_wal_write_mb: 4
+      interval_durable_wal_write_ms: 10000
+      ysql_max_connections: 1024
   enableLoadBalancer: false
   ysql:
     enabled: true
@@ -124,13 +131,7 @@ yugabyte:
     enabled: false
   metrics:
     enabled: true
-  gflags:
-    master:
-      replication_factor: 3
-    tserver:
-      yb_num_shards_per_tserver: 4
-      ysql_num_shards_per_tserver: 4
-  # Schedule masters on worker nodes (32GB)
+  # Pin masters to the system node
   master:
     affinity:
       nodeAffinity:
@@ -140,9 +141,14 @@ yugabyte:
             - key: role
               operator: In
               values:
-              - worker
-  # Schedule tservers on db nodes (16GB each)
+              - system
+  # Pin tservers to db nodes, one per node, tolerate db taint
   tserver:
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: db
+        effect: NoSchedule
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
@@ -152,3 +158,12 @@ yugabyte:
               operator: In
               values:
               - db
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - yb-tserver
+          topologyKey: kubernetes.io/hostname
