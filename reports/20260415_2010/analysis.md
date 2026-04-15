@@ -67,6 +67,29 @@ Per-thread latency rose only ~12% while throughput rose 2.2×. That is **near-li
 - Linear extrapolation: 83K / 3000 × 6144 (cluster cap) = **~170K TPS** at the YSQL conn ceiling.
 - Real-world: per-thread latency will climb further as tserver CPU saturates.
 
+## Per-15s Resource Timetable (full 120s measurement window)
+
+Aligned to sysbench TPS reports. CPU avg over 6 db nodes; disk/net summed across all 6; mem is per-tserver container working set.
+
+| t (s) | sysbench TPS | db CPU avg | Disk W/s (cluster) | tserver mem | Net RX (cluster) |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 1,055 | 10.8% | 136 | 6.17 GiB | 105 MB/s |
+| 15 | ~1,900 | 12.2% | 156 | 6.50 GiB | 126 MB/s |
+| 30 | 2,748 | 14.2% | 147 | 6.89 GiB | 156 MB/s |
+| 45 | 10,107 | 27.5% | 263 | 7.33 GiB | 343 MB/s |
+| 60 | 83,682 | **74.7%** | 1,321 | 8.65 GiB | 1,126 MB/s |
+| 75 | ~85,000 | **95.3%** | 2,510 | 10.48 GiB | 1,587 MB/s |
+| 90 | 84,827 | **97.7%** | 2,592 | 11.48 GiB | 1,633 MB/s |
+| 105 | ~81,000 | 95.2% | 2,584 | 11.93 GiB | 1,576 MB/s |
+| 120 | 81,511 | 94.8% | 2,611 | 12.29 GiB | 1,550 MB/s |
+
+- **CPU** climbs 11% → 98% in ~75s, tracking TPS almost perfectly. Steady-state **~95-98% saturated**.
+- **Disk writes** scale 20× (136 → 2,611 /s) but remain <1% of 16K provisioned IOPS — not limiting.
+- **Memory** grows 6 → 12 GiB (block cache warming); node ceiling 64 GiB.
+- **Network RX** peaks at 1,633 MB/s cluster = **~2.2 Gbps per node** (~17% of 12.5 Gbps) — headroom.
+
+CPU is unambiguously the ceiling.
+
 ## Steady-State CPU (Prometheus [20:08:33–20:09:53])
 
 Clean query over the 80s post-ramp window:
