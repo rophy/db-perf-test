@@ -1,0 +1,104 @@
+apiVersion: v1
+data:
+  sysbench-cleanup.sh: |
+    #!/bin/bash
+    set -e
+
+    # Sysbench cleanup script - generated from Helm values
+
+    echo "=== Sysbench Cleanup ==="
+    echo "Dropping benchmark tables..."
+    echo ""
+
+    exec sysbench oltp_insert \
+      --db-driver=pgsql \
+      --pgsql-host=10.43.134.230 \
+      --pgsql-port=5433 \
+      --pgsql-user=yugabyte \
+      --pgsql-password=yugabyte \
+      --pgsql-db=yugabyte \
+      --tables=24 \
+      --table_size=100000 \
+      cleanup
+  sysbench-prepare.sh: |
+    #!/bin/bash
+    set -e
+
+    # Sysbench prepare script - generated from Helm values
+    # Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/
+
+    echo "=== Sysbench Prepare ==="
+    echo "Workload: oltp_insert"
+    echo "Tables: 24 x 100000 rows"
+    echo ""
+
+    exec sysbench oltp_insert \
+      --db-driver=pgsql \
+      --pgsql-host=10.43.134.230 \
+      --pgsql-port=5433 \
+      --pgsql-user=yugabyte \
+      --pgsql-password=yugabyte \
+      --pgsql-db=yugabyte \
+      --tables=24 \
+      --table_size=100000 \
+      --range_key_partitioning=false \
+      --serial_cache_size=1000 \
+      --create_secondary=true \
+      prepare
+  sysbench-run.sh: |
+    #!/bin/bash
+    set -e
+
+    # Sysbench run script - generated from Helm values
+    # Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/
+
+    echo "=== Sysbench Benchmark ==="
+    echo "Workload: oltp_insert"
+    echo "Threads: 3000"
+    echo "Duration: 120s (warmup: 30s)"
+    echo ""
+
+    # CRITICAL: range_selects=false prevents 100x slowdown from cross-tablet scans
+    exec sysbench oltp_insert \
+      --db-driver=pgsql \
+      --pgsql-host=10.43.134.230 \
+      --pgsql-port=5433 \
+      --pgsql-user=yugabyte \
+      --pgsql-password=yugabyte \
+      --pgsql-db=yugabyte \
+      --tables=24 \
+      --table_size=100000 \
+      --range_key_partitioning=false \
+      --serial_cache_size=1000 \
+      --create_secondary=true \
+      --range_selects=false \
+      --point_selects=2 \
+      --index_updates=20 \
+      --non_index_updates=20 \
+      --num_rows_in_insert=10 \
+      --thread-init-timeout=120 \
+      --threads=3000 \
+      --time=120 \
+      --warmup-time=30 \
+      --report-interval=10 \
+      --verbosity=3 \
+      run
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"sysbench-cleanup.sh":"#!/bin/bash\nset -e\n\n# Sysbench cleanup script - generated from Helm values\n\necho \"=== Sysbench Cleanup ===\"\necho \"Dropping benchmark tables...\"\necho \"\"\n\nexec sysbench oltp_insert \\\n  --db-driver=pgsql \\\n  --pgsql-host=10.43.134.230 \\\n  --pgsql-port=5433 \\\n  --pgsql-user=yugabyte \\\n  --pgsql-password=yugabyte \\\n  --pgsql-db=yugabyte \\\n  --tables=24 \\\n  --table_size=100000 \\\n  cleanup\n","sysbench-prepare.sh":"#!/bin/bash\nset -e\n\n# Sysbench prepare script - generated from Helm values\n# Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/\n\necho \"=== Sysbench Prepare ===\"\necho \"Workload: oltp_insert\"\necho \"Tables: 24 x 100000 rows\"\necho \"\"\n\nexec sysbench oltp_insert \\\n  --db-driver=pgsql \\\n  --pgsql-host=10.43.134.230 \\\n  --pgsql-port=5433 \\\n  --pgsql-user=yugabyte \\\n  --pgsql-password=yugabyte \\\n  --pgsql-db=yugabyte \\\n  --tables=24 \\\n  --table_size=100000 \\\n  --range_key_partitioning=false \\\n  --serial_cache_size=1000 \\\n  --create_secondary=true \\\n  prepare\n","sysbench-run.sh":"#!/bin/bash\nset -e\n\n# Sysbench run script - generated from Helm values\n# Parameters follow YugabyteDB docs: https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/\n\necho \"=== Sysbench Benchmark ===\"\necho \"Workload: oltp_insert\"\necho \"Threads: 3000\"\necho \"Duration: 120s (warmup: 30s)\"\necho \"\"\n\n# CRITICAL: range_selects=false prevents 100x slowdown from cross-tablet scans\nexec sysbench oltp_insert \\\n  --db-driver=pgsql \\\n  --pgsql-host=10.43.134.230 \\\n  --pgsql-port=5433 \\\n  --pgsql-user=yugabyte \\\n  --pgsql-password=yugabyte \\\n  --pgsql-db=yugabyte \\\n  --tables=24 \\\n  --table_size=100000 \\\n  --range_key_partitioning=false \\\n  --serial_cache_size=1000 \\\n  --create_secondary=true \\\n  --range_selects=false \\\n  --point_selects=2 \\\n  --index_updates=20 \\\n  --non_index_updates=20 \\\n  --num_rows_in_insert=10 \\\n  --thread-init-timeout=120 \\\n  --threads=3000 \\\n  --time=120 \\\n  --warmup-time=30 \\\n  --report-interval=10 \\\n  --verbosity=3 \\\n  run\n"},"kind":"ConfigMap","metadata":{"annotations":{"meta.helm.sh/release-name":"yb-bench","meta.helm.sh/release-namespace":"yugabyte-test"},"creationTimestamp":"2026-04-15T19:54:29Z","labels":{"app.kubernetes.io/component":"sysbench","app.kubernetes.io/instance":"yb-bench","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"yb-benchmark","app.kubernetes.io/version":"1.0.0","helm.sh/chart":"yb-benchmark-0.1.0"},"name":"yb-bench-sysbench-scripts","namespace":"yugabyte-test","resourceVersion":"6318","uid":"94830af8-009e-4164-9d57-18b035a2bd8e"}}
+    meta.helm.sh/release-name: yb-bench
+    meta.helm.sh/release-namespace: yugabyte-test
+  creationTimestamp: "2026-04-15T19:54:29Z"
+  labels:
+    app.kubernetes.io/component: sysbench
+    app.kubernetes.io/instance: yb-bench
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: yb-benchmark
+    app.kubernetes.io/version: 1.0.0
+    helm.sh/chart: yb-benchmark-0.1.0
+  name: yb-bench-sysbench-scripts
+  namespace: yugabyte-test
+  resourceVersion: "6380"
+  uid: 94830af8-009e-4164-9d57-18b035a2bd8e
