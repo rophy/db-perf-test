@@ -1,0 +1,27 @@
+=== Sysbench Benchmark ===
+Workload: oltp_insert
+Threads: 512
+Duration: 120s (warmup: 30s)
+
+sysbench 1.1.0-528b6fb (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 512
+Warmup time: 30s
+Report intermediate results every 10 second(s)
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+Server Endpoint: yb-tserver-service 
+Threads started!
+
+Warming up for 30 seconds...
+
+FATAL: PQexec() failed: 7 UpdateTransaction: tablet_id: "35aa7ad6d7e148e4a652842a1374a0bd" state { transaction_id: "x\246\214+}\211K\305\224\027\247\306\225\261\205\376" status: COMMITTED tablets: "238ce3a7414442ba891d67841610efc2" tablets: "7d2a641783444c479f37518879a37bf6" } propagated_hybrid_time: 7275365855342719040, retrier: { task_id: -1 state: kRunning deadline: 8353.181s (passed 5.005s of 5.000s) } passed its deadline 8353.181s (passed 5.005s of 5.000s): Illegal state (yb/consensus/consensus.cc:154): Not the leader (tablet server error 15)
+FATAL: failed query was: INSERT INTO sbtest6 (k, c, pad) VALUES (20495, '37751340066-90152379050-28822632141-28290008399-71607211770-83041132063-18625455550-80434301730-69649624680-17081444773', '03524464691-42760981216-34301270522-05264543967-51759394372')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': UpdateTransaction: tablet_id: "35aa7ad6d7e148e4a652842a1374a0bd" state { transaction_id: "x\246\214+}\211K\305\224\027\247\306\225\261\205\376" status: COMMITTED tablets: "238ce3a7414442ba891d67841610efc2" tablets: "7d2a641783444c479f37518879a37bf6" } propagated_hybrid_time: 7275365855342719040, retrier: { task_id: -1 state: kRunning deadline: 8353.181s (passed 5.005s of 5.000s) } passed its deadline 8353.181s (passed 5.005s of 5.000s): Illegal state (yb/consensus/consensus.cc:154): Not the leader (tablet server error 15)
+FATAL: PQexec() failed: 7 UpdateTransaction: tablet_id: "35aa7ad6d7e148e4a652842a1374a0bd" state { transaction_id: "\203\230\355\027[\242A$\274\333J\365\225<^M" status: COMMITTED tablets: "238ce3a7414442ba891d67841610efc2" tablets: "7d2a641783444c479f37518879a37bf6" } propagated_hybrid_time: 7275365856686936080, retrier: { task_id: -1 state: kRunning deadline: 8353.507s (passed 5.037s of 5.000s) } passed its deadline 8353.507s (passed 5.037s of 5.000s): Illegal state (yb/consensus/consensus.cc:154): Not the leader (tablet server error 15)
+FATAL: failed query was: INSERT INTO sbtest6 (k, c, pad) VALUES (60339, '01926895538-06976598986-67091361006-35728263306-80384000218-89279893589-14012354296-49035744332-89505535333-97115738604', '10333790086-76471460960-74908553491-12449325071-94992931507')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': UpdateTransaction: tablet_id: "35aa7ad6d7e148e4a652842a1374a0bd" state { transaction_id: "\203\230\355\027[\242A$\274\333J\365\225<^M" status: COMMITTED tablets: "238ce3a7414442ba891d67841610efc2" tablets: "7d2a641783444c479f37518879a37bf6" } propagated_hybrid_time: 7275365856686936080, retrier: { task_id: -1 state: kRunning deadline: 8353.507s (passed 5.037s of 5.000s) } passed its deadline 8353.507s (passed 5.037s of 5.000s): Illegal state (yb/consensus/consensus.cc:154): Not the leader (tablet server error 15)

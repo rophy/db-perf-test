@@ -1,0 +1,25 @@
+=== Tserver Node Specs ===
+Tservers: 3
+  yb-tserver-0 -> ygdb-worker-3: 4 CPU, 8131816Ki
+  yb-tserver-1 -> ygdb-worker-2: 4 CPU, 8131816Ki
+  yb-tserver-2 -> ygdb-worker-1: 4 CPU, 8131816Ki
+=== Tserver Metrics (container-level) ===
+Tservers: 3
+CPU: 30.1%
+Memory: 1727 MB
+Network: RX 0.2 MB/s, TX 0.2 MB/s
+Disk IOPS: Read 1, Write 11
+
+=== Node Metrics (VM-level) ===
+Nodes: 4
+  ygdb-control: 10.9% total CPU
+  ygdb-worker-1: 39.3% total CPU
+  ygdb-worker-2: 59.7% total CPU
+  ygdb-worker-3: 34.6% total CPU
+  avg user: 10.2%
+  avg system: 6.1%
+  avg iowait: 17.4%
+  avg steal: 0.5%
+  avg softirq: 0.7%
+
+=== Sysbench Results ===
