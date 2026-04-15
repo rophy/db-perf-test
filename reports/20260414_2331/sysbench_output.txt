@@ -1,0 +1,27 @@
+=== Sysbench Benchmark ===
+Workload: oltp_insert
+Threads: 512
+Duration: 120s (warmup: 30s)
+
+sysbench 1.1.0-528b6fb (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 512
+Warmup time: 30s
+Report intermediate results every 10 second(s)
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+Server Endpoint: yb-tserver-service 
+Threads started!
+
+Warming up for 30 seconds...
+
+FATAL: PQexec() failed: 7 UpdateTransaction RPC (request call id 16488) to 10.42.3.13:9100 timed out after 5.000s
+FATAL: failed query was: INSERT INTO sbtest6 (k, c, pad) VALUES (37040, '70791732586-81914916608-64576001266-71267978278-86329114783-04873122704-62736685029-37703153318-20316225851-66317947952', '77079199607-38240712773-85782148121-37222902511-44169693045')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': UpdateTransaction RPC (request call id 16488) to 10.42.3.13:9100 timed out after 5.000s
+FATAL: PQexec() failed: 7 UpdateTransaction RPC (request call id 21265) to 10.42.3.13:9100 timed out after 2.595s
+FATAL: failed query was: INSERT INTO sbtest6 (k, c, pad) VALUES (18015, '84331609183-37832878183-76467001754-29449404464-66733748186-06190018412-55848731617-71031132685-79132042473-07636447799', '05999323611-68522462613-16676705198-04078190487-98021236447')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': UpdateTransaction RPC (request call id 21265) to 10.42.3.13:9100 timed out after 2.595s

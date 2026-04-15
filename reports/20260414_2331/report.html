@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sysbench Stress Test Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .metadata-label {
+            font-weight: 600;
+        }
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .section h2 {
+            font-size: 1.3rem;
+            color: #444;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .summary-table th,
+        .summary-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        .summary-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .summary-table td:not(:first-child) {
+            text-align: right;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 25px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .chart-card h3 {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        .pods-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .pod-badge {
+            background: #e3e8ff;
+            color: #4c5fd5;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .stat-value {
+            color: #4c5fd5;
+            font-weight: 600;
+        }
+        .spec-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .spec-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .spec-info .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .spec-info .metadata-label {
+            font-weight: 600;
+            color: #555;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .metadata {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sysbench Stress Test Report</h1>
+            <div class="metadata">
+                <div class="metadata-item">
+                    <span class="metadata-label">Start:</span>
+                    <span>2026-04-14 23:30:33</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">End:</span>
+                    <span>2026-04-14 23:31:13</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Duration:</span>
+                    <span>0.7 minutes</span>
+                </div>
+            </div>
+            <div class="pods-list">
+                
+                <span class="pod-badge">yb-tserver.*</span>
+                
+                <span class="pod-badge">yb-master.*</span>
+                
+                <span class="pod-badge">sysbench.*</span>
+                
+            </div>
+        </header>
+
+        
+        <section class="section">
+            <h2>Cluster Configuration</h2>
+            <div class="spec-grid">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Replicas</th>
+                            <th>CPU Request</th>
+                            <th>CPU Limit</th>
+                            <th>Memory Request</th>
+                            <th>Memory Limit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td>yb-master</td>
+                            <td class="stat-value">3</td>
+                            <td>250m</td>
+                            <td>1</td>
+                            <td>512Mi</td>
+                            <td>2Gi</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>yb-tserver</td>
+                            <td class="stat-value">3</td>
+                            <td>500m</td>
+                            <td>N/A</td>
+                            <td>2Gi</td>
+                            <td>N/A</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+                <div class="spec-info">
+                    
+                    <div class="metadata-item">
+                        <span class="metadata-label">YugabyteDB Version:</span>
+                        <span>2025.2.2.1-b1</span>
+                    </div>
+                    
+                    
+                    <div class="metadata-item">
+                        <span class="metadata-label">Storage Class:</span>
+                        <span>local-storage</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">PVC Size:</span>
+                        <span>10Gi</span>
+                    </div>
+                    
+                </div>
+            </div>
+        </section>
+        
+
+        
+        <section class="section">
+            <h2>Sysbench Results</h2>
+            <div class="spec-grid">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                    </tbody>
+                </table>
+
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Latency</th>
+                            <th>Value (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        
+                        
+                        
+                    </tbody>
+                </table>
+
+                
+            </div>
+        </section>
+
+        
+        
+
+        
+        <section class="section">
+            <h2>Sysbench Parameters</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>workload</td>
+                        <td class="stat-value">oltp_insert</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>pgsql-db</td>
+                        <td class="stat-value">yugabyte</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>tables</td>
+                        <td class="stat-value">10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>table_size</td>
+                        <td class="stat-value">100000</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>range_key_partitioning</td>
+                        <td class="stat-value">false</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>serial_cache_size</td>
+                        <td class="stat-value">1000</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>create_secondary</td>
+                        <td class="stat-value">true</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>range_selects</td>
+                        <td class="stat-value">false</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>point_selects</td>
+                        <td class="stat-value">2</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>index_updates</td>
+                        <td class="stat-value">20</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>non_index_updates</td>
+                        <td class="stat-value">20</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>num_rows_in_insert</td>
+                        <td class="stat-value">10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>thread-init-timeout</td>
+                        <td class="stat-value">90</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>threads</td>
+                        <td class="stat-value">512</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>time</td>
+                        <td class="stat-value">120</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>warmup-time</td>
+                        <td class="stat-value">30</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>report-interval</td>
+                        <td class="stat-value">10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>verbosity</td>
+                        <td class="stat-value">3</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </section>
+        
+
+        <section class="section">
+            <h2>Metrics Summary</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Min</th>
+                        <th>Avg</th>
+                        <th>Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>CPU Usage (%)</td>
+                        <td class="stat-value">0.00</td>
+                        <td class="stat-value">53.77</td>
+                        <td class="stat-value">88.15</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Memory Usage (MB)</td>
+                        <td class="stat-value">204.98</td>
+                        <td class="stat-value">1412.59</td>
+                        <td class="stat-value">2263.86</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Network RX (B/s)</td>
+                        <td class="stat-value">16335.45</td>
+                        <td class="stat-value">539762.03</td>
+                        <td class="stat-value">1459803.31</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Network TX (B/s)</td>
+                        <td class="stat-value">24957.36</td>
+                        <td class="stat-value">574323.66</td>
+                        <td class="stat-value">1552139.53</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Read IOPS</td>
+                        <td class="stat-value">7.19</td>
+                        <td class="stat-value">12.94</td>
+                        <td class="stat-value">18.69</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Write IOPS</td>
+                        <td class="stat-value">0.20</td>
+                        <td class="stat-value">12.67</td>
+                        <td class="stat-value">23.54</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Read (MB/s)</td>
+                        <td class="stat-value">0.15</td>
+                        <td class="stat-value">0.28</td>
+                        <td class="stat-value">0.41</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Write (MB/s)</td>
+                        <td class="stat-value">0.01</td>
+                        <td class="stat-value">0.38</td>
+                        <td class="stat-value">1.13</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU Total (%)</td>
+                        <td class="stat-value">3.63</td>
+                        <td class="stat-value">36.86</td>
+                        <td class="stat-value">62.05</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU user (%)</td>
+                        <td class="stat-value">0.27</td>
+                        <td class="stat-value">9.23</td>
+                        <td class="stat-value">17.03</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU system (%)</td>
+                        <td class="stat-value">0.18</td>
+                        <td class="stat-value">6.20</td>
+                        <td class="stat-value">12.47</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU iowait (%)</td>
+                        <td class="stat-value">0.10</td>
+                        <td class="stat-value">19.01</td>
+                        <td class="stat-value">37.77</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU steal (%)</td>
+                        <td class="stat-value">0.07</td>
+                        <td class="stat-value">0.59</td>
+                        <td class="stat-value">1.37</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU softirq (%)</td>
+                        <td class="stat-value">0.12</td>
+                        <td class="stat-value">0.84</td>
+                        <td class="stat-value">1.87</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>Resource Usage Charts</h2>
+            <div class="chart-grid">
+                
+                <div class="chart-card">
+                    <h3>CPU Usage (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="cpu-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Memory Usage (MB)</h3>
+                    <div class="chart-container">
+                        <canvas id="memory-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Network RX (B/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="network-rx-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Network TX (B/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="network-tx-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Read IOPS</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-read-iops-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Write IOPS</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-write-iops-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Read Throughput (MB/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-read-throughput-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Write Throughput (MB/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-write-throughput-chart"></canvas>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+        
+        <section class="section">
+            <h2>Node-Level CPU (VM)</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Total CPU Usage (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-chart"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="chart-card">
+                    <h3>CPU User (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-user-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU System (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-system-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU IOWait (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-iowait-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU Steal (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-steal-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU SoftIRQ (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-softirq-chart"></canvas>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+        
+
+        
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+
+        
+
+        <footer>
+            <p>Generated by db-perf-test Report Generator</p>
+        </footer>
+    </div>
+
+    <script>
+        const colors = [
+            'rgba(102, 126, 234, 1)',
+            'rgba(118, 75, 162, 1)',
+            'rgba(52, 211, 153, 1)',
+            'rgba(251, 191, 36, 1)',
+            'rgba(239, 68, 68, 1)',
+            'rgba(236, 72, 153, 1)',
+        ];
+
+        const colorsBg = [
+            'rgba(102, 126, 234, 0.1)',
+            'rgba(118, 75, 162, 0.1)',
+            'rgba(52, 211, 153, 0.1)',
+            'rgba(251, 191, 36, 0.1)',
+            'rgba(239, 68, 68, 0.1)',
+            'rgba(236, 72, 153, 0.1)',
+        ];
+
+        function createChart(canvasId, seriesData, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !seriesData || seriesData.length === 0) return;
+
+            const datasets = seriesData.map((series, idx) => ({
+                label: series.name,
+                data: series.timestamps.map((t, i) => ({
+                    x: new Date(t * 1000),
+                    y: series.values[i]
+                })),
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colorsBg[idx % colorsBg.length],
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0,
+            }));
+
+            new Chart(canvas, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    second: 'HH:mm:ss',
+                                    minute: 'HH:mm',
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: yAxisLabel
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize charts with data from template
+        const metricsData = {"cpu": {"avg": 53.77391000955826, "max": 88.15232796987333, "min": 0.0029011706651552965, "name": "CPU Usage (%)", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [0.4060663719586748, 0.7952293064876949]}, {"name": "yb-master-1", "timestamps": [1776209433.0, 1776209463.0], "values": [1.7412489831672995, 29.308045784944444]}, {"name": "yb-master-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.6389917556426493, 0.6472102242471047]}, {"name": "yb-tserver-0", "timestamps": [1776209433.0], "values": [0.0029011706651552965]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [41.80284848919166, 88.15232796987333]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [58.731885397412185, 80.17958702064894]}], "total": 2150.9564003823302}, "disk_read_iops": {"avg": 12.939464345204893, "max": 18.689609963946246, "min": 7.18931872646354, "name": "Disk Read IOPS", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.0]}, {"name": "yb-master-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.0]}, {"name": "yb-master-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.0]}, {"name": "yb-tserver-0", "timestamps": [1776209433.0], "values": [0.0]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 7.18931872646354]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 18.689609963946246]}], "total": 517.5785738081958}, "disk_read_throughput": {"avg": 0.2786710069727888, "max": 0.4105734629356495, "min": 0.1467685510099281, "name": "Disk Read (MB/s)", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.0]}, {"name": "yb-master-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.0]}, {"name": "yb-master-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.0]}, {"name": "yb-tserver-0", "timestamps": [1776209433.0], "values": [0.0]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.1467685510099281]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 0.4105734629356495]}], "total": 11.14684027891155}, "disk_write_iops": {"avg": 12.67328766986629, "max": 23.536460116398494, "min": 0.2011210166461308, "name": "Disk Write IOPS", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [0.8736485203569588, 2.7404921700223714]}, {"name": "yb-master-1", "timestamps": [1776209433.0, 1776209463.0], "values": [1.4392090607596522, 2.88244631965912]}, {"name": "yb-master-2", "timestamps": [1776209433.0, 1776209463.0], "values": [1.2839572915258817, 2.8992367315543457]}, {"name": "yb-tserver-0", "timestamps": [1776209433.0], "values": [0.2011210166461308]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [11.14748296912324, 23.536460116398494]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [13.863216266173751, 14.618157980989839]}], "total": 506.9315067946516}, "disk_write_throughput": {"avg": 0.38229423191553336, "max": 1.1293488959260527, "min": 0.014730543211386534, "name": "Disk Write (MB/s)", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0034126895326443705, 0.010486577181208052]}, {"name": "yb-master-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.025665243101182653, 0.030515028406717357]}, {"name": "yb-master-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.004487515204757399, 0.010862892728240932]}, {"name": "yb-tserver-0", "timestamps": [1776209433.0], "values": [0.014730543211386534]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.12234030788286294, 1.1293488959260527]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.10002412471458083, 0.5450272878427838]}], "total": 15.291769276621334}, "memory": {"avg": 1412.5944010416667, "max": 2263.86328125, "min": 204.98046875, "name": "Memory Usage (MB)", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [48.82421875, 49.484375]}, {"name": "yb-master-1", "timestamps": [1776209433.0, 1776209463.0], "values": [84.94921875, 91.78515625]}, {"name": "yb-master-2", "timestamps": [1776209433.0, 1776209463.0], "values": [48.72265625, 48.75]}, {"name": "yb-tserver-0", "timestamps": [1776209433.0, 1776209463.0], "values": [204.98046875, 1649.859375]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [906.43359375, 2263.86328125]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [1493.40625, 1957.0234375]}], "total": 56503.77604166667}, "network_rx": {"avg": 539762.0284936962, "max": 1459803.3051189038, "min": 16335.447190028428, "name": "Network RX (B/s)", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [1755.2948843271422, 2696.78726828396]}, {"name": "yb-master-1", "timestamps": [1776209463.0], "values": [1401819.8206881182]}, {"name": "yb-master-2", "timestamps": [1776209433.0], "values": [2004.360257326662]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [22591.109658440924, 660318.2520074119]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [16335.447190028428, 1459803.3051189038]}], "total": 21590481.13974785}, "network_tx": {"avg": 574323.6625365191, "max": 1552139.527072417, "min": 24957.358408047236, "name": "Network TX (B/s)", "series": [{"name": "yb-master-0", "timestamps": [1776209433.0, 1776209463.0], "values": [6442.293906810035, 11483.876736007629]}, {"name": "yb-master-1", "timestamps": [1776209463.0], "values": [665939.5360994741]}, {"name": "yb-master-2", "timestamps": [1776209433.0], "values": [7224.660471765547]}, {"name": "yb-tserver-1", "timestamps": [1776209433.0, 1776209463.0], "values": [27553.84866808302, 692643.9159975293]}, {"name": "yb-tserver-2", "timestamps": [1776209433.0, 1776209463.0], "values": [24957.358408047236, 1552139.527072417]}], "total": 22972946.501460765}, "node_cpu": {"avg": 36.856250000000536, "max": 62.05000000000078, "min": 3.6333333333338214, "name": "Node CPU Total (%)", "series": [{"name": "ygdb-control", "timestamps": [1776209433.0, 1776209463.0], "values": [7.600000000002183, 16.700000000000735]}, {"name": "ygdb-worker-1", "timestamps": [1776209433.0, 1776209463.0], "values": [52.13333333333291, 40.95000000000103]}, {"name": "ygdb-worker-2", "timestamps": [1776209433.0, 1776209463.0], "values": [50.96666666666654, 62.05000000000078]}, {"name": "ygdb-worker-3", "timestamps": [1776209433.0, 1776209463.0], "values": [3.6333333333338214, 60.81666666666629]}], "total": 1474.2500000000214}, "node_cpu_iowait": {"avg": 19.006249999999987, "max": 37.76666666666665, "min": 0.09999999999999193, "name": "Node CPU iowait (%)", "series": [{"name": "ygdb-control", "timestamps": [1776209433.0, 1776209463.0], "values": [0.09999999999999193, 0.1333333333333364]}, {"name": "ygdb-worker-1", "timestamps": [1776209433.0, 1776209463.0], "values": [34.33333333333333, 10.616666666666626]}, {"name": "ygdb-worker-2", "timestamps": [1776209433.0, 1776209463.0], "values": [37.76666666666665, 36.71666666666671]}, {"name": "ygdb-worker-3", "timestamps": [1776209433.0, 1776209463.0], "values": [2.883333333333269, 29.499999999999982]}], "total": 760.2499999999995}, "node_cpu_softirq": {"avg": 0.8428571428571274, "max": 1.8666666666665794, "min": 0.11666666666665532, "name": "Node CPU softirq (%)", "series": [{"name": "ygdb-control", "timestamps": [1776209433.0, 1776209463.0], "values": [0.23333333333331058, 1.8666666666665794]}, {"name": "ygdb-worker-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.11666666666666713, 1.4999999999999976]}, {"name": "ygdb-worker-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.11666666666665532, 0.9000000000000223]}, {"name": "ygdb-worker-3", "timestamps": [1776209433.0, 1776209463.0], "values": [0.0, 1.1666666666666596]}], "total": 33.7142857142851}, "node_cpu_steal": {"avg": 0.585416666666662, "max": 1.3666666666666554, "min": 0.06666666666667709, "name": "Node CPU steal (%)", "series": [{"name": "ygdb-control", "timestamps": [1776209433.0, 1776209463.0], "values": [0.06666666666667709, 0.1333333333333305]}, {"name": "ygdb-worker-1", "timestamps": [1776209433.0, 1776209463.0], "values": [0.23333333333333425, 1.2166666666666675]}, {"name": "ygdb-worker-2", "timestamps": [1776209433.0, 1776209463.0], "values": [0.4666666666666449, 1.3666666666666554]}, {"name": "ygdb-worker-3", "timestamps": [1776209433.0, 1776209463.0], "values": [0.11666666666666121, 1.083333333333325]}], "total": 23.41666666666648}, "node_cpu_system": {"avg": 6.204166666666655, "max": 12.466666666666649, "min": 0.18333333333326135, "name": "Node CPU system (%)", "series": [{"name": "ygdb-control", "timestamps": [1776209433.0, 1776209463.0], "values": [1.866666666666674, 3.7666666666666515]}, {"name": "ygdb-worker-1", "timestamps": [1776209433.0, 1776209463.0], "values": [5.4000000000001105, 12.466666666666649]}, {"name": "ygdb-worker-2", "timestamps": [1776209433.0, 1776209463.0], "values": [4.516666666666538, 10.733333333333233]}, {"name": "ygdb-worker-3", "timestamps": [1776209433.0, 1776209463.0], "values": [0.18333333333326135, 10.70000000000012]}], "total": 248.1666666666662}, "node_cpu_user": {"avg": 9.229166666666634, "max": 17.033333333333378, "min": 0.26666666666699257, "name": "Node CPU user (%)", "series": [{"name": "ygdb-control", "timestamps": [1776209433.0, 1776209463.0], "values": [3.966666666666849, 8.399999999999938]}, {"name": "ygdb-worker-1", "timestamps": [1776209433.0, 1776209463.0], "values": [11.666666666666478, 13.483333333333198]}, {"name": "ygdb-worker-2", "timestamps": [1776209433.0, 1776209463.0], "values": [7.899999999999826, 11.116666666666408]}, {"name": "ygdb-worker-3", "timestamps": [1776209433.0, 1776209463.0], "values": [0.26666666666699257, 17.033333333333378]}], "total": 369.1666666666654}};
+
+        // Resource charts
+        if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'CPU %');
+        if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
+        if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
+        if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
+
+        // Disk I/O charts
+        if (metricsData.disk_read_iops) createChart('disk-read-iops-chart', metricsData.disk_read_iops.series, 'IOPS');
+        if (metricsData.disk_write_iops) createChart('disk-write-iops-chart', metricsData.disk_write_iops.series, 'IOPS');
+        if (metricsData.disk_read_throughput) createChart('disk-read-throughput-chart', metricsData.disk_read_throughput.series, 'MB/s');
+        if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
+
+        // Node-level CPU charts
+        if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'CPU %');
+        if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
+        if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
+        if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');
+        if (metricsData.node_cpu_steal) createChart('node-cpu-steal-chart', metricsData.node_cpu_steal.series, 'CPU %');
+        if (metricsData.node_cpu_softirq) createChart('node-cpu-softirq-chart', metricsData.node_cpu_softirq.series, 'CPU %');
+
+        // Custom metrics charts
+        Object.keys(metricsData).forEach(key => {
+            if (key.startsWith('rate_') || key.startsWith('total_')) {
+                createChart('chart-' + key, metricsData[key].series, 'Value');
+            }
+        });
+
+        // Sysbench interval charts
+        
+    </script>
+</body>
+</html>
