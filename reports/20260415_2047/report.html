@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sysbench Stress Test Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .metadata-label {
+            font-weight: 600;
+        }
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .section h2 {
+            font-size: 1.3rem;
+            color: #444;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .summary-table th,
+        .summary-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        .summary-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .summary-table td:not(:first-child) {
+            text-align: right;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 25px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .chart-card h3 {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        .pods-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .pod-badge {
+            background: #e3e8ff;
+            color: #4c5fd5;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .stat-value {
+            color: #4c5fd5;
+            font-weight: 600;
+        }
+        .spec-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .spec-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .spec-info .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .spec-info .metadata-label {
+            font-weight: 600;
+            color: #555;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .metadata {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sysbench Stress Test Report</h1>
+            <div class="metadata">
+                <div class="metadata-item">
+                    <span class="metadata-label">Start:</span>
+                    <span>2026-04-15 20:41:29</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">End:</span>
+                    <span>2026-04-15 20:46:37</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Duration:</span>
+                    <span>5.1 minutes</span>
+                </div>
+            </div>
+            <div class="pods-list">
+                
+                <span class="pod-badge">yb-tserver.*</span>
+                
+                <span class="pod-badge">yb-master.*</span>
+                
+                <span class="pod-badge">sysbench.*</span>
+                
+            </div>
+        </header>
+
+        
+        <section class="section">
+            <h2>Cluster Configuration</h2>
+            <div class="spec-grid">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Replicas</th>
+                            <th>CPU Request</th>
+                            <th>CPU Limit</th>
+                            <th>Memory Request</th>
+                            <th>Memory Limit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td>yb-master</td>
+                            <td class="stat-value">3</td>
+                            <td>500m</td>
+                            <td>2</td>
+                            <td>1Gi</td>
+                            <td>4Gi</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>yb-tserver</td>
+                            <td class="stat-value">12</td>
+                            <td>16</td>
+                            <td>N/A</td>
+                            <td>32Gi</td>
+                            <td>N/A</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+                <div class="spec-info">
+                    
+                    <div class="metadata-item">
+                        <span class="metadata-label">YugabyteDB Version:</span>
+                        <span>2025.2.2.1-b1</span>
+                    </div>
+                    
+                    
+                    <div class="metadata-item">
+                        <span class="metadata-label">Storage Class:</span>
+                        <span>ebs-gp3-db</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">PVC Size:</span>
+                        <span>200Gi</span>
+                    </div>
+                    
+                </div>
+            </div>
+        </section>
+        
+
+        
+        <section class="section">
+            <h2>Sysbench Results</h2>
+            <div class="spec-grid">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td>Transactions per Second (TPS)</td>
+                            <td class="stat-value">90771.98</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>Queries per Second (QPS)</td>
+                            <td class="stat-value">90771.98</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>Total Transactions</td>
+                            <td class="stat-value">21850420</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>Total Queries</td>
+                            <td class="stat-value">21850420</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>Queries (Read / Write / Other)</td>
+                            <td class="stat-value">0 / 21850420 / 0</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>Errors (total / per sec)</td>
+                            <td class="stat-value">0 (0.00/s)</td>
+                        </tr>
+                        
+                        
+                        <tr>
+                            <td>Elapsed Time</td>
+                            <td class="stat-value">240.7s</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Latency</th>
+                            <th>Value (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr><td>Min</td><td class="stat-value">0.88</td></tr>
+                        
+                        
+                        <tr><td>Avg</td><td class="stat-value">66.91</td></tr>
+                        
+                        
+                        <tr><td>95th Percentile</td><td class="stat-value">176.73</td></tr>
+                        
+                        
+                        <tr><td>Max</td><td class="stat-value">26481.83</td></tr>
+                        
+                    </tbody>
+                </table>
+
+                
+                <div class="spec-info">
+                    <div class="metadata-item">
+                        <span class="metadata-label">Thread Fairness (events avg/stddev):</span>
+                        <span>3641.74 / 664.62</span>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+        
+        <section class="section">
+            <h2>Sysbench Time Series</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>TPS over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-tps-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>95th Percentile Latency over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-lat-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>QPS Breakdown (Read/Write/Other)</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-qps-chart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Errors per Second</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-err-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        
+
+        
+        <section class="section">
+            <h2>Sysbench Parameters</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>workload</td>
+                        <td class="stat-value">oltp_insert</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>pgsql-db</td>
+                        <td class="stat-value">yugabyte</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>tables</td>
+                        <td class="stat-value">24</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>table_size</td>
+                        <td class="stat-value">100000</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>range_key_partitioning</td>
+                        <td class="stat-value">false</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>serial_cache_size</td>
+                        <td class="stat-value">1000</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>create_secondary</td>
+                        <td class="stat-value">true</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>range_selects</td>
+                        <td class="stat-value">false</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>point_selects</td>
+                        <td class="stat-value">2</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>index_updates</td>
+                        <td class="stat-value">20</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>non_index_updates</td>
+                        <td class="stat-value">20</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>num_rows_in_insert</td>
+                        <td class="stat-value">10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>thread-init-timeout</td>
+                        <td class="stat-value">120</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>threads</td>
+                        <td class="stat-value">6000</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>time</td>
+                        <td class="stat-value">240</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>warmup-time</td>
+                        <td class="stat-value">60</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>report-interval</td>
+                        <td class="stat-value">10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>verbosity</td>
+                        <td class="stat-value">3</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </section>
+        
+
+        <section class="section">
+            <h2>Metrics Summary</h2>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Min</th>
+                        <th>Avg</th>
+                        <th>Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>CPU Usage (%)</td>
+                        <td class="stat-value">2.01</td>
+                        <td class="stat-value">1403.04</td>
+                        <td class="stat-value">3098.84</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Memory Usage (MB)</td>
+                        <td class="stat-value">1059.01</td>
+                        <td class="stat-value">8099.71</td>
+                        <td class="stat-value">14776.92</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Network RX (B/s)</td>
+                        <td class="stat-value">195171.93</td>
+                        <td class="stat-value">34634419.13</td>
+                        <td class="stat-value">127583167.49</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Network TX (B/s)</td>
+                        <td class="stat-value">24813.25</td>
+                        <td class="stat-value">36962018.03</td>
+                        <td class="stat-value">148863495.56</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Read IOPS</td>
+                        <td class="stat-value">0.04</td>
+                        <td class="stat-value">0.04</td>
+                        <td class="stat-value">0.04</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Write IOPS</td>
+                        <td class="stat-value">1.12</td>
+                        <td class="stat-value">169.02</td>
+                        <td class="stat-value">995.61</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Read (MB/s)</td>
+                        <td class="stat-value">0.00</td>
+                        <td class="stat-value">0.00</td>
+                        <td class="stat-value">0.00</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Disk Write (MB/s)</td>
+                        <td class="stat-value">0.06</td>
+                        <td class="stat-value">33.27</td>
+                        <td class="stat-value">195.89</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU Total (%)</td>
+                        <td class="stat-value">0.13</td>
+                        <td class="stat-value">37.32</td>
+                        <td class="stat-value">97.77</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU user (%)</td>
+                        <td class="stat-value">0.03</td>
+                        <td class="stat-value">22.39</td>
+                        <td class="stat-value">63.24</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU system (%)</td>
+                        <td class="stat-value">0.01</td>
+                        <td class="stat-value">8.33</td>
+                        <td class="stat-value">23.86</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU iowait (%)</td>
+                        <td class="stat-value">0.00</td>
+                        <td class="stat-value">0.08</td>
+                        <td class="stat-value">0.39</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU steal (%)</td>
+                        <td class="stat-value">0.00</td>
+                        <td class="stat-value">0.02</td>
+                        <td class="stat-value">0.10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>Node CPU softirq (%)</td>
+                        <td class="stat-value">0.01</td>
+                        <td class="stat-value">4.19</td>
+                        <td class="stat-value">11.55</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>Resource Usage Charts</h2>
+            <div class="chart-grid">
+                
+                <div class="chart-card">
+                    <h3>CPU Usage (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="cpu-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Memory Usage (MB)</h3>
+                    <div class="chart-container">
+                        <canvas id="memory-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Network RX (B/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="network-rx-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Network TX (B/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="network-tx-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Read IOPS</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-read-iops-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Write IOPS</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-write-iops-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Read Throughput (MB/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-read-throughput-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>Disk Write Throughput (MB/s)</h3>
+                    <div class="chart-container">
+                        <canvas id="disk-write-throughput-chart"></canvas>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+        
+        <section class="section">
+            <h2>Node-Level CPU (VM)</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Total CPU Usage (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-chart"></canvas>
+                    </div>
+                </div>
+
+                
+                <div class="chart-card">
+                    <h3>CPU User (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-user-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU System (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-system-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU IOWait (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-iowait-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU Steal (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-steal-chart"></canvas>
+                    </div>
+                </div>
+                
+
+                
+                <div class="chart-card">
+                    <h3>CPU SoftIRQ (%)</h3>
+                    <div class="chart-container">
+                        <canvas id="node-cpu-softirq-chart"></canvas>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+        
+
+        
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+
+        
+
+        <footer>
+            <p>Generated by db-perf-test Report Generator</p>
+        </footer>
+    </div>
+
+    <script>
+        const colors = [
+            'rgba(102, 126, 234, 1)',
+            'rgba(118, 75, 162, 1)',
+            'rgba(52, 211, 153, 1)',
+            'rgba(251, 191, 36, 1)',
+            'rgba(239, 68, 68, 1)',
+            'rgba(236, 72, 153, 1)',
+        ];
+
+        const colorsBg = [
+            'rgba(102, 126, 234, 0.1)',
+            'rgba(118, 75, 162, 0.1)',
+            'rgba(52, 211, 153, 0.1)',
+            'rgba(251, 191, 36, 0.1)',
+            'rgba(239, 68, 68, 0.1)',
+            'rgba(236, 72, 153, 0.1)',
+        ];
+
+        function createChart(canvasId, seriesData, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !seriesData || seriesData.length === 0) return;
+
+            const datasets = seriesData.map((series, idx) => ({
+                label: series.name,
+                data: series.timestamps.map((t, i) => ({
+                    x: new Date(t * 1000),
+                    y: series.values[i]
+                })),
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colorsBg[idx % colorsBg.length],
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0,
+            }));
+
+            new Chart(canvas, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    second: 'HH:mm:ss',
+                                    minute: 'HH:mm',
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: yAxisLabel
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize charts with data from template
+        const metricsData = {"cpu": {"avg": 1403.0436235827804, "max": 3098.8369863881016, "min": 2.0118000329877486, "name": "CPU Usage (%)", "series": [{"name": "yb-master-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.4564029666254613, 0.5503800217155079, 0.5330739078566188, 0.48661725795265054, 0.5275709779179799, 0.5187395359961678, 0.5769932014833111, 0.0, 0.4656050482553899, 0.5384980654238433, 0.0]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1.43850846339857, 200.0184067592032, 200.25804286858974, 200.38112674065212, 146.13990718285194, 199.45582353381812, 176.11503105590077, 1.2638033524340775, 3.801038702334205, 7.797111406042768]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.3857581843474268, 0.5307042085838419, 0.0, 0.5490084841050811, 0.5467226803047615, 0.6071930393428494, 0.41076047173647073, 0.5041981991935013, 0.40372750642673355, 0.41069154356127635, 0.5927971556427266]}, {"name": "yb-tserver-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 73.17033085015932, 219.6550703345934, 0.0, 300.3028658769609, 2109.9929840509035, 3001.0840675175, 2918.005400981996, 2855.320095602291, 2703.670155300469, 2731.848659793819]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [12.407568088694822, 131.6267432659478, 196.4292209856896, 0.0, 682.6169326616157, 2232.6942464908234, 0.0, 2804.3261224266294, 2496.1932061163607, 2725.658670838405]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [11.72660853169927, 0.0, 0.0, 232.62693974005492, 274.52441942708947, 890.6816561085972, 2754.493233404711, 2803.9987299118725, 0.0, 2619.3778750878982, 2618.41253223804]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [4.146642221769549, 125.8621674382286, 94.93323784825135, 169.94409163075528, 0.0, 451.1165149456523, 1422.5674872099062, 2135.3321120744936, 2851.4823904557716, 0.0, 2730.885338249161]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2.3275535016078814, 186.21432242207584, 131.521307326357, 177.91662387249383, 294.335387263339, 824.326636267689, 3001.683532091653, 2970.315474256657, 0.0, 2683.644147534814, 2865.4696298899034]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [3.18178530427123, 0.0, 159.34039028275484, 126.31528694688706, 205.3858062209495, 854.5511087476731, 0.0, 2829.7990447668735, 2773.0364245255673, 0.0, 2786.0459986772453]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [140.12909339353433, 192.57957624806716, 199.15384971217185, 238.6211106621253, 807.1400913964311, 2264.189208074535, 3026.3259883290834, 2921.2485192663644, 2687.296826023228, 2801.757915611809]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [8.270237363176792, 215.71516853932647, 0.0, 256.3537914874001, 321.25069321206723, 2793.3097767568725, 3098.8369863881016, 3037.0344348265626, 0.0, 0.0, 2844.050344161333]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [9.105534430179581, 157.96497127812353, 179.2025719378661, 0.0, 223.1642697913689, 0.0, 2956.3192718723276, 2732.034047047131, 0.0, 2362.518789854045, 2561.113076729138]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2.0118000329877486, 160.71470679732462, 172.88088745088976, 202.9229853356652, 460.48814464762665, 2373.1041603247086, 2599.2220594122828, 0.0, 2293.0280893450044, 2546.985427054849]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [9.582780869996785, 0.0, 178.74774313882224, 199.49140153452691, 170.48820590221197, 876.5750415563629, 2771.1703204140067, 2684.5698790239912, 2348.721259117082, 2722.016351098646]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [8.09335121561467, 155.89237523105356, 188.4673743659468, 215.34780139245137, 0.0, 904.4680529137124, 1571.709848373206, 2221.201538159905, 2815.237471476694, 2735.867123864524, 2836.4069977266304]}], "total": 432137.43606349634}, "disk_read_iops": {"avg": 0.041414727076948564, "max": 0.041414727076948564, "min": 0.041414727076948564, "name": "Disk Read IOPS", "series": [{"name": "yb-master-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-0", "timestamps": [1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285809.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.041414727076948564, 0.0, 0.0]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], "total": 12.755735939700157}, "disk_read_throughput": {"avg": 0.00016177627764433033, "max": 0.00016177627764433033, "min": 0.00016177627764433033, "name": "Disk Read (MB/s)", "series": [{"name": "yb-master-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-0", "timestamps": [1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285809.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.00016177627764433033, 0.0, 0.0]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], "total": 0.04982709351445374}, "disk_write_iops": {"avg": 169.01644156434375, "max": 995.6110735989196, "min": 1.1190518606492479, "name": "Disk Write IOPS", "series": [{"name": "yb-master-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0], "values": [0.24721878862793573, 0.14477017734346725, 0.2272339942055331, 0.15067882271330887, 0.12618296529968456, 0.1195886151638364, 0.2060156571899464, 0.22271714922048996, 5.012310939148787]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.21982853374367992, 0.1341111781667002, 0.40064102564102566, 0.28274545840107446, 0.11605026644396724, 0.14980151299528127, 0.21604104779908184, 0.21421303486317145, 3.2726237905520774, 6.011398235615583]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.24425896558439752, 0.23810941127448065, 0.20443626699376471, 0.20874647740319385, 0.21616947686986596, 0.16266775111834078, 0.2209578522896757, 0.14281633818908884, 6.116703898537147, 6.804389137497703]}, {"name": "yb-tserver-0", "timestamps": [1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1.1190518606492479, 10.724648327028317, 19.105846388995033, 80.07602677464672, 234.41745574310414, 326.38801460405386, 321.7973231357553, 995.6110735989196, 530.1813011020263]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [7.2909134731260545, 5.422899915766904, 11.828298887122415, 45.95623581894397, 196.35971001079747, 231.49364870784058, 327.51118846345105, 452.6913494408714]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [4.399402938172677, 9.84639621898385, 7.957090651892019, 39.68325791855204, 153.53319057815847, 231.15603939865215, 438.1512497602762, 295.82577132486387]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [11.407618659604807, 6.191087065647833, 7.903675163011263, 10.660013608528011, 22.82608695652174, 184.10321049899903, 218.69589705640516, 363.1865413161801, 570.0934579439253]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [3.047460073987188, 8.26723271142889, 7.980760051404442, 9.792697414395526, 13.425129087779691, 70.80841300191204, 209.76818973603108, 290.1334840031075, 456.63745362653907, 432.4783321620988]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [6.187285625955938, 10.115491835921945, 4.703644760656556, 12.298891669646052, 75.61818665248605, 296.7418805184076, 377.39281432174306, 331.1287477954145]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2.6734790874524714, 9.457124670364644, 9.71422697368421, 11.660797783293887, 57.913700676685124, 198.29192546583852, 282.89635900386287, 418.6437826013798, 665.7458563535912, 456.54008438818573]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285989.0], "values": [3.628090025827081, 5.816259087904824, 11.90842040565458, 14.307897071872226, 95.54231569880125, 182.27287116176007, 280.5964491059582, 371.3923439198164]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285809.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [3.877866044200143, 3.8295835327908088, 10.355657414480945, 8.973992569305516, 146.83670561413507, 230.9285181810652, 393.7933966274621, 201.2774182704429]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [1.826870876531574, 10.810390418416548, 9.822047608042524, 11.839095923584017, 20.409560988973357, 196.34703196347033, 300.2241972936184, 768.6085119227286, 390.7029113720444]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [3.8642890062750377, 5.968558486544098, 9.053708439897697, 7.998253783469152, 70.1840792956966, 219.6102180136534, 206.41104504135052, 331.5930902111324, 241.99392239364192]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [15.52334208423696, 6.9316081330868755, 10.720075301992367, 10.993037742762917, 64.84523603665917, 151.98961988304094, 199.0592778474836, 390.90513962838213, 832.1602598808879, 356.3512361466326]}], "total": 52057.064001817875}, "disk_write_throughput": {"avg": 33.267225640994184, "max": 195.88716186276162, "min": 0.06348875154139974, "name": "Disk Write (MB/s)", "series": [{"name": "yb-master-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0], "values": [0.0009656983930778739, 0.000565508505247919, 0.0008876327898653637, 0.0005885891512238628, 0.0004929022082018928, 0.00046714302798373593, 0.0008047486608982282, 0.0008699888641425389, 0.019579339606049947]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0008587052099362497, 0.0005238717897136727, 0.002738757011217949, 0.001104474446879197, 0.000453321353296747, 0.0005851621601378175, 0.0008439103429651634, 0.0008367696674342635, 0.012783686681844052, 0.22201186665625733]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0009541365843140528, 0.00093011488779094, 0.0007985791679443934, 0.000815415927356226, 0.0008444120190229139, 0.0006354209028060187, 0.0008631166105065457, 0.0005578763210511283, 0.02389337460366073, 0.03017148899650586]}, {"name": "yb-tserver-0", "timestamps": [1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.16887007930027711, 0.5903778877584751, 1.5326471150171954, 12.656818134864887, 45.05937371346233, 63.13464882601032, 61.43903859942638, 195.88716186276162, 102.78922635975826]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5149960833935888, 0.36587298809728924, 0.7973966613672495, 7.64515152097835, 38.58318149390715, 46.90857869305738, 71.45781211151169, 96.06378375050699]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.4623116996621887, 0.7092482276486805, 0.8406058440410231, 6.085265837104072, 28.37454273733048, 44.97128531622602, 96.2965663555584, 62.13060583627854]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [1.977129591906023, 0.33813932734675667, 0.3810047112724758, 0.6860375557571634, 4.032300866168478, 35.18810938310966, 43.3065004278182, 72.05763098576062, 115.65922950784532]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.06348875154139974, 0.28693546810412246, 0.41674704587005074, 0.6482591853464494, 1.2545718588640278, 12.141180588750798, 40.7057630142034, 56.425021187937, 99.51307866014302, 93.21379421410165]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [0.5129502503233916, 0.5522575667064915, 0.39904380616925667, 1.0530255631033252, 13.416686054240893, 59.878352997366655, 75.22765328482241, 65.49685846560847]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.256440485384981, 0.4912561380376466, 0.6009152061060856, 1.0269042602320615, 9.76408021355128, 38.62941576086957, 56.63083288814004, 84.18221805064783, 130.95032557221785, 89.59322257383967]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285989.0], "values": [0.42852970114377076, 0.18821257435558492, 0.661595584280885, 1.0142559061668146, 16.147384879046733, 36.66186886672998, 55.75815852656852, 80.72955976029465]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285809.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.4454663322164075, 0.145152061393011, 0.4323699176640353, 0.7830362246356101, 27.24495271088629, 44.244517725503194, 84.37267518067166, 40.072629527691404]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [0.26858115869462773, 0.5881552340955046, 0.7165671221400508, 1.0468518767657742, 3.468298404218889, 37.19241501775748, 58.73872132476579, 152.83188386658614, 74.64914749879364]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.44038270642039207, 0.2958050226485478, 0.5149056905370843, 0.6556260913853319, 12.854094840854522, 41.37519612970711, 39.88988491900758, 70.0830734165067, 47.70706412166901]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2.6406535355553022, 0.3207072165742452, 0.5537752313967474, 0.7104441492610236, 11.553259553864775, 29.5105133105313, 39.36363541013174, 78.5137998478757, 168.081310533598, 70.00807003054845]}], "total": 10246.305497426209}, "memory": {"avg": 8099.709013967803, "max": 14776.921875, "min": 1059.0078125, "name": "Memory Usage (MB)", "series": [{"name": "yb-master-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [68.74609375, 68.82421875, 68.51171875, 69.0859375, 68.71484375, 68.44921875, 69.24609375, 68.56640625, 68.8515625, 68.6875, 68.88671875]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [141.68359375, 278.90625, 330.62109375, 368.98828125, 401.1953125, 433.41796875, 449.14453125, 369.02734375, 364.30078125, 341.69921875, 347.21484375]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [68.7890625, 68.58984375, 68.12890625, 68.44921875, 68.63671875, 69.3359375, 68.60546875, 69.73046875, 68.9375, 69.1484375, 68.43359375]}, {"name": "yb-tserver-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2045.796875, 5425.52734375, 6496.62109375, 6719.09375, 7268.94140625, 8511.875, 11752.17578125, 12704.81640625, 13432.0625, 14266.05859375, 14776.921875]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1472.64453125, 4419.15625, 4958.01171875, 5305.48828125, 5496.19921875, 6061.23828125, 8353.80078125, 10250.16015625, 10992.71484375, 11417.80078125, 12468.90234375]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1071.58984375, 4414.0703125, 5021.91796875, 5577.0703125, 5931.1328125, 6674.34375, 9282.75390625, 10569.453125, 10781.99609375, 11876.9609375, 12143.21875]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1578.328125, 5174.53515625, 5627.90234375, 5990.390625, 6198.08984375, 6577.30859375, 8392.06640625, 10939.625, 12404.1484375, 12920.3984375, 13844.8515625]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1585.1015625, 5317.31640625, 5813.2265625, 6200.375, 6571.56640625, 7076.94921875, 10291.3671875, 12041.54296875, 12453.22265625, 13010.9921875, 13572.16796875]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2157.41796875, 5363.78515625, 5818.6328125, 6128.6328125, 6476.05859375, 7140.3828125, 8004.2265625, 11136.12109375, 12124.04296875, 12613.95703125, 13837.52734375]}, {"name": "yb-tserver-4", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1619.40234375, 5131.94921875, 5632.37890625, 5987.87890625, 6336.3359375, 6729.3828125, 9109.94140625, 11097.046875, 11818.96875, 12839.55078125, 13874.88671875]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1437.1171875, 5602.74609375, 5602.74609375, 6451.58984375, 6897.27734375, 8897.77734375, 11724.63671875, 13138.42578125, 13311.93359375, 13554.0078125, 14084.609375]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1069.88671875, 4411.1484375, 5026.10546875, 5348.8359375, 5699.6796875, 5901.24609375, 9183.42578125, 10172.1171875, 10892.2421875, 11244.63671875, 12003.50390625]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1489.62890625, 4855.74609375, 5253.8828125, 5626.51953125, 5953.765625, 6334.45703125, 9824.1328125, 11222.59765625, 11826.921875, 12592.5078125, 13439.41015625]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1059.0078125, 4277.50390625, 4854.79296875, 5293.66015625, 5582.55859375, 6159.68359375, 6993.9765625, 9938.19921875, 10628.14453125, 11706.40625, 12490.234375]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1478.265625, 4891.75, 5405.0234375, 5853.125, 6053.50390625, 6585.671875, 8794.12890625, 10566.421875, 11707.75, 12731.7421875, 13534.27734375]}], "total": 2494710.3763020835}, "network_rx": {"avg": 34634419.13095246, "max": 127583167.48882827, "min": 195171.92962983518, "name": "Network RX (B/s)", "series": [{"name": "yb-master-0", "timestamps": [1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [646.7516994884014, 666.0038240917783, 626.3095971763123, 697.3134016307756, 693.3913694655059, 690.7782276203329, 786.4949488982099, 4847.170032879286, 4642.311781192617]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0], "values": [26686.071205496566, 13963162.648852747, 17004141.99538397, 16394289.217935348, 15899185.528426308, 9610619.162172267, 15622.66097963676]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [768.6274509803922, 717.3737606640535, 521.0824850482119, 651.6840814896971, 429.30049819204504, 638.1744831064045, 757.2608579802825, 2577.3759461732548, 5074.317772544673]}, {"name": "yb-tserver-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285869.0, 1776285959.0, 1776285989.0], "values": [3424859.756097561, 975747.6864244742, 2384211.5103405053, 3000685.6779121575, 4362617.172832689, 74664397.57752483, 63243596.06786304, 68105929.78594619]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [1168946.124918247, 2187599.36416185, 2599365.5438357717, 3520271.1217426714, 48306724.403699495, 63240432.01196709, 64197292.60213471, 81425787.38835298]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [743260.7313997478, 1158031.4742758323, 2597939.8257183232, 2909821.011673152, 2739205.668427835, 10122050.374774775, 54943833.85826772, 65544871.91981066, 61029004.71902799, 53663323.001449436, 53418390.79003534]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1490038.3887184174, 2063482.9064467114, 2555007.5031263023, 3414534.6191132204, 24555473.855765313, 53988541.459566064, 45544298.44842315, 75678912.3336291, 63974687.741754, 127583167.48882827]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [507881.0474922325, 2422956.8490153174, 2934466.5116514177, 12879572.663895963, 53589444.37449926, 67915900.06860279, 63584069.044400536, 56872067.31021802, 84509769.40785268]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1477860.0168732556, 1272739.672977625, 2177294.2194117997, 15152706.140688807, 53817462.585490145, 82056084.48275863, 77205592.69469331, 73280643.07365063, 76484626.57430731]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1292316.408524514, 2346590.986684876, 3182055.4395874264, 19118907.29153365, 58795577.7177368, 79035909.1558519, 74221518.90369408, 65060035.5827455, 66981500.67276642]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0], "values": [1251369.6974484555, 1090585.6164383562, 1867127.2772540464, 2740999.1592517337, 25426226.373439755, 56665102.305159174, 58620939.60011108, 73503159.64673913]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285839.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [544438.3863417321, 890828.7198414324, 2241704.8085016836, 19023688.335118677, 58083168.375, 97740443.7154541, 90033615.87559475]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285779.0, 1776285809.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [6798593.739328401, 2410708.7231199127, 3641312.9605263164, 76117926.62790696, 74938966.813348, 63337790.89281146, 68967215.07303035]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [195171.92962983518, 725884.4659146942, 2223845.2075471696, 2004256.295920056, 25618699.95189334, 43769265.441428095, 56970465.10038445, 61151679.2520676]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [4177661.7785924566, 846145.7627118644, 2376866.4652179503, 3125805.1584835304, 23199368.433265265, 47861978.85399495, 74743139.80480085, 67336726.62353516, 70380406.4273605]}], "total": 10667401092.333359}, "network_tx": {"avg": 36962018.029023826, "max": 148863495.55974165, "min": 24813.252677729066, "name": "Network TX (B/s)", "series": [{"name": "yb-master-0", "timestamps": [1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [6433.912677833065, 6977.74378585086, 5207.126449661045, 9456.564917415848, 4396.611438734438, 308.7719298245614, 10653.157677083947, 6093.764678252701, 9346.573886150576]}, {"name": "yb-master-1", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0], "values": [288244.59712679574, 5067236.494336335, 6954991.135123794, 6681992.700729927, 6495728.271846968, 3935922.6812636065, 51053.00632911391]}, {"name": "yb-master-2", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285959.0, 1776285989.0], "values": [6222.718052738337, 10364.537698870186, 250.0856829000366, 5406.631253283521, 4786.526556850141, 298.87376029584806, 6130.562216893152, 5186.080740117746, 7028.7435932954695]}, {"name": "yb-tserver-0", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285869.0, 1776285959.0, 1776285989.0], "values": [3070019.525168656, 2131041.759082218, 3491253.864633382, 4134841.1839592615, 5820806.46051905, 71308443.89614761, 96157254.91517118, 95505140.81329447]}, {"name": "yb-tserver-1", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [833526.4879005885, 2750889.3063583816, 3016616.9331972324, 3831842.4776058635, 42763603.15593055, 63025659.98504114, 64529449.57673905, 93519781.77920686]}, {"name": "yb-tserver-10", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [559987.89407314, 2125165.32641591, 3675340.6146961846, 3976058.8678297983, 3699852.9546391754, 10559365.111547912, 59466288.18897638, 64924317.624947794, 61171707.149056196, 54104828.40896421, 60442934.568786815]}, {"name": "yb-tserver-11", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [26516.680812169485, 2730729.5420013024, 3159172.7282200917, 3756172.406755447, 19292081.4885237, 38199236.844181456, 41953473.165924445, 69590449.5711328, 68632912.08945778, 106415328.70988335]}, {"name": "yb-tserver-2", "timestamps": [1776285689.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [259257.5613467757, 3212156.9365426693, 3734189.253399383, 11833294.67757072, 60658808.34382512, 67902121.65561399, 63696337.05937402, 56842326.17546625, 65804866.4151426]}, {"name": "yb-tserver-3", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [28251.0870270621, 1928697.074010327, 2920108.751416811, 14898784.652130365, 44078224.822314605, 81925286.01532568, 76417779.74959798, 136740537.19755384, 118715919.08060454]}, {"name": "yb-tserver-4", "timestamps": [1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2198160.125771515, 3125140.047797884, 4113116.5888998033, 18254046.609628398, 57859654.24348378, 81036593.82069296, 76280524.64521721, 106209826.01910233, 148863495.55974165]}, {"name": "yb-tserver-5", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0], "values": [633109.0923453668, 2042761.6922651168, 2953039.3411956243, 4062434.5967911435, 37926596.92621211, 61906242.37102087, 56744759.37239656, 50403172.658862874]}, {"name": "yb-tserver-6", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285839.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [28535.6601955115, 1855470.3711297926, 3000717.43476431, 17640201.048655353, 57386604.5, 49714135.17278569, 54602324.59092491]}, {"name": "yb-tserver-7", "timestamps": [1776285689.0, 1776285779.0, 1776285809.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [9538027.053690003, 3065606.54841453, 4056806.842105264, 68120308.95348836, 66831436.49920548, 93294818.67485291, 124424505.83699842]}, {"name": "yb-tserver-8", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285899.0, 1776285929.0, 1776285989.0], "values": [24813.252677729066, 1253568.2411612426, 2917861.283018868, 2321677.5534975496, 18876589.30657687, 44337499.62159035, 57689056.172575824, 59835610.314891875]}, {"name": "yb-tserver-9", "timestamps": [1776285689.0, 1776285719.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2625689.1629172913, 1510008.2691319978, 3085285.3928249967, 3634907.3337476696, 18861980.276591793, 42763883.0465, 69041776.5761013, 94154870.17822266, 70031569.54374586]}], "total": 11384301552.939339}, "node_cpu": {"avg": 37.31955808080808, "max": 97.77291666666656, "min": 0.13333333333391817, "name": "Node CPU Total (%)", "series": [{"name": "ip-10-0-1-102.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5562500000002135, 5.997916666666092, 7.127083333333917, 7.456250000000564, 8.983333333333709, 36.22083333333289, 82.80833333333287, 94.64374999999943, 93.78749999999987, 89.9458333333329, 90.13541666666697]}, {"name": "ip-10-0-1-13.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5791666666666972, 4.72291666666661, 6.441666666666823, 7.068749999999913, 7.893750000000055, 23.50000000000002, 67.87291666666665, 90.49791666666668, 87.6666666666667, 78.46041666666675, 87.4937499999999]}, {"name": "ip-10-0-1-180.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1.024999999999654, 26.799999999999123, 26.658333333333907, 26.774999999997075, 26.60000000000081, 26.616666666667086, 22.7833333333327, 1.2166666666644232, 1.033333333333164, 2.1166666666666445, 2.4333333333333873]}, {"name": "ip-10-0-1-193.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.8229166666662513, 5.093749999999952, 7.695833333333613, 8.408333333332507, 9.758333333333935, 43.84166666666677, 95.08750000000077, 92.32916666666578, 89.90208333333385, 84.24791666666654, 88.94166666666744]}, {"name": "ip-10-0-1-194.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.8625000000000549, 4.760416666666655, 6.739583333333298, 7.2583333333333115, 8.087500000000036, 17.1770833333334, 55.02708333333336, 92.27708333333332, 88.7895833333333, 83.16250000000002, 90.96875000000001]}, {"name": "ip-10-0-1-209.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.8354166666670992, 4.147916666667006, 5.779166666666635, 6.270833333333958, 7.289583333333461, 16.7041666666671, 51.59791666666611, 90.58333333333412, 87.23749999999995, 81.68541666666633, 90.0791666666667]}, {"name": "ip-10-0-1-222.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5416666666666625, 4.775000000000085, 6.395833333333356, 6.737499999999963, 8.047916666666644, 20.9583333333333, 93.67708333333333, 89.83958333333328, 87.98541666666675, 74.9687500000001, 84.62291666666681]}, {"name": "ip-10-0-1-24.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [2.624999999999922, 3.5749999999999837, 5.65208333333338, 6.181250000000027, 7.262500000000005, 17.483333333333327, 74.29583333333328, 86.23124999999993, 83.56874999999995, 74.82916666666665, 83.24374999999999]}, {"name": "ip-10-0-1-26.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.822916666666651, 4.35833333333332, 7.708333333333217, 8.216666666666717, 9.985416666666735, 26.35624999999996, 89.02500000000008, 90.4583333333333, 88.30833333333335, 78.35416666666677, 87.10416666666664]}, {"name": "ip-10-0-1-49.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [6.099999999999762, 5.133333333333212, 5.033333333334067, 5.3999999999966075, 5.300000000003524, 6.066666666665698, 5.233333333332368, 5.133333333333212, 5.866666666664355, 5.433333333336732, 6.166666666667875]}, {"name": "ip-10-0-1-5.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.4749999999999477, 6.7145833333332465, 7.758333333332357, 8.702083333333633, 10.685416666666846, 43.76458333333345, 95.85208333333242, 92.61250000000057, 94.8208333333334, 90.77500000000062, 91.00416666666604]}, {"name": "ip-10-0-1-62.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5541666666671996, 6.735416666667415, 8.495833333332525, 9.249999999999359, 11.114583333333227, 69.21041666666684, 97.77291666666656, 96.44375000000025, 95.62708333333319, 84.35625000000054, 90.25208333333353]}, {"name": "ip-10-0-1-63.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.13333333333391817, 0.1479166666666587, 0.2875000000005623, 0.3624999999997436, 0.4395833333336263, 2.495833333332853, 11.24375000000003, 14.150000000000185, 13.229166666666858, 11.056250000000134, 12.402083333333625]}, {"name": "ip-10-0-1-74.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.554166666666811, 5.8583333333331105, 7.1708333333333485, 7.418750000000296, 8.781249999999341, 33.4270833333335, 79.87916666666725, 90.25000000000072, 91.13750000000019, 85.54583333333312, 89.21874999999962]}, {"name": "ip-10-0-1-91.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.6041666666667389, 3.07500000000005, 5.462499999999992, 5.918750000000006, 6.654166666666672, 17.54166666666669, 47.96250000000003, 91.04583333333338, 88.9125, 79.93958333333339, 90.0125]}], "total": 11494.423888888889}, "node_cpu_iowait": {"avg": 0.07993568232662192, "max": 0.38958333333333334, "min": 0.0020833333333332886, "name": "Node CPU iowait (%)", "series": [{"name": "ip-10-0-1-102.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.027083333333333764, 0.02291666666666673, 0.03333333333333305, 0.04791666666666621, 0.04375000000000032, 0.15416666666666695, 0.10416666666666703, 0.06041666666666678, 0.07291666666666667, 0.26249999999999934, 0.16666666666666766]}, {"name": "ip-10-0-1-13.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.027083333333333365, 0.010416666666666722, 0.027083333333333452, 0.029166666666666625, 0.03749999999999995, 0.12083333333333338, 0.1520833333333333, 0.08125000000000018, 0.08333333333333334, 0.10833333333333343, 0.08333333333333363]}, {"name": "ip-10-0-1-180.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.024999999999995023, 0.016666666666666313, 0.01666666666666927, 0.01666666666666927, 0.01666666666666335, 0.0, 0.016666666666669272, 0.025000000000003905, 0.02499999999999799, 0.3666666666666708, 0.3166666666666629]}, {"name": "ip-10-0-1-193.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.1041666666666666, 0.004166666666666947, 0.03958333333333337, 0.047916666666666975, 0.04375000000000008, 0.06041666666666664, 0.05625000000000021, 0.08125000000000011, 0.09375000000000015, 0.16041666666666693, 0.16041666666666676]}, {"name": "ip-10-0-1-194.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.10624999999999993, 0.0020833333333332886, 0.04166666666666663, 0.045833333333333545, 0.04583333333333346, 0.06458333333333341, 0.2229166666666667, 0.0833333333333333, 0.09583333333333319, 0.09583333333333326, 0.11041666666666662]}, {"name": "ip-10-0-1-209.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.10208333333333416, 0.008333333333332879, 0.04375000000000032, 0.04583333333333272, 0.047916666666666566, 0.06666666666666649, 0.23750000000000038, 0.09374999999999971, 0.12708333333333308, 0.21666666666666634, 0.12291666666666627]}, {"name": "ip-10-0-1-222.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.027083333333333258, 0.010416666666666583, 0.035416666666666645, 0.041666666666666546, 0.03750000000000002, 0.11250000000000018, 0.05208333333333309, 0.11041666666666677, 0.08124999999999996, 0.12916666666666665, 0.09791666666666676]}, {"name": "ip-10-0-1-24.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.07916666666666664, 0.008333333333333382, 0.045833333333333406, 0.047916666666666656, 0.041666666666666546, 0.05416666666666654, 0.13958333333333328, 0.1416666666666666, 0.17916666666666675, 0.38958333333333334, 0.24166666666666672]}, {"name": "ip-10-0-1-26.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.03333333333333336, 0.01875000000000002, 0.043749999999999976, 0.04791666666666651, 0.05208333333333334, 0.1229166666666667, 0.08125000000000014, 0.08333333333333345, 0.0770833333333332, 0.12500000000000036, 0.09375000000000011]}, {"name": "ip-10-0-1-49.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.033333333333332625, 0.033333333333332625, 0.033333333333332625, 0.0666666666666682, 0.033333333333332625, 0.0, 0.0, 0.0, 0.033333333333332625, 0.033333333333332625]}, {"name": "ip-10-0-1-5.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.014583333333333297, 0.02916666666666627, 0.03749999999999961, 0.035416666666666735, 0.04791666666666629, 0.1979166666666663, 0.04166666666666657, 0.09583333333333416, 0.04999999999999976, 0.07083333333333339, 0.08124999999999985]}, {"name": "ip-10-0-1-62.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.029166666666666567, 0.018750000000000246, 0.04583333333333344, 0.03333333333333337, 0.03749999999999957, 0.08541666666666708, 0.01874999999999969, 0.06875000000000023, 0.039583333333332825, 0.06249999999999977, 0.07083333333333267]}, {"name": "ip-10-0-1-63.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-74.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.01875000000000016, 0.03333333333333308, 0.04583333333333334, 0.05416666666666733, 0.05208333333333296, 0.14791666666666745, 0.11874999999999956, 0.09583333333333292, 0.0687499999999997, 0.11041666666666652, 0.1229166666666675]}, {"name": "ip-10-0-1-91.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.09375000000000012, 0.008333333333333248, 0.03749999999999972, 0.045833333333333046, 0.052083333333333336, 0.06041666666666672, 0.2604166666666667, 0.08124999999999998, 0.11458333333333329, 0.26666666666666666, 0.18125000000000008]}], "total": 24.620190156599552}, "node_cpu_softirq": {"avg": 4.189282167929293, "max": 11.554166666666667, "min": 0.0062499999999998685, "name": "Node CPU softirq (%)", "series": [{"name": "ip-10-0-1-102.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.012500000000002323, 0.3729166666666654, 0.5812500000000004, 0.7229166666666622, 0.8270833333333316, 3.2354166666666693, 9.177083333333332, 10.485416666666671, 10.25416666666666, 9.48125000000001, 9.910416666666663]}, {"name": "ip-10-0-1-13.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.03333333333333334, 0.17462840277777783, 0.3666666666666667, 0.5, 0.6458333333333335, 2.291666666666667, 7.0749999999999975, 10.027083333333337, 9.933333333333334, 8.164583333333333, 9.216666666666667]}, {"name": "ip-10-0-1-180.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.02499999999999947, 3.4666666666666686, 3.6666666666666687, 3.875, 3.3333333333333335, 3.416666666666665, 2.6916666666666655, 0.04166666666666727, 0.016666666666666313, 0.2583333333333338, 0.3166666666666674]}, {"name": "ip-10-0-1-193.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.03750000000000068, 0.17708333333333293, 0.4750000000000007, 0.593749999999999, 0.7979166666666654, 4.641666666666663, 10.041666666666663, 10.027083333333332, 9.689583333333331, 8.762500000000003, 9.199999999999998]}, {"name": "ip-10-0-1-194.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.03750000000000001, 0.1348838888888889, 0.5229166666666668, 0.5583333333333333, 0.7000000000000001, 1.8708333333333331, 5.862500000000001, 10.327083333333333, 9.760416666666668, 8.943750000000001, 10.029166666666669]}, {"name": "ip-10-0-1-209.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.04166666666666689, 0.1875000000000029, 0.4395833333333347, 0.5499999999999975, 0.9291666666666707, 2.068750000000003, 5.549999999999999, 10.006250000000005, 9.368750000000002, 8.425000000000002, 9.670833333333336]}, {"name": "ip-10-0-1-222.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.03749999999999999, 0.20561430555555552, 0.43750000000000006, 0.475, 0.6291666666666665, 2.402083333333334, 10.458333333333332, 9.883333333333333, 9.454166666666667, 7.916666666666665, 9.287500000000003]}, {"name": "ip-10-0-1-24.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.12895979166666668, 0.10562937500000003, 0.34374999999999994, 0.3916666666666667, 0.5333333333333332, 1.9145833333333337, 8.002083333333333, 9.160416666666665, 9.118750000000002, 7.449999999999998, 8.433333333333332]}, {"name": "ip-10-0-1-26.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0870725, 0.16079, 0.5645833333333332, 0.6187500000000001, 0.9520833333333333, 3.5354166666666664, 11.339583333333334, 11.554166666666667, 11.395833333333336, 9.529166666666665, 11.272916666666667]}, {"name": "ip-10-0-1-49.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5666666666666604, 0.4999999999999952, 0.4000000000000033, 0.43333333333333, 0.2666666666666729, 0.36666666666665293, 0.266666666666661, 0.20000000000000756, 0.266666666666661, 0.3666666666666766, 0.33333333333333803]}, {"name": "ip-10-0-1-5.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.018750000000000707, 0.4083333333333301, 0.42291666666666683, 0.5749999999999972, 0.8770833333333339, 4.6895833333333306, 10.20625, 10.308333333333332, 10.868750000000004, 10.160416666666672, 9.839583333333335]}, {"name": "ip-10-0-1-62.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.020833333333331403, 0.19791666666666446, 0.4875000000000014, 0.6020833333333349, 0.8979166666666701, 7.6395833333333325, 10.056250000000002, 10.16041666666667, 10.062499999999996, 8.714583333333339, 9.329166666666666]}, {"name": "ip-10-0-1-63.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0062499999999998685, 0.016666666666666823, 0.06250000000000018, 0.0708333333333344, 0.09999999999999952, 1.2562500000000008, 5.352083333333335, 8.33125, 7.27916666666667, 6.993749999999997, 7.506250000000003]}, {"name": "ip-10-0-1-74.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0395833333333325, 0.41666666666667107, 0.570833333333331, 0.68333333333333, 0.9500000000000008, 3.699999999999996, 8.945833333333335, 10.145833333333334, 10.339583333333332, 9.441666666666668, 9.725]}, {"name": "ip-10-0-1-91.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.008333333333333337, 0.06731277777777778, 0.3125, 0.39166666666666666, 0.5791666666666668, 1.8937500000000003, 4.812499999999999, 10.1375, 9.756250000000001, 8.327083333333334, 9.695833333333331]}], "total": 1290.2989077222223}, "node_cpu_steal": {"avg": 0.02135303858024685, "max": 0.10000000000000082, "min": 0.00208333333333333, "name": "Node CPU steal (%)", "series": [{"name": "ip-10-0-1-102.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.004166666666666669, 0.0]}, {"name": "ip-10-0-1-13.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-180.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-193.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.006250000000000004, 0.0, 0.0, 0.004166666666666669, 0.002083333333333335, 0.0020833333333333355, 0.0041666666666666675, 0.0020833333333333355, 0.00416666666666667, 0.0020833333333333337, 0.00625]}, {"name": "ip-10-0-1-194.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0020833333333333337, 0.0, 0.0, 0.0020833333333333324, 0.0, 0.0020833333333333324, 0.0020833333333333337, 0.004100069444444444, 0.0020833333333333355, 0.0, 0.0]}, {"name": "ip-10-0-1-209.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0020833333333333324, 0.0, 0.0]}, {"name": "ip-10-0-1-222.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-24.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.002083333333333333, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-26.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0020833333333333324, 0.0020833333333333324, 0.0, 0.0, 0.0, 0.004166666666666667, 0.0020833333333333324, 0.002083333333333333, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-49.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.06666666666666525, 0.0666666666666682, 0.0666666666666682, 0.09999999999999788, 0.10000000000000082, 0.033333333333332625, 0.10000000000000082, 0.09999999999999788, 0.06666666666666525, 0.06666666666666525, 0.0666666666666682]}, {"name": "ip-10-0-1-5.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0020833333333333355, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-62.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.00208333333333333, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {"name": "ip-10-0-1-63.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.005129305555555555, 0.0, 0.008333333333333342, 0.0, 0.011939652777777783, 0.0, 0.006250000000000007, 0.0, 0.0020833333333333337, 0.0036063194444444463]}, {"name": "ip-10-0-1-74.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011111388888888891, 0.0020833333333333333, 0.0041666666666666675]}, {"name": "ip-10-0-1-91.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], "total": 6.576735882716029}, "node_cpu_system": {"avg": 8.330416666666668, "max": 23.856250000000003, "min": 0.01249999999999992, "name": "Node CPU system (%)", "series": [{"name": "ip-10-0-1-102.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0770833333333254, 1.7937500000000093, 1.9562499999999996, 1.8395833333333345, 2.4104166666666664, 7.39583333333333, 18.693749999999994, 21.658333333333335, 21.57916666666667, 19.460416666666667, 20.472916666666677]}, {"name": "ip-10-0-1-13.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.07916666666666675, 1.4937499999999997, 1.6895833333333328, 1.8895833333333334, 2.0958333333333337, 5.320833333333335, 14.000000000000004, 19.543750000000003, 18.731250000000003, 16.927083333333336, 19.12291666666667]}, {"name": "ip-10-0-1-180.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.216666666666668, 4.0500000000000025, 4.216666666666666, 3.8416666666666663, 4.041666666666659, 3.9500000000000015, 3.525000000000003, 0.2749999999999986, 0.17500000000000368, 0.4416666666666646, 0.5416666666666684]}, {"name": "ip-10-0-1-193.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.1062499999999981, 1.4979166666666706, 2.2208333333333297, 2.1812500000000035, 2.6916666666666726, 10.154166666666669, 23.333333333333332, 20.599999999999984, 20.36041666666666, 18.220833333333356, 19.812500000000004]}, {"name": "ip-10-0-1-194.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.14375, 1.633333333333333, 2.114583333333333, 2.1541666666666663, 2.3270833333333325, 4.391666666666667, 12.091666666666665, 20.850000000000005, 19.90625, 17.78125, 20.18958333333333]}, {"name": "ip-10-0-1-209.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.13333333333333494, 1.5520833333333308, 1.6416666666666742, 1.718749999999993, 2.0437500000000037, 4.093749999999993, 11.087499999999997, 20.50833333333333, 19.56458333333334, 17.483333333333338, 20.88958333333334]}, {"name": "ip-10-0-1-222.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.09166666666666667, 1.3937499999999998, 1.8562500000000006, 1.8875, 2.2187499999999996, 5.227083333333332, 23.081250000000004, 19.885416666666668, 19.481250000000003, 16.941666666666666, 18.795833333333327]}, {"name": "ip-10-0-1-24.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.36874999999999997, 1.3374999999999997, 1.7187499999999996, 1.5812499999999996, 1.9583333333333337, 4.36875, 17.35625, 18.891666666666666, 18.33125, 15.756249999999996, 18.158333333333328]}, {"name": "ip-10-0-1-26.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.12916666666666668, 1.2541666666666664, 2.0187500000000003, 2.1625, 2.447916666666665, 6.172916666666666, 19.677083333333332, 19.624999999999996, 18.69791666666666, 16.964583333333337, 18.537499999999994]}, {"name": "ip-10-0-1-49.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1.233333333333301, 0.9000000000000341, 0.8333333333333334, 0.9000000000000341, 0.7333333333333295, 0.7333333333333295, 0.8666666666666363, 0.96666666666664, 0.6666666666666762, 1.1000000000000416, 1.3333333333333524]}, {"name": "ip-10-0-1-5.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.06458333333333528, 1.9395833333333334, 1.9791666666666694, 2.2812499999999925, 2.666666666666662, 9.612500000000002, 22.42708333333334, 20.933333333333334, 20.925000000000008, 20.174999999999997, 20.022916666666674]}, {"name": "ip-10-0-1-62.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.0791666666666657, 1.7145833333333287, 2.168749999999999, 2.2166666666666663, 2.595833333333336, 16.589583333333334, 23.856250000000003, 21.425000000000004, 21.125000000000004, 18.98958333333334, 20.133333333333333]}, {"name": "ip-10-0-1-63.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.01249999999999992, 0.014583333333333164, 0.03541666666666657, 0.03333333333333332, 0.052083333333333495, 0.3249999999999998, 1.9479166666666676, 2.6437500000000007, 2.3937500000000007, 1.9916666666666663, 2.4583333333333344]}, {"name": "ip-10-0-1-74.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.06874999999999523, 1.7312499999999995, 1.9145833333333333, 1.9645833333333358, 2.2916666666666656, 7.591666666666668, 16.912500000000005, 19.866666666666667, 19.85208333333332, 18.818750000000016, 19.397916666666664]}, {"name": "ip-10-0-1-91.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.054166666666666655, 0.9437499999999998, 1.59375, 1.7833333333333332, 1.985416666666666, 4.439583333333335, 10.093750000000002, 20.972916666666666, 20.13125, 17.585416666666664, 21.06875]}], "total": 2565.768333333334}, "node_cpu_user": {"avg": 22.39170454545455, "max": 63.23958333333333, "min": 0.027083333333333032, "name": "Node CPU user (%)", "series": [{"name": "ip-10-0-1-102.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.2874999999999813, 3.1291666666666886, 3.212499999999985, 3.31875000000001, 4.018750000000005, 15.202083333333333, 49.43749999999998, 60.44791666666669, 59.697916666666664, 58.06041666666668, 56.56250000000001]}, {"name": "ip-10-0-1-13.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.3312500000000004, 2.5062499999999996, 3.1562499999999987, 3.304166666666667, 3.7687499999999994, 9.812500000000002, 38.512499999999996, 56.466666666666676, 52.564583333333346, 46.489583333333336, 54.19583333333333]}, {"name": "ip-10-0-1-180.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.5666666666666604, 16.491666666666667, 16.224999999999998, 16.72499999999997, 16.45000000000001, 16.183333333333334, 13.591666666666658, 0.741666666666679, 0.6416666666666634, 0.9583333333333379, 1.0500000000000043]}, {"name": "ip-10-0-1-193.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.40624999999999767, 2.089583333333339, 3.6520833333333216, 4.19583333333333, 5.0874999999999915, 23.093749999999982, 59.654166666666676, 59.08333333333334, 56.787500000000016, 53.45416666666668, 56.247916666666654]}, {"name": "ip-10-0-1-194.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.42708333333333287, 2.2041666666666666, 3.441666666666666, 3.6666666666666674, 4.214583333333335, 8.325000000000001, 30.312499999999996, 58.10416666666667, 55.510416666666664, 52.22291666666665, 57.52708333333333]}, {"name": "ip-10-0-1-209.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.3812499999999967, 1.8479166666666644, 2.5416666666666816, 2.656249999999982, 3.7770833333333442, 7.675000000000007, 27.991666666666653, 56.410416666666706, 54.000000000000036, 51.168749999999996, 56.616666666666696]}, {"name": "ip-10-0-1-222.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.2583333333333333, 2.5312499999999996, 3.2583333333333324, 3.3916666666666666, 4.106250000000001, 10.172916666666666, 57.672916666666666, 56.21250000000001, 54.785416666666684, 45.63333333333334, 52.11874999999998]}, {"name": "ip-10-0-1-24.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [1.9770833333333329, 1.8979166666666665, 2.5499999999999994, 2.658333333333333, 3.4937499999999995, 7.712500000000001, 43.02083333333332, 53.479166666666664, 51.168749999999996, 45.80625, 50.92083333333331]}, {"name": "ip-10-0-1-26.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.40833333333333344, 2.002083333333333, 3.4645833333333336, 4.175, 4.885416666666666, 12.720833333333331, 52.433333333333344, 54.42083333333334, 52.41458333333333, 46.36250000000001, 52.56875000000001]}, {"name": "ip-10-0-1-49.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [3.5333333333334354, 2.300000000000087, 2.466666666666697, 3.033333333333322, 2.6333333333334017, 3.30000000000003, 2.466666666666697, 2.633333333333307, 3.4666666666667343, 2.7666666666667084, 3.866666666666655]}, {"name": "ip-10-0-1-5.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.10625000000001589, 3.402083333333322, 3.429166666666638, 4.175000000000003, 4.856250000000006, 22.470833333333353, 61.56458333333335, 58.91041666666668, 60.577083333333334, 57.712500000000034, 58.98333333333334]}, {"name": "ip-10-0-1-62.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.23541666666666872, 2.9291666666666787, 3.98541666666668, 4.254166666666684, 5.110416666666672, 38.74375000000001, 62.9125, 63.23958333333333, 62.812499999999986, 53.29166666666666, 58.291666666666686]}, {"name": "ip-10-0-1-63.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.08541666666666688, 0.027083333333333032, 0.09791666666666698, 0.08541666666666682, 0.1729166666666664, 0.6854166666666672, 3.377083333333334, 3.9833333333333334, 3.327083333333334, 2.943750000000002, 3.4062499999999987]}, {"name": "ip-10-0-1-74.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.2666666666666847, 2.781250000000002, 3.1479166666666556, 3.0833333333333126, 3.9666666666666837, 16.504166666666706, 48.65208333333332, 56.31458333333336, 57.50208333333333, 52.66249999999996, 56.202083333333356]}, {"name": "ip-10-0-1-91.ap-east-2.compute.internal", "timestamps": [1776285689.0, 1776285719.0, 1776285749.0, 1776285779.0, 1776285809.0, 1776285839.0, 1776285869.0, 1776285899.0, 1776285929.0, 1776285959.0, 1776285989.0], "values": [0.3687499999999999, 1.3562499999999995, 2.539583333333333, 2.4979166666666672, 3.158333333333333, 7.999999999999999, 25.50625, 56.770833333333336, 55.20625000000001, 49.88333333333332, 56.04166666666666]}], "total": 6896.645000000002}};
+
+        // Resource charts
+        if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'CPU %');
+        if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
+        if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
+        if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
+
+        // Disk I/O charts
+        if (metricsData.disk_read_iops) createChart('disk-read-iops-chart', metricsData.disk_read_iops.series, 'IOPS');
+        if (metricsData.disk_write_iops) createChart('disk-write-iops-chart', metricsData.disk_write_iops.series, 'IOPS');
+        if (metricsData.disk_read_throughput) createChart('disk-read-throughput-chart', metricsData.disk_read_throughput.series, 'MB/s');
+        if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
+
+        // Node-level CPU charts
+        if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'CPU %');
+        if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
+        if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
+        if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');
+        if (metricsData.node_cpu_steal) createChart('node-cpu-steal-chart', metricsData.node_cpu_steal.series, 'CPU %');
+        if (metricsData.node_cpu_softirq) createChart('node-cpu-softirq-chart', metricsData.node_cpu_softirq.series, 'CPU %');
+
+        // Custom metrics charts
+        Object.keys(metricsData).forEach(key => {
+            if (key.startsWith('rate_') || key.startsWith('total_')) {
+                createChart('chart-' + key, metricsData[key].series, 'Value');
+            }
+        });
+
+        // Sysbench interval charts
+        
+        const sysbenchIntervals = [{"err_s": 0.0, "lat_95": 9452.83, "other_qps": 0.0, "qps": 975.48, "read_qps": 0.0, "threads": 6000, "time": 10, "tps": 975.48, "write_qps": 975.48}, {"err_s": 0.0, "lat_95": 9118.47, "other_qps": 0.0, "qps": 1620.8, "read_qps": 0.0, "threads": 6000, "time": 20, "tps": 1620.8, "write_qps": 1620.8}, {"err_s": 0.0, "lat_95": 8638.96, "other_qps": 0.0, "qps": 1814.1, "read_qps": 0.0, "threads": 6000, "time": 30, "tps": 1814.1, "write_qps": 1814.1}, {"err_s": 0.0, "lat_95": 8955.74, "other_qps": 0.0, "qps": 2142.1, "read_qps": 0.0, "threads": 6000, "time": 40, "tps": 2142.1, "write_qps": 2142.1}, {"err_s": 0.0, "lat_95": 8638.96, "other_qps": 0.0, "qps": 2632.5, "read_qps": 0.0, "threads": 6000, "time": 50, "tps": 2632.5, "write_qps": 2632.5}, {"err_s": 0.0, "lat_95": 8038.61, "other_qps": 0.0, "qps": 3564.6, "read_qps": 0.0, "threads": 6000, "time": 60, "tps": 3564.6, "write_qps": 3564.6}, {"err_s": 0.0, "lat_95": 6.32, "other_qps": 0.0, "qps": 19006.79, "read_qps": 0.0, "threads": 6000, "time": 70, "tps": 19006.79, "write_qps": 19006.79}, {"err_s": 0.0, "lat_95": 36.24, "other_qps": 0.0, "qps": 47222.57, "read_qps": 0.0, "threads": 6000, "time": 80, "tps": 47222.57, "write_qps": 47222.57}, {"err_s": 0.0, "lat_95": 49.21, "other_qps": 0.0, "qps": 70506.66, "read_qps": 0.0, "threads": 6000, "time": 90, "tps": 70506.66, "write_qps": 70506.66}, {"err_s": 0.0, "lat_95": 51.94, "other_qps": 0.0, "qps": 98446.59, "read_qps": 0.0, "threads": 6000, "time": 100, "tps": 98446.69, "write_qps": 98446.59}, {"err_s": 0.0, "lat_95": 101.13, "other_qps": 0.0, "qps": 144326.96, "read_qps": 0.0, "threads": 6000, "time": 110, "tps": 144327.16, "write_qps": 144326.96}, {"err_s": 0.0, "lat_95": 231.53, "other_qps": 0.0, "qps": 129037.62, "read_qps": 0.0, "threads": 6000, "time": 120, "tps": 129037.52, "write_qps": 129037.62}, {"err_s": 0.0, "lat_95": 155.8, "other_qps": 0.0, "qps": 153764.78, "read_qps": 0.0, "threads": 6000, "time": 130, "tps": 153764.68, "write_qps": 153764.78}, {"err_s": 0.0, "lat_95": 219.36, "other_qps": 0.0, "qps": 142560.95, "read_qps": 0.0, "threads": 6000, "time": 140, "tps": 142561.05, "write_qps": 142560.95}, {"err_s": 0.0, "lat_95": 219.36, "other_qps": 0.0, "qps": 123673.15, "read_qps": 0.0, "threads": 6000, "time": 150, "tps": 123672.95, "write_qps": 123673.15}, {"err_s": 0.0, "lat_95": 235.74, "other_qps": 0.0, "qps": 146526.61, "read_qps": 0.0, "threads": 6000, "time": 160, "tps": 146526.71, "write_qps": 146526.61}, {"err_s": 0.0, "lat_95": 144.97, "other_qps": 0.0, "qps": 145934.68, "read_qps": 0.0, "threads": 6000, "time": 170, "tps": 145934.58, "write_qps": 145934.68}, {"err_s": 0.0, "lat_95": 211.6, "other_qps": 0.0, "qps": 142698.1, "read_qps": 0.0, "threads": 6000, "time": 180, "tps": 142698.1, "write_qps": 142698.1}, {"err_s": 0.0, "lat_95": 297.92, "other_qps": 0.0, "qps": 96927.75, "read_qps": 0.0, "threads": 6000, "time": 190, "tps": 96927.75, "write_qps": 96927.75}, {"err_s": 0.0, "lat_95": 137.35, "other_qps": 0.0, "qps": 148891.59, "read_qps": 0.0, "threads": 6000, "time": 200, "tps": 148891.69, "write_qps": 148891.59}, {"err_s": 0.0, "lat_95": 150.29, "other_qps": 0.0, "qps": 148035.29, "read_qps": 0.0, "threads": 6000, "time": 210, "tps": 148035.39, "write_qps": 148035.29}, {"err_s": 0.0, "lat_95": 142.39, "other_qps": 0.0, "qps": 136062.27, "read_qps": 0.0, "threads": 6000, "time": 220, "tps": 136062.07, "write_qps": 136062.27}, {"err_s": 0.0, "lat_95": 207.82, "other_qps": 0.0, "qps": 133686.92, "read_qps": 0.0, "threads": 6000, "time": 230, "tps": 133687.02, "write_qps": 133686.92}, {"err_s": 0.0, "lat_95": 130.13, "other_qps": 0.0, "qps": 143967.6, "read_qps": 0.0, "threads": 6000, "time": 240, "tps": 143967.9, "write_qps": 143967.6}];
+
+        function createSimpleChart(canvasId, labels, datasets, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { title: { display: true, text: 'Time (s)' } },
+                        y: { beginAtZero: true, title: { display: true, text: yAxisLabel } }
+                    },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
+        }
+
+        const sbLabels = sysbenchIntervals.map(i => i.time + 's');
+
+        createSimpleChart('sysbench-tps-chart', sbLabels, [{
+            label: 'TPS',
+            data: sysbenchIntervals.map(i => i.tps),
+            borderColor: colors[0], backgroundColor: colorsBg[0],
+            fill: true, tension: 0.3, pointRadius: 3,
+        }], 'TPS');
+
+        createSimpleChart('sysbench-lat-chart', sbLabels, [{
+            label: '95th %ile (ms)',
+            data: sysbenchIntervals.map(i => i.lat_95),
+            borderColor: colors[4], backgroundColor: colorsBg[4],
+            fill: true, tension: 0.3, pointRadius: 3,
+        }], 'Latency (ms)');
+
+        createSimpleChart('sysbench-qps-chart', sbLabels, [
+            { label: 'Read', data: sysbenchIntervals.map(i => i.read_qps), borderColor: colors[0], backgroundColor: colorsBg[0], fill: false, tension: 0.3, pointRadius: 2 },
+            { label: 'Write', data: sysbenchIntervals.map(i => i.write_qps), borderColor: colors[1], backgroundColor: colorsBg[1], fill: false, tension: 0.3, pointRadius: 2 },
+            { label: 'Other', data: sysbenchIntervals.map(i => i.other_qps), borderColor: colors[2], backgroundColor: colorsBg[2], fill: false, tension: 0.3, pointRadius: 2 },
+        ], 'QPS');
+
+        createSimpleChart('sysbench-err-chart', sbLabels, [{
+            label: 'Errors/s',
+            data: sysbenchIntervals.map(i => i.err_s),
+            borderColor: colors[4], backgroundColor: colorsBg[4],
+            fill: true, tension: 0.3, pointRadius: 3,
+        }], 'Errors/s');
+        
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
-# AWS EKS/K3s values — 6× tserver scale-up, 200K TPS calibration
+# AWS EKS/K3s values — 12× tserver scale-out, 150K+ TPS target
 # Node layout:
-#   - role=db (tainted dedicated=db:NoSchedule): 6× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
+#   - role=db (tainted dedicated=db:NoSchedule): 12× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
 #   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
 #   - role=system: 1× c6i.2xlarge (Intel Ice Lake) — 3 yb-masters + prometheus
 # CPU note: ap-east-2 does not offer c6a; c6i.8xlarge hit InsufficientInstanceCapacity.
@@ -35,9 +35,9 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 3000  # client-side target; ysql_max_connections=1024/tserver gives 6144 cluster cap
-  time: 120
-  warmupTime: 30
+  threads: 6000  # 12 tservers × 1024 conn cap = 12,288
+  time: 240
+  warmupTime: 60
   reportInterval: 10
   workload: oltp_insert
 
@@ -90,7 +90,7 @@ yugabyte:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 6
+    tserver: 12
   resource:
     master:
       requests:

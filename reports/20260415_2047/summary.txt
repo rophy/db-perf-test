@@ -1,0 +1,51 @@
+=== Tserver Node Specs ===
+Tservers: 12
+  yb-tserver-0 -> ip-10-0-1-193.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-1 -> ip-10-0-1-74.ap-east-2.compute.internal: 32 CPU, 64773704Ki
+  yb-tserver-10 -> ip-10-0-1-26.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-11 -> ip-10-0-1-91.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-2 -> ip-10-0-1-5.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-3 -> ip-10-0-1-209.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-4 -> ip-10-0-1-102.ap-east-2.compute.internal: 32 CPU, 64773708Ki
+  yb-tserver-5 -> ip-10-0-1-62.ap-east-2.compute.internal: 32 CPU, 64773704Ki
+  yb-tserver-6 -> ip-10-0-1-222.ap-east-2.compute.internal: 32 CPU, 64773708Ki
+  yb-tserver-7 -> ip-10-0-1-24.ap-east-2.compute.internal: 32 CPU, 64773716Ki
+  yb-tserver-8 -> ip-10-0-1-13.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-9 -> ip-10-0-1-194.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+=== Tserver Metrics (container-level) ===
+Tservers: 12
+CPU: 1164.1%
+Memory: 8100 MB
+Network: RX 33.1 MB/s, TX 35.2 MB/s
+Disk IOPS: Read 0, Write 167
+
+=== Node Metrics (VM-level) ===
+Nodes: 15
+  ip-10-0-1-102.ap-east-2.compute.internal: 47.1% total CPU
+  ip-10-0-1-13.ap-east-2.compute.internal: 42.0% total CPU
+  ip-10-0-1-180.ap-east-2.compute.internal: 14.9% total CPU
+  ip-10-0-1-193.ap-east-2.compute.internal: 47.8% total CPU
+  ip-10-0-1-194.ap-east-2.compute.internal: 41.4% total CPU
+  ip-10-0-1-209.ap-east-2.compute.internal: 40.2% total CPU
+  ip-10-0-1-222.ap-east-2.compute.internal: 43.5% total CPU
+  ip-10-0-1-24.ap-east-2.compute.internal: 40.4% total CPU
+  ip-10-0-1-26.ap-east-2.compute.internal: 44.6% total CPU
+  ip-10-0-1-49.ap-east-2.compute.internal: 5.5% total CPU
+  ip-10-0-1-5.ap-east-2.compute.internal: 49.4% total CPU
+  ip-10-0-1-62.ap-east-2.compute.internal: 51.8% total CPU
+  ip-10-0-1-63.ap-east-2.compute.internal: 6.0% total CPU
+  ip-10-0-1-74.ap-east-2.compute.internal: 45.4% total CPU
+  ip-10-0-1-91.ap-east-2.compute.internal: 39.7% total CPU
+  avg user: 22.4%
+  avg system: 8.3%
+  avg iowait: 0.1%
+  avg steal: 0.0%
+  avg softirq: 4.2%
+
+=== Sysbench Results ===
+TPS: 90771.98
+QPS: 90771.98
+Errors: 0 (0.00/s)
+Reconnects: 0 (0.00/s)
+Latency (95th): 176.73 ms
+Duration: 240.7s
