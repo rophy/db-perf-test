@@ -30,6 +30,21 @@ Every benchmark run has a **warmup** phase followed by a **heat** (steady-state)
 - **NEVER** use bare `kubectl` commands that rely on the current context
 - **ALWAYS** use explicit `--context` flag: `kubectl --context minikube ...`
 
+### Querying Prometheus
+The Prometheus instance is in-cluster as `yb-bench-prometheus` in namespace
+`yugabyte-test`. Do NOT port-forward — `kubectl exec` into the pod and curl
+localhost from inside:
+
+```bash
+PROM=$(kubectl --context kube-sandbox -n yugabyte-test get pod -l app=prometheus -o jsonpath='{.items[0].metadata.name}')
+kubectl --context kube-sandbox -n yugabyte-test exec $PROM -- wget -qO- \
+    "http://localhost:9090/api/v1/query_range?query=...&start=...&end=...&step=10"
+```
+
+`wget` is what's installed in the prom/prometheus image (no curl). Use the
+epoch timestamps from `output/sysbench/sysbench_times.txt` (or the report
+directory copy) to scope `query_range` to the run window.
+
 ### Running Benchmarks
 - **ALWAYS** follow `README.md` for benchmark instructions
 - **ALWAYS** use Makefile targets (`make sysbench-prepare`, `make sysbench-run`, `make report`) instead of ad-hoc commands
