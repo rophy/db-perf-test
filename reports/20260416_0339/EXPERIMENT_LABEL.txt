@@ -1,0 +1,27 @@
+Iter 12 — 12 tservers, confirmed trigger (full reset sequence).
+
+Cluster:
+- 12× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (role=db)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- 1× t3.small — k3s master
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Workload:
+- oltp_insert, 24 tables × 100,000 rows, 6000 threads, 300s (90s warmup)
+- cleanup_duplicate_k trigger installed on ALL 24 tables via dynamic SQL (make sysbench-trigger)
+- Fresh cluster (make clean + deploy-aws) — zero residual tablet placements
+- Full reset: make clean && make deploy-aws && make sysbench-prepare && make sysbench-trigger
+
+Result:
+- TPS avg: 55,139
+- TPS peak (t=100s): 81,563
+- TPS steady (t=100–270s): 69K–77K
+- p95 latency: 337.94 ms
+- 0 errors
+- VM CPU: 51–58% (significant headroom)
+
+Purpose:
+- Validate iter 3's trigger status (confirmed: iter 3 had NO trigger)
+- Establish proper 12-tserver + trigger baseline for scale-out comparison
+- Discovered anomaly: 12 tservers (81K peak) ≈ 6 tservers (86K peak, iter 2) — no scale-out gain

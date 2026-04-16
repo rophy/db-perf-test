@@ -1,0 +1,27 @@
+Iter 13 — 6 tservers, confirmed trigger, validates iter 12 anomaly.
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (role=db)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- 1× t3.small — k3s master
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Workload:
+- oltp_insert, 24 tables × 100,000 rows, 3000 threads, 300s (90s warmup)
+- cleanup_duplicate_k trigger installed on ALL 24 tables via dynamic SQL (make sysbench-trigger)
+- Fresh cluster (make clean + deploy-aws) on the scaled-down 6-node cluster
+- Full reset: make clean && make deploy-aws && make sysbench-prepare && make sysbench-trigger
+
+Result:
+- TPS avg: 40,661
+- TPS peak (t=20s): 44,393
+- TPS steady (t=30–290s): 38K–42K
+- p95 latency: 112.67 ms
+- 0 errors
+- VM CPU: 74–76% (uniform across 6 db nodes)
+
+Purpose:
+- Validate iter 12's "6-tserver ≈ 12-tserver" anomaly by running an apples-to-apples 6-tserver + trigger baseline
+- Resolved: iter 2's 86K peak was a NO-TRIGGER run; iter 13 at 41K confirms trigger halves throughput
+- Scale-out with trigger now shows near-linear 6→12 (1.88×) and sublinear 12→18 (0.89× of ideal)

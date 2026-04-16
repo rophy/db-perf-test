@@ -36,7 +36,7 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 8500  # iter-4 matched
+  threads: 3000  # iter-2 matched (6 tservers)
   time: 300
   warmupTime: 90  # iter-4 matched
   reportInterval: 10
@@ -91,7 +91,7 @@ yugabyte:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 18
+    tserver: 6
   resource:
     master:
       requests:
