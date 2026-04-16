@@ -36,7 +36,7 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 3000  # iter-2 matched (6 tservers)
+  threads: 5000  # iter-15: raise from 3000 to use 25% VM CPU headroom
   time: 300
   warmupTime: 90  # iter-4 matched
   reportInterval: 10

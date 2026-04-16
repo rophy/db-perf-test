@@ -1,0 +1,44 @@
+Iter 14 — 6 tservers + ysql_num_tablets=12 (REGRESSION, reverted).
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (role=db)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Change vs iter 13:
+- Added ysql_num_tablets: 12 on both master and tserver gflags (iter 13 had default =1)
+- Intent: split each table from 1 tablet to 12 tablets (2 per tserver) to eliminate the
+  24-leader bottleneck observed in iter 13
+- Verified sbtest1 had 12 tablets, hash-split evenly across 6 tservers after CREATE TABLE
+
+Result:
+- TPS avg: 30,932 (iter 13: 40,661 → -24% regression)
+- TPS steady (t=30-290s): 29.6K-32.5K (declining over time)
+- p95 latency: 142.39 ms (iter 13: 112.67 ms → +26%)
+- avg latency: 96.89 ms (iter 13: 73.79 ms → +31%)
+- 0 errors
+- VM CPU: 75-78% (similar to iter 13's 74-76% — NOT CPU-saturated)
+- Container CPU (sum): 1830% (iter 13: 1912% — actually LOWER)
+- Write disk IOPS: 261 (iter 13: 163 — +60%, more small WAL writes per tablet)
+
+Purpose:
+- Test whether increasing tablet count per table (from 1 to 12) would eliminate the
+  single-leader bottleneck identified in iter 13 analysis.
+
+Outcome / Root cause of regression:
+- The trigger workload (INSERT + SELECT-on-index + conditional DELETE) is PER-TRANSACTION
+  serial. With 1 tablet/table, all three operations hit the same tablet leader, so the
+  whole transaction commits locally with one raft round.
+- With 12 tablets, the INSERT, index SELECT, and DELETE each hash to potentially different
+  tablets (across different tservers), converting every transaction into a distributed
+  transaction with 2PC + cross-node RPCs + additional WAL fsyncs per tablet.
+- Per-op CPU cost rose; per-leader parallelism didn't help because a single transaction
+  can only progress as fast as its slowest raft quorum.
+- Key insight: iter 13's 41K was NOT CPU-bound. It was latency-bound:
+  3000 threads / 74 ms avg latency = 40.5 K TPS. Exactly matches observed 40,661.
+
+Action: revert ysql_num_tablets back to 1 (default); explore other knobs:
+  1. Raise client threads (CPU has 25% headroom at 3000 threads)
+  2. Tune WAL / raft batching (log_segment_size_mb, consensus_max_batch_size)
+  3. Raise RPC thread pool (tablet_server_svc_num_threads)
