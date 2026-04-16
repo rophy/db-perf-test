@@ -369,6 +369,88 @@ class ReportGenerator:
             ]
         }
 
+    def collect_interval_series(self, step: int) -> dict:
+        """Collect single-series aggregates for the per-interval sysbench table.
+
+        Each metric is summed/averaged across the DB tier at `step` resolution,
+        so rows line up with sysbench's reportInterval.
+        """
+        ns = self.config.namespace
+        tserver_regex = "yb-tserver.*"
+        pod_cgroup = 'container=""'
+
+        queries = {
+            # DB-node VM CPU %, averaged across all role=db nodes
+            "cpu_pct": (
+                '(1 - avg(rate(node_cpu_seconds_total{mode="idle",role="db"}[30s]))) * 100'
+            ),
+            # Total tserver-container memory in MB
+            "mem_mb": (
+                f'sum(container_memory_working_set_bytes{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}",{pod_cgroup}}}) / 1024 / 1024'
+            ),
+            # Network RX+TX MB/s across tserver pods
+            "net_rx_mb": (
+                f'sum(rate(container_network_receive_bytes_total{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}"}}[30s])) / 1024 / 1024'
+            ),
+            "net_tx_mb": (
+                f'sum(rate(container_network_transmit_bytes_total{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}"}}[30s])) / 1024 / 1024'
+            ),
+            # Disk write IOPS across tserver pods
+            "disk_write_iops": (
+                f'sum(rate(container_fs_writes_total{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}",{pod_cgroup}}}[30s]))'
+            ),
+        }
+
+        series_by_key: dict[str, dict[int, float]] = {}
+        for key, q in queries.items():
+            result = self.prometheus.query_range(
+                q, self.config.start_time, self.config.end_time, step
+            )
+            if result and result[0].values:
+                s = result[0]
+                series_by_key[key] = {
+                    int(t): v for t, v in zip(s.timestamps, s.values)
+                }
+            else:
+                series_by_key[key] = {}
+        return series_by_key
+
+    @staticmethod
+    def _nearest_value(series: dict[int, float], target_ts: int, max_skew: int):
+        """Return the value in `series` whose timestamp is closest to target_ts,
+        or None if no sample is within max_skew seconds."""
+        if not series:
+            return None
+        closest = min(series.keys(), key=lambda t: abs(t - target_ts))
+        if abs(closest - target_ts) > max_skew:
+            return None
+        return series[closest]
+
+    def enrich_intervals_with_metrics(self, intervals: list, step: int) -> list:
+        """Attach per-interval CPU/mem/net/disk samples to each sysbench row."""
+        if not intervals:
+            return intervals
+        series = self.collect_interval_series(step)
+        max_skew = max(step, 15)
+        enriched = []
+        for iv in intervals:
+            target_ts = int(self.config.start_time + iv["time"])
+            row = dict(iv)
+            row["cpu_pct"] = self._nearest_value(series["cpu_pct"], target_ts, max_skew)
+            row["mem_mb"] = self._nearest_value(series["mem_mb"], target_ts, max_skew)
+            rx = self._nearest_value(series["net_rx_mb"], target_ts, max_skew)
+            tx = self._nearest_value(series["net_tx_mb"], target_ts, max_skew)
+            row["net_mb"] = (rx or 0) + (tx or 0) if (rx is not None or tx is not None) else None
+            row["disk_write_iops"] = self._nearest_value(
+                series["disk_write_iops"], target_ts, max_skew
+            )
+            enriched.append(row)
+        return enriched
+
     def collect_custom_metrics(self):
         """Collect custom rate and total metrics."""
         for metric_expr in self.config.rate_metrics:
@@ -461,6 +543,25 @@ class ReportGenerator:
 
         # Get sysbench params from live configmap
         sysbench_params = self._get_sysbench_params()
+
+        # Enrich sysbench intervals with per-interval Prometheus samples (CPU/mem/net/disk).
+        if sysbench_results and sysbench_results.get("intervals"):
+            interval_step = 10
+            if sysbench_params and sysbench_params.get("report-interval"):
+                try:
+                    interval_step = int(sysbench_params["report-interval"])
+                except ValueError:
+                    pass
+            elif len(sysbench_results["intervals"]) >= 2:
+                # Fall back to the spacing sysbench actually reported
+                t0 = sysbench_results["intervals"][0]["time"]
+                t1 = sysbench_results["intervals"][1]["time"]
+                if t1 > t0:
+                    interval_step = t1 - t0
+            print(f"Enriching {len(sysbench_results['intervals'])} sysbench intervals with Prometheus metrics (step={interval_step}s)...")
+            sysbench_results["intervals"] = self.enrich_intervals_with_metrics(
+                sysbench_results["intervals"], interval_step
+            )
 
         report_data = {
             "title": self.config.title,

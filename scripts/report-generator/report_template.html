@@ -370,6 +370,41 @@
                     </div>
                 </div>
             </div>
+            <h3 style="margin-top: 20px;">Per-Interval Metrics</h3>
+            <p style="color: #666; font-size: 13px; margin-top: -6px;">
+                Each row is one sysbench reporting interval. TPS / latency / errors come
+                from sysbench. CPU / memory / network / disk are sampled from Prometheus
+                at the same instant (sum across tserver pods, except CPU which is the
+                average of DB-node VM CPU %).
+            </p>
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>T (s)</th>
+                        <th>TPS</th>
+                        <th>Lat p95 (ms)</th>
+                        <th>Err/s</th>
+                        <th>CPU %</th>
+                        <th>Mem (MB)</th>
+                        <th>Net (MB/s)</th>
+                        <th>Disk WrIOPS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for iv in sysbench_results.intervals %}
+                    <tr>
+                        <td class="stat-value">{{ iv.time }}</td>
+                        <td class="stat-value">{{ "%.0f"|format(iv.tps) }}</td>
+                        <td class="stat-value">{{ "%.1f"|format(iv.lat_95) }}</td>
+                        <td class="stat-value">{{ "%.2f"|format(iv.err_s) }}</td>
+                        <td class="stat-value">{% if iv.cpu_pct is not none %}{{ "%.1f"|format(iv.cpu_pct) }}{% else %}—{% endif %}</td>
+                        <td class="stat-value">{% if iv.mem_mb is not none %}{{ "%.0f"|format(iv.mem_mb) }}{% else %}—{% endif %}</td>
+                        <td class="stat-value">{% if iv.net_mb is not none %}{{ "%.1f"|format(iv.net_mb) }}{% else %}—{% endif %}</td>
+                        <td class="stat-value">{% if iv.disk_write_iops is not none %}{{ "%.0f"|format(iv.disk_write_iops) }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </section>
         {% endif %}
         {% endif %}
