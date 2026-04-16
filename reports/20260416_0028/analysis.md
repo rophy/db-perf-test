@@ -112,3 +112,18 @@ Recommended next steps (NOT executed this session):
 **200K not achieved.** Iter 4 remains the best result (185K peak, 168K steady on 17 nodes). Iter 5 and iter 6 on 18 nodes both underperformed — one due to shard-tuning regression, one due to unexplained cluster-rebuild regression. The 200K wall is real but the ceiling on the current AWS setup is still 185K until the rebuild regression is understood.
 
 Cluster being stopped (not destroyed) per user request to preserve state for future diagnosis.
+
+## Post-run: kubelet tunnel broken (additional rebuild evidence)
+
+Attempting to port-forward Prometheus for deeper metrics (~00:40 UTC, ~12 min after run) consistently returned:
+
+```
+error: error upgrading connection: error dialing backend:
+  proxy error from 127.0.0.1:6443 while dialing 10.0.1.42:10250, code 502: 502 Bad Gateway
+```
+
+Reproduced across all worker nodes (system, tserver-0 on ip-164, tserver-5 on ip-132). Only apiserver LIST/GET (watch cache) works; `exec`, `logs`, `port-forward` all fail because the apiserver→kubelet tunnel (port 10250) is down.
+
+Pods remained `Running Ready` throughout. This is almost certainly a consequence of the manual k3s-agent join path on this rebuild — cloud-init user_data did not execute, so kubelet serving certificate / bootstrap token may not have been established the way the master expects. It reinforces the iter-6 hypothesis: **this cluster is subtly misconfigured at the k3s layer**, and any performance numbers from it should be treated as lower-bound.
+
+No additional live metrics could be collected before cluster stop.
