@@ -61,6 +61,35 @@ directory copy) to scope `query_range` to the run window.
   kubectl exec deployment/sysbench -- env SYSBENCH_THREADS=90 /scripts/entrypoint.sh run
   ```
 
+### Per-Run Analysis (`analysis.md`)
+After `make report` completes, write `reports/<timestamp>/analysis.md` for the run.
+The file is the durable record of what was tested, what was observed, and what to do next.
+
+Format (see existing `reports/*/analysis.md` for examples):
+- Title with iter number + one-line takeaway
+- Config block (cluster size, threads, gflags, what changed vs. previous iter)
+- Hypothesis under test
+- Result — read **per-interval** TPS / CPU from `summary.txt`, NOT the run-averaged totals
+- Comparison table vs. previous iter
+- Verdict + recommended next steps
+
+**If the result isn't ideal — STOP before writing the verdict.** Do not jump to a conclusion
+from sysbench numbers alone. The sysbench output is one viewpoint and frequently misleads
+(see iter 13–18: a CPU-averaging artifact created six iterations of wrong conclusions; see
+iter 19: the "TPS collapse" was a sysbench reporter artifact, not real cluster behavior).
+
+Before committing to an interpretation:
+1. **Pull Prometheus metrics for the run window** (per-tserver Write RPC rate, CPU per
+   container, WAL fsync latency, compaction debt, network, disk %busy, master CPU). Recipe
+   in the "Querying Prometheus" section above.
+2. **Cross-check sysbench's story against the DB-side metrics.** If sysbench TPS dropped 50%
+   but per-tserver Write RPC rate dropped <10%, the bottleneck is in the reporter or the
+   client, not the cluster.
+3. **Check both ends of the path** — client node CPU, network saturation, master CPU/throttle,
+   tserver CPU per container vs. node, per-tserver write asymmetry.
+4. Only after the metrics agree on a story, write the verdict. If they don't agree, say
+   "unknown — these signals conflict" rather than picking the most plausible-sounding one.
+
 ### Long-Running Make Targets
 - When running `make deploy-*`, `make sysbench-*`, or other long-running targets:
   - **ALWAYS** run in background using `run_in_background: true`
