@@ -1,6 +1,7 @@
-# AWS EKS/K3s values — 17× tserver scale-out, 200K+ TPS target (18th blocked by AWS vCPU quota)
+# AWS k3s values — 18× tserver scale-out + shard tuning, pushing toward 200K+
 # Node layout:
-#   - role=db (tainted dedicated=db:NoSchedule): 17× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
+#   - role=db (tainted dedicated=db:NoSchedule): 18× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
+# Shard tuning: ysql_num_shards_per_tserver raised 2→8 to dilute hot tablets exposed in iter 4 analysis.
 #   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
 #   - role=system: 1× c6i.2xlarge (Intel Ice Lake) — 3 yb-masters + prometheus
 # CPU note: ap-east-2 does not offer c6a; c6i.8xlarge hit InsufficientInstanceCapacity.
@@ -35,9 +36,9 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 8500  # 17 tservers × 1024 conn cap = 17,408
+  threads: 9000  # 18 tservers × 1024 conn cap = 18,432
   time: 300
-  warmupTime: 90
+  warmupTime: 120  # 9000-thread connection storm needs longer warmup
   reportInterval: 10
   workload: oltp_insert
 
@@ -90,7 +91,7 @@ yugabyte:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 17
+    tserver: 18
   resource:
     master:
       requests:
