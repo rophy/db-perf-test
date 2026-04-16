@@ -1,0 +1,40 @@
+Iter 16 — rpc_workers_limit 1024 → 2048 (NO CHANGE, confirms pool cap is not the bottleneck).
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (role=db)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Change vs iter 15 (5000 threads, 34K TPS, 40K steady):
+- Only change: tserver gflag rpc_workers_limit 1024 → 2048
+- Everything else identical: 5000 threads, ysql_num_tablets=1, trigger on all 24 tables
+
+Hypothesis under test:
+  During iter 15, threads_running_TabletServer (worker pool) hit max=1024 on
+  5 of 6 tservers. rpc_incoming_queue_time peak was <1ms. We predicted that
+  raising the cap would NOT move TPS because the pool was only being touched
+  in brief bursts, not sustained.
+
+Result:
+- TPS avg: 33,696 (iter 15: 33,738 → -0.1% — within noise)
+- TPS steady (t=240–300s): 38,979 / 39,479 / 39,502 / 38,978 / 39,589 → 39-40K (same)
+- p95 latency: 240.02 ms (iter 15: 215.44 ms — slightly worse)
+- max latency: 19,675 ms (iter 15: 20,689 ms — similar stall spikes)
+- avg latency: 149.69 ms (iter 15: 149.49 ms — unchanged)
+- 0 errors
+
+Verdict:
+  Hypothesis confirmed. Doubling rpc_workers_limit produced essentially
+  identical TPS and latency. The pool was not gating steady-state throughput.
+
+  The ~40K TPS ceiling is structural — set by the per-transaction critical
+  path in the distributed-transaction protocol (serial RPC hops across
+  coordinator + participants, amplified by uneven per-tserver Write handler
+  latency: 12-32ms spread).
+
+Action for future tuning:
+- Do NOT raise rpc_workers_limit further; not a lever.
+- Investigate uneven tserver Write handler latency (ts-1 at 32ms vs ts-3 at
+  12ms) — closing this gap is the remaining knob visible from metrics.
+- Otherwise scale out tservers (proven near-linear 6→12→18).
