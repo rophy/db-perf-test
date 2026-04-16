@@ -1,5 +1,5 @@
 .PHONY: help deploy-aws deploy-minikube deploy-k3s-virsh clean status ysql
-.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs
+.PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-trigger
 .PHONY: report
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
@@ -73,6 +73,12 @@ sysbench-prepare: ## Prepare sysbench tables
 sysbench-run: ## Run sysbench benchmark
 	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) \
 		./scripts/sysbench-run-with-timestamps.sh
+
+sysbench-trigger: ## Install cleanup_duplicate_k trigger on all sbtest tables
+	@echo "Installing trigger on all sbtest tables..."
+	@$(KUBECTL) cp scripts/trigger-setup.sql yb-tserver-0:/tmp/trigger-setup.sql -c yb-tserver
+	@$(KUBECTL) exec yb-tserver-0 -c yb-tserver -- \
+		ysqlsh -h yb-tserver-service -U yugabyte -d yugabyte -f /tmp/trigger-setup.sql
 
 sysbench-cleanup: ## Cleanup sysbench tables
 	$(KUBECTL) exec $(SYSBENCH_POD) -- /scripts/sysbench-cleanup.sh

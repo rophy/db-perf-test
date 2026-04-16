@@ -33,7 +33,7 @@ sysbench:
   # Benchmark parameters
   tables: 10
   tableSize: 100000
-  threads: 512
+  threads: 768
   time: 120
   warmupTime: 30
   reportInterval: 10
@@ -123,7 +123,6 @@ yugabyte:
       ysql_num_shards_per_tserver: 2
       bytes_durable_wal_write_mb: 4
       interval_durable_wal_write_ms: 10000
-      compression_type: Zlib
   enableLoadBalancer: false
   ysql:
     enabled: true

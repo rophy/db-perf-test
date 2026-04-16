@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS ft_test (
     payload VARCHAR(64) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+TRUNCATE ft_test;
 " 2>/dev/null
 
 echo "timestamp,writer_id,seq_num,status" > "$JOURNAL_FILE"

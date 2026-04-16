@@ -36,9 +36,9 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 9000  # 18 tservers × 1024 conn cap = 18,432
+  threads: 8500  # iter-4 matched
   time: 300
-  warmupTime: 120  # 9000-thread connection storm needs longer warmup
+  warmupTime: 90  # iter-4 matched
   reportInterval: 10
   workload: oltp_insert
 

@@ -55,8 +55,8 @@ missing_list=""
 while IFS=: read -r writer_id seq_num; do
     expected_payload=$(echo -n "${writer_id}:${seq_num}" | md5sum | awk '{print $1}')
 
-    # Check if row exists with correct payload
-    row=$(echo "$db_rows" | grep "^${writer_id}|${seq_num}|" || true)
+    # Check if row exists with correct payload (exact match on writer_id and seq_num, first match only)
+    row=$(echo "$db_rows" | awk -F'|' -v w="$writer_id" -v s="$seq_num" '$1==w && $2==s {print; exit}' || true)
 
     if [ -z "$row" ]; then
         missing=$((missing + 1))
