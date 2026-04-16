@@ -36,7 +36,7 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 5000  # iter-15: raise from 3000 to use 25% VM CPU headroom
+  threads: 3000  # iter-18 confirmed 3000 is the knee; any higher regresses
   time: 300
   warmupTime: 90  # iter-4 matched
   reportInterval: 10

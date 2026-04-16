@@ -1,0 +1,49 @@
+Iter 18 — threads 3000 → 3300 (modest bump, REGRESSED vs iter 13).
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db
+- 1× c7i.8xlarge — client
+- 1× c6i.2xlarge — system
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Change vs iter 13 (3000 threads, 40.6K TPS, 74 ms avg, 75% CPU):
+- Only change: sysbench threads 3000 → 3300
+- Placement back to default (LB segregated primaries/indexes on opposite trios);
+  iter 17 proved placement is irrelevant to the TPS ceiling
+- rpc_workers_limit=2048 (unchanged since iter 16)
+
+Hypothesis:
+  iter 13 had 25% VM CPU headroom. A modest thread bump (10%) might pick up
+  a small fraction of that without triggering the coordinator contention we
+  saw at 5000 threads.
+
+Result (hypothesis falsified — 3000 is already at the knee):
+- TPS avg: 38,888 (iter 13: 40,661 → -4.4%)
+- avg latency: 85.32 ms (iter 13: 73.79 → +16%)
+- p95 latency: 137.35 ms (iter 13: 112.67 → +22%)
+- max latency: 7,867 ms (iter 13 much lower; still no huge 20+ sec stalls)
+- 0 errors
+- VM CPU: 71.5-74.1% (iter 13: 74-76%)
+
+Little's Law check (all three runs fit within 1%):
+- iter 13: 3000 threads / 74 ms = 40,540 ≈ 40,661 ✓
+- iter 18: 3300 threads / 85 ms = 38,682 ≈ 38,888 ✓
+- iter 15: 5000 threads / 149 ms = 33,557 ≈ 33,738 ✓
+
+Avg latency scales superlinearly with thread count, so TPS peaks and declines:
+  3000 threads: 40.6K (knee of curve)
+  3300 threads: 38.9K (already past knee)
+  5000 threads: 33.7K (well past)
+
+CPU 72% at 3300 threads is NOT spare throughput — it is coordinator-wait
+idle time, exactly as iter 15 metrics proved (threads block in the
+distributed-txn RPC chain, not in CPU).
+
+Verdict:
+  3000 threads is the practical TPS optimum for this 6-tserver + trigger
+  workload. Any bump past ~3000 trades TPS for queue time. The coordinator's
+  per-txn critical path is the cap; no thread count circumvents it.
+
+Next steps:
+- Stop tuning thread count.
+- Remaining levers: scale out, drop secondary index, or colocate tables.
