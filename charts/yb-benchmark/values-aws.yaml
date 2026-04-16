@@ -1,8 +1,8 @@
-# AWS k3s values — iter 19 re-run of iter 12 config (12 tservers + trigger).
+# AWS k3s values — iter 20: 12 tservers + trigger, masters un-throttled and spread.
 # Node layout:
 #   - role=db (tainted dedicated=db:NoSchedule): 12× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
 #   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
-#   - role=system: 1× c6i.2xlarge (Intel Ice Lake) — 3 yb-masters + prometheus
+#   - role=system: 2× c7i.2xlarge (Intel Sapphire Rapids) — yb-masters (spread via anti-affinity) + prometheus
 # CPU note: ap-east-2 does not offer c6a; c6i.8xlarge hit InsufficientInstanceCapacity.
 # Using c7i.8xlarge (Sapphire Rapids, 32 vCPU / 64 GB). Record in EXPERIMENT_LABEL.txt per run.
 # gflags intentionally mirror values-k3s-virsh.yaml (no RocksDB re-tuning).
@@ -97,8 +97,8 @@ yugabyte:
         cpu: "500m"
         memory: "1Gi"
       limits:
-        cpu: "2"
-        memory: "4Gi"
+        cpu: null
+        memory: null
     tserver:
       requests:
         cpu: "16"
@@ -131,7 +131,8 @@ yugabyte:
     enabled: false
   metrics:
     enabled: true
-  # Pin masters to the system node
+  # Pin masters to system nodes; spread across them via anti-affinity (preferred,
+  # so it still schedules if only 1 system node is Ready briefly).
   master:
     affinity:
       nodeAffinity:
@@ -142,6 +143,17 @@ yugabyte:
               operator: In
               values:
               - system
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - yb-master
+            topologyKey: kubernetes.io/hostname
   # Pin tservers to db nodes, one per node, tolerate db taint
   tserver:
     tolerations:
