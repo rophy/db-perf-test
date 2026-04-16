@@ -1,0 +1,58 @@
+=== Tserver Node Specs ===
+Tservers: 12
+  yb-tserver-0 -> ip-10-0-1-120.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-1 -> ip-10-0-1-132.ap-east-2.compute.internal: 32 CPU, 64773708Ki
+  yb-tserver-10 -> ip-10-0-1-68.ap-east-2.compute.internal: 32 CPU, 64773716Ki
+  yb-tserver-11 -> ip-10-0-1-16.ap-east-2.compute.internal: 32 CPU, 64773696Ki
+  yb-tserver-2 -> ip-10-0-1-156.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+  yb-tserver-3 -> ip-10-0-1-207.ap-east-2.compute.internal: 32 CPU, 64773692Ki
+  yb-tserver-4 -> ip-10-0-1-79.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-5 -> ip-10-0-1-139.ap-east-2.compute.internal: 32 CPU, 64773704Ki
+  yb-tserver-6 -> ip-10-0-1-179.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+  yb-tserver-7 -> ip-10-0-1-10.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-8 -> ip-10-0-1-186.ap-east-2.compute.internal: 32 CPU, 64773716Ki
+  yb-tserver-9 -> ip-10-0-1-172.ap-east-2.compute.internal: 32 CPU, 64773716Ki
+
+=== Sysbench Per-Interval Metrics ===
+T(s)  Phase        TPS   p95(ms)   err/s   CPU%   Mem(MB)  Net(MB/s)   WrIOPS
+-----------------------------------------------------------------------------
+  10  warmup       802   10158.8    0.00    1.4    47,397       17.8       26
+  20  warmup     1,472    9977.5    0.00    4.1    48,079       16.7       18
+  30  warmup     1,673    9977.5    0.00    6.1    61,055       21.6       63
+  40  warmup     1,889    9977.5    0.00    7.3    65,109       46.0       48
+  50  warmup     2,197    9118.5    0.00    7.7    67,449       39.5       69
+  60  warmup     2,616    8955.7    0.00    7.8    71,555       50.3      126
+  70  warmup     3,137    8955.7    0.00    7.7    73,073       45.9       62
+  80  warmup     4,309    8333.4    0.00    7.9    75,115       55.9       76
+  90  warmup    11,479    6247.4    0.00    8.0    77,012       76.0      109
+ 100  run       36,262      34.3    0.00    8.3    78,405       56.4       85
+ 110  run       63,559     103.0    0.00    8.6    80,207       60.6       79
+ 120  run       80,534     183.2    0.00    9.1    82,124       49.4      105
+ 130  run       81,490     272.3    0.00    9.4    83,597       79.4       75
+ 140  run       75,371     314.4    0.00   10.0    85,981       75.2       76
+ 150  run       75,926     363.2    0.00   10.7    89,281       90.0      121
+ 160  run       77,545     277.2    0.00   11.6    90,921      101.0      117
+ 170  run       76,145     475.8    0.00   12.8    93,745      131.7      100
+ 180  run       75,232     292.6    0.00   15.5    96,856      124.2      126
+ 190  run       67,641     369.8    0.00   25.5    99,721      272.8      247
+ 200  run       75,985     390.3    0.00   50.3   106,072      591.5      534
+ 210  run       74,668     493.2    0.00   77.8   117,772      942.5      803
+ 220  run       73,904     326.0    0.00   93.2   132,984     1166.0    1,525
+ 230  run       72,495     369.8    0.00   95.7   142,974     1187.4    1,607
+ 240  run       71,664     369.8    0.00   95.4   152,635     1191.5    2,768
+ 250  run       68,857     356.7    0.00   95.4   156,444     1269.6    2,237
+ 260  run       71,921     404.6    0.00   95.6   158,301      966.6    1,829
+ 270  run       74,143     442.7    0.00   95.5   160,124      946.3    1,332
+ 280  run       61,125     248.8    0.00   94.8   164,632     1081.4    1,453
+ 290  run       37,734     404.6    0.00   93.7   167,464      884.6    2,106
+ 300  run       32,915     158.6    0.00   95.1   168,595     1037.4    2,263
+
+=== Sysbench Totals (as reported by sysbench; INCLUDES warmup) ===
+NOTE: these are run-averaged over warmup+run. For steady-state numbers,
+      read the per-interval table above and eyeball the post-warmup rows.
+  TPS avg:         48,193.73  (total txns: 14,558,347)
+  QPS avg:         48,193.73  (total qrys: 14,558,347)
+  p95 latency:        356.70 ms
+  Errors:                  0  (0.00/s)
+  Reconnects:              0  (0.00/s)
+  Elapsed:             302.1 s

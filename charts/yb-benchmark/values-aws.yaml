@@ -1,7 +1,6 @@
-# AWS k3s values — 18× tserver scale-out + shard tuning, pushing toward 200K+
+# AWS k3s values — iter 19 re-run of iter 12 config (12 tservers + trigger).
 # Node layout:
-#   - role=db (tainted dedicated=db:NoSchedule): 18× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
-# Shard tuning: ysql_num_shards_per_tserver raised 2→8 to dilute hot tablets exposed in iter 4 analysis.
+#   - role=db (tainted dedicated=db:NoSchedule): 12× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
 #   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
 #   - role=system: 1× c6i.2xlarge (Intel Ice Lake) — 3 yb-masters + prometheus
 # CPU note: ap-east-2 does not offer c6a; c6i.8xlarge hit InsufficientInstanceCapacity.
@@ -36,7 +35,7 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 3000  # iter-18 confirmed 3000 is the knee; any higher regresses
+  threads: 6000  # iter-12 matched (12 tservers)
   time: 300
   warmupTime: 90  # iter-4 matched
   reportInterval: 10
@@ -84,14 +83,14 @@ nodeExporter:
       cpu: "200m"
       memory: "128Mi"
 
-# YugabyteDB — 3 masters on role=system, 6 tservers on role=db (RF=3)
+# YugabyteDB — 3 masters on role=system, 12 tservers on role=db (RF=3)
 yugabyte:
   enabled: true
   Image:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 6
+    tserver: 12
   resource:
     master:
       requests:
@@ -124,7 +123,6 @@ yugabyte:
       bytes_durable_wal_write_mb: 4
       interval_durable_wal_write_ms: 10000
       ysql_max_connections: 1024
-      rpc_workers_limit: 2048  # iter-16: raise from default 1024 to test whether pool cap gates TPS
   enableLoadBalancer: false
   ysql:
     enabled: true
