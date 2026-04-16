@@ -6,6 +6,26 @@
 - When a measurement disproves a hypothesis, acknowledge it — do not shift to a new unverified claim
 - If the root cause is unknown, say so — do not speculate as if it were fact
 
+### Warmup vs Heat (steady-state)
+Every benchmark run has a **warmup** phase followed by a **heat** (steady-state) phase.
+`values-*.yaml` sets `sysbench.warmupTime` (e.g. 90s); `sysbench_times.txt` records
+`RUN_START_TIME`, `WARMUP_END_TIME`, and `RUN_END_TIME` so the split is explicit.
+
+- **NEVER** compare run-averaged numbers across iterations. Averaging warmup in drags
+  metrics down in different amounts depending on run length, threads, and cluster size,
+  producing apples-to-oranges comparisons.
+- **ALWAYS** read the per-interval table in `summary.txt` (or the HTML report) and compare
+  **post-warmup rows only** (rows where `Phase == run`). Eyeball where CPU / TPS actually
+  stabilize — the warmup boundary is a labeling hint, not a guarantee of steady-state
+  (CPU instrumentation can lag ~30-60s past `WARMUP_END_TIME`).
+- The `=== Sysbench Totals ===` block in `summary.txt` is run-averaged by design (sysbench
+  reports it that way). Treat those totals as historical reference only; do not cite them
+  as throughput or CPU of "the test."
+- Historical caution: iter 13-18 analyses were built on a run-averaged CPU of 72.8% that
+  looked like "25% headroom"; steady-state was 99%. Six iterations of misdiagnosis
+  chased a non-existent coordinator bottleneck. See
+  `~/.claude/projects/-home-rophy-projects-db-perf-test/memory/project_cpu_avg_artifact.md`.
+
 ### Shell Scripts
 - **NEVER** use bare `kubectl` commands that rely on the current context
 - **ALWAYS** use explicit `--context` flag: `kubectl --context minikube ...`
