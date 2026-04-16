@@ -602,6 +602,12 @@ class ReportGenerator:
             shutil.copy(node_spec, output_dir / "RUN_NODE_SPEC.txt")
             print(f"Copied node spec to: {output_dir / 'RUN_NODE_SPEC.txt'}")
 
+        # Copy sysbench_times.txt so report-parser.py can read WARMUP_END_TIME
+        times_file = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_times.txt"
+        if times_file.exists():
+            shutil.copy(times_file, output_dir / "sysbench_times.txt")
+            print(f"Copied timestamps to: {output_dir / 'sysbench_times.txt'}")
+
         # Save sysbench configmap (contains rendered parameters)
         self._save_sysbench_configmap(output_dir)
 

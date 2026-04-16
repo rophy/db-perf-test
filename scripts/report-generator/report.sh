@@ -14,28 +14,31 @@ RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://${RELEASE_NAME}-prometheus:9090}"
 
-# Read timestamps
-START_FILE="${PROJECT_ROOT}/output/sysbench/RUN_START_TIME.txt"
-END_FILE="${PROJECT_ROOT}/output/sysbench/RUN_END_TIME.txt"
+# Read timestamps from sysbench_times.txt (key=value lines)
+TIMES_FILE="${PROJECT_ROOT}/output/sysbench/sysbench_times.txt"
 
-if [[ ! -f "$START_FILE" ]]; then
-    echo "Error: Start timestamp file not found: $START_FILE"
-    echo "Run 'make sysbench-run' first to generate timestamp files."
+if [[ ! -f "$TIMES_FILE" ]]; then
+    echo "Error: timestamp file not found: $TIMES_FILE"
+    echo "Run 'make sysbench-run' first to generate timestamps."
     exit 1
 fi
 
-if [[ ! -f "$END_FILE" ]]; then
-    echo "Error: End timestamp file not found: $END_FILE"
+START_TIME=$(grep -E '^RUN_START_TIME=' "$TIMES_FILE" | cut -d= -f2)
+WARMUP_END_TIME=$(grep -E '^WARMUP_END_TIME=' "$TIMES_FILE" | cut -d= -f2)
+END_TIME=$(grep -E '^RUN_END_TIME=' "$TIMES_FILE" | cut -d= -f2)
+
+if [[ -z "$START_TIME" || -z "$END_TIME" ]]; then
+    echo "Error: RUN_START_TIME or RUN_END_TIME missing in $TIMES_FILE"
     echo "The benchmark may still be running or failed to complete."
     exit 1
 fi
 
-START_TIME=$(cat "$START_FILE")
-END_TIME=$(cat "$END_FILE")
-
 echo "=== Sysbench Report Generator ==="
-echo "Start time: $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
-echo "End time: $(date -d @${END_TIME} '+%Y-%m-%d %H:%M:%S')"
+echo "Start time:  $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
+if [[ -n "$WARMUP_END_TIME" ]]; then
+    echo "Warmup ends: $(date -d @${WARMUP_END_TIME} '+%Y-%m-%d %H:%M:%S')"
+fi
+echo "End time:    $(date -d @${END_TIME} '+%Y-%m-%d %H:%M:%S')"
 echo "Duration: $(( (END_TIME - START_TIME) / 60 )) minutes"
 echo ""
 

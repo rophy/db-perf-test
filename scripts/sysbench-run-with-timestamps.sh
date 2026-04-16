@@ -31,10 +31,25 @@ done
 echo "Node specs saved to: ${OUTPUT_DIR}/RUN_NODE_SPEC.txt"
 echo ""
 
+# Read warmup-time from the live sysbench configmap so WARMUP_END_TIME is in sync with the run.
+WARMUP_TIME=$(kubectl --context "${KUBE_CONTEXT}" -n "${NAMESPACE}" get cm "${RELEASE_NAME}-sysbench-scripts" \
+    -o jsonpath='{.data.sysbench-run\.sh}' 2>/dev/null \
+    | grep -oE -- '--warmup-time=[0-9]+' | head -1 | cut -d= -f2)
+if [[ -z "$WARMUP_TIME" ]]; then
+    echo "Error: could not read --warmup-time from configmap ${RELEASE_NAME}-sysbench-scripts" >&2
+    exit 1
+fi
+
 # Record start time
 START_TIME=$(date +%s)
-echo "$START_TIME" > "${OUTPUT_DIR}/RUN_START_TIME.txt"
-echo "Start time: $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
+WARMUP_END_TIME=$(( START_TIME + WARMUP_TIME ))
+TIMES_FILE="${OUTPUT_DIR}/sysbench_times.txt"
+{
+    echo "RUN_START_TIME=${START_TIME}"
+    echo "WARMUP_END_TIME=${WARMUP_END_TIME}"
+} > "$TIMES_FILE"
+echo "Start time:       $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
+echo "Warmup ends at:   $(date -d @${WARMUP_END_TIME} '+%Y-%m-%d %H:%M:%S') (warmup=${WARMUP_TIME}s)"
 echo ""
 
 # Run sysbench via in-cluster script (parameters from Helm values)
@@ -43,7 +58,7 @@ kubectl --context "${KUBE_CONTEXT}" exec -n "${NAMESPACE}" deployment/${RELEASE_
 
 # Record end time
 END_TIME=$(date +%s)
-echo "$END_TIME" > "${OUTPUT_DIR}/RUN_END_TIME.txt"
+echo "RUN_END_TIME=${END_TIME}" >> "$TIMES_FILE"
 echo ""
 echo "End time: $(date -d @${END_TIME} '+%Y-%m-%d %H:%M:%S')"
 echo "Duration: $(( (END_TIME - START_TIME) / 60 )) minutes $(( (END_TIME - START_TIME) % 60 )) seconds"

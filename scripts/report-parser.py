@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Parse benchmark report folder for tserver metrics and sysbench results"""
+"""Parse benchmark report folder for per-interval sysbench metrics."""
 
 import json
+import os
 import re
 import sys
-import os
+
 
 def parse_node_spec(report_path):
     """Parse RUN_NODE_SPEC.txt for tserver pod to node mapping with resources"""
@@ -16,10 +17,9 @@ def parse_node_spec(report_path):
     with open(spec_path, 'r') as f:
         lines = f.read().strip().split('\n')
 
-    if len(lines) < 2:  # Need header + at least one data row
+    if len(lines) < 2:
         return
 
-    # Skip header line
     data_lines = lines[1:]
 
     print("=== Tserver Node Specs ===")
@@ -31,129 +31,125 @@ def parse_node_spec(report_path):
             print(f"  {pod_name} -> {node_name}: {cpu} CPU, {memory}")
 
 
-def parse_metrics(report_path):
-    """Parse report.html for tserver metrics"""
-    html_path = os.path.join(report_path, 'report.html')
+def read_times(report_path):
+    """Return (run_start, warmup_end, run_end) in epoch seconds, or (None, None, None)."""
+    path = os.path.join(report_path, 'sysbench_times.txt')
+    if not os.path.exists(path):
+        return None, None, None
+    values = {}
+    with open(path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if '=' not in line:
+                continue
+            k, v = line.split('=', 1)
+            try:
+                values[k.strip()] = int(v.strip())
+            except ValueError:
+                pass
+    return (
+        values.get('RUN_START_TIME'),
+        values.get('WARMUP_END_TIME'),
+        values.get('RUN_END_TIME'),
+    )
 
+
+def read_intervals(report_path):
+    """Extract the embedded sysbenchIntervals JSON array from report.html."""
+    html_path = os.path.join(report_path, 'report.html')
+    if not os.path.exists(html_path):
+        return []
     with open(html_path, 'r') as f:
         content = f.read()
+    m = re.search(r'const\s+sysbenchIntervals\s*=\s*(\[.*?\]);', content, re.DOTALL)
+    if not m:
+        return []
+    try:
+        return json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return []
 
-    match = re.search(r'metricsData = ({.*?});', content, re.DOTALL)
-    if not match:
-        print("Error: Could not find metricsData in report.html", file=sys.stderr)
+
+def print_interval_table(intervals, warmup_len):
+    """Print per-interval table. warmup_len is seconds; None disables Phase column."""
+    print("\n=== Sysbench Per-Interval Metrics ===")
+    if not intervals:
+        print("(no interval data found)")
         return
 
-    data = json.loads(match.group(1))
+    header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}"
+    print(header)
+    print('-' * len(header))
+    for iv in intervals:
+        t = iv.get('time', 0)
+        phase = '-'
+        if warmup_len is not None:
+            phase = 'warmup' if t <= warmup_len else 'run'
+        tps = iv.get('tps', 0) or 0
+        lat = iv.get('lat_95', 0) or 0
+        err = iv.get('err_s', 0) or 0
+        cpu = iv.get('cpu_pct')
+        mem = iv.get('mem_mb')
+        net = iv.get('net_mb')
+        wio = iv.get('disk_write_iops')
 
-    def get_tserver_avg(metric_name):
-        """Get average values for tserver pods"""
-        metric = data.get(metric_name, {})
-        values = []
-        for series in metric.get('series', []):
-            if 'tserver' in series['name']:
-                vals = series['values']
-                values.append(sum(vals) / len(vals))
-        return values
-
-    tserver_cpu = get_tserver_avg('cpu')
-    tserver_memory = get_tserver_avg('memory')
-    tserver_net_rx = get_tserver_avg('network_rx')
-    tserver_net_tx = get_tserver_avg('network_tx')
-    tserver_disk_read = get_tserver_avg('disk_read_iops')
-    tserver_disk_write = get_tserver_avg('disk_write_iops')
-
-    print("=== Tserver Metrics (container-level) ===")
-    print(f"Tservers: {len(tserver_cpu)}")
-    if tserver_cpu:
-        print(f"CPU: {sum(tserver_cpu)/len(tserver_cpu):.1f}%")
-    if tserver_memory:
-        print(f"Memory: {sum(tserver_memory)/len(tserver_memory):.0f} MB")
-    if tserver_net_rx and tserver_net_tx:
-        avg_rx = sum(tserver_net_rx) / len(tserver_net_rx) / 1024 / 1024
-        avg_tx = sum(tserver_net_tx) / len(tserver_net_tx) / 1024 / 1024
-        print(f"Network: RX {avg_rx:.1f} MB/s, TX {avg_tx:.1f} MB/s")
-    if tserver_disk_read and tserver_disk_write:
-        avg_read = sum(tserver_disk_read) / len(tserver_disk_read)
-        avg_write = sum(tserver_disk_write) / len(tserver_disk_write)
-        print(f"Disk IOPS: Read {avg_read:.0f}, Write {avg_write:.0f}")
-
-    # Node-level CPU metrics (from node_exporter)
-    def get_node_avg(metric_name):
-        """Get average values for all nodes"""
-        metric = data.get(metric_name, {})
-        values = []
-        for series in metric.get('series', []):
-            vals = series['values']
-            if vals:
-                values.append((series['name'], sum(vals) / len(vals)))
-        return values
-
-    node_cpu = get_node_avg('node_cpu')
-    if node_cpu:
-        print("\n=== Node Metrics (VM-level) ===")
-        print(f"Nodes: {len(node_cpu)}")
-        for name, val in node_cpu:
-            print(f"  {name}: {val:.1f}% total CPU")
-        # Print CPU breakdown
-        for mode in ['user', 'system', 'iowait', 'steal', 'softirq']:
-            mode_data = get_node_avg(f'node_cpu_{mode}')
-            if mode_data:
-                avg = sum(v for _, v in mode_data) / len(mode_data)
-                print(f"  avg {mode}: {avg:.1f}%")
+        cpu_s = f"{cpu:5.1f}" if cpu is not None else "  -  "
+        mem_s = f"{mem:8,.0f}" if mem is not None else "     -  "
+        net_s = f"{net:9.1f}" if net is not None else "      -  "
+        wio_s = f"{wio:7,.0f}" if wio is not None else "     -  "
+        print(f"{t:4d}  {phase:<6}  {tps:8,.0f}  {lat:8.1f}  {err:6.2f}  {cpu_s}  {mem_s}  {net_s}  {wio_s}")
 
 
-def parse_sysbench(report_path):
-    """Parse sysbench_output.txt for benchmark results"""
+def parse_sysbench_totals(report_path):
+    """Print sysbench-reported totals from sysbench_output.txt (includes warmup)."""
     sysbench_path = os.path.join(report_path, 'sysbench_output.txt')
+    if not os.path.exists(sysbench_path):
+        return
 
     with open(sysbench_path, 'r') as f:
         content = f.read()
 
-    # Parse transactions per sec
-    tps_match = re.search(r'transactions:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
-    # Parse queries per sec
-    qps_match = re.search(r'queries:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
-    # Parse errors (with rate)
-    errors_match = re.search(r'ignored errors:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
-    # Parse reconnects (with rate)
-    reconnects_match = re.search(r'reconnects:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
-    # Parse 95th percentile latency
-    latency_match = re.search(r'95th percentile:\s+([\d.]+)', content)
-    # Parse execution time
-    time_match = re.search(r'time elapsed:\s+([\d.]+)s', content)
+    tps = re.search(r'transactions:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
+    qps = re.search(r'queries:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
+    errs = re.search(r'ignored errors:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
+    recs = re.search(r'reconnects:\s+(\d+)\s+\(([\d.]+) per sec\.\)', content)
+    p95 = re.search(r'95th percentile:\s+([\d.]+)', content)
+    elapsed = re.search(r'time elapsed:\s+([\d.]+)s', content)
 
-    print("\n=== Sysbench Results ===")
-    if tps_match:
-        print(f"TPS: {float(tps_match.group(2)):.2f}")
-    if qps_match:
-        print(f"QPS: {float(qps_match.group(2)):.2f}")
-    if errors_match:
-        errors = int(errors_match.group(1))
-        error_rate = float(errors_match.group(2))
-        print(f"Errors: {errors} ({error_rate:.2f}/s)")
-    if reconnects_match:
-        print(f"Reconnects: {reconnects_match.group(1)} ({float(reconnects_match.group(2)):.2f}/s)")
-    if latency_match:
-        print(f"Latency (95th): {float(latency_match.group(1)):.2f} ms")
-    if time_match:
-        print(f"Duration: {float(time_match.group(1)):.1f}s")
+    print("\n=== Sysbench Totals (as reported by sysbench; INCLUDES warmup) ===")
+    print("NOTE: these are run-averaged over warmup+run. For steady-state numbers,")
+    print("      read the per-interval table above and eyeball the post-warmup rows.")
+    if tps:
+        print(f"  TPS avg:      {float(tps.group(2)):>12,.2f}  (total txns: {int(tps.group(1)):,})")
+    if qps:
+        print(f"  QPS avg:      {float(qps.group(2)):>12,.2f}  (total qrys: {int(qps.group(1)):,})")
+    if p95:
+        print(f"  p95 latency:  {float(p95.group(1)):>12,.2f} ms")
+    if errs:
+        print(f"  Errors:       {int(errs.group(1)):>12,}  ({float(errs.group(2)):.2f}/s)")
+    if recs:
+        print(f"  Reconnects:   {int(recs.group(1)):>12,}  ({float(recs.group(2)):.2f}/s)")
+    if elapsed:
+        print(f"  Elapsed:      {float(elapsed.group(1)):>12,.1f} s")
 
 
 def main():
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <path/to/report/folder>", file=sys.stderr)
-        print(f"Example: {sys.argv[0]} reports/20260121_0643", file=sys.stderr)
         sys.exit(1)
 
     report_path = sys.argv[1]
-
     if not os.path.isdir(report_path):
         print(f"Error: {report_path} is not a directory", file=sys.stderr)
         sys.exit(1)
 
+    run_start, warmup_end, _run_end = read_times(report_path)
+    warmup_len = (warmup_end - run_start) if (run_start and warmup_end) else None
+
     parse_node_spec(report_path)
-    parse_metrics(report_path)
-    parse_sysbench(report_path)
+    intervals = read_intervals(report_path)
+    print_interval_table(intervals, warmup_len)
+    parse_sysbench_totals(report_path)
 
 
 if __name__ == '__main__':
