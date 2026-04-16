@@ -1,0 +1,58 @@
+Iter 17 — interleave primary/index tablet replicas across all 6 tservers.
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (role=db)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Change vs iter 16:
+- Same cluster, same gflags (rpc_workers_limit=2048), same 5000 threads.
+- After sysbench-prepare, YB load balancer again segregated all 24 primary-key
+  tablet replicas onto {ts-0, ts-1, ts-4} and all 24 secondary-index replicas
+  onto {ts-2, ts-3, ts-5} (same as iter 15/16). Confirmed systematic behavior.
+- Used yb-admin change_config (REMOVE_SERVER + ADD_SERVER PRE_VOTER) on 48
+  tablets to break the segregation, then yb-admin leader_stepdown on 24 tablets
+  to interleave leaders.
+- Final placement: each tserver holds 24 replicas (12 primary + 12 index) and
+  leads exactly 8 tablets (4 primary + 4 index). Load balancer re-enabled.
+
+Hypothesis under test:
+  Iter 15 measured uneven per-tserver Write handler latency (12 vs 32 ms, 2.7×
+  spread) and large SST-size asymmetry (2.22 GB vs 460 MB). Predicted that
+  interleaving would even out CPU / compaction / Write latency and break the
+  ~40K TPS ceiling.
+
+Result (FALSIFIED for TPS):
+- TPS avg: 33,850 (iter 16: 33,696 → +0.5% within noise)
+- TPS steady (10-sec intervals during t=90-390): 38.6-42.1K (same ceiling)
+- p95 latency: 204.11 ms (iter 16: 240.02)
+- avg latency: 149.04 ms (iter 16: 149.69 — unchanged)
+- max latency: 25,075 ms (similar stall spikes)
+- 0 errors
+
+Physical balance DID improve:
+- VM CPU: all 6 nodes 62-68% (iter 15 spread was 62-76%)
+- Per-tserver Write handler latency: 20.7-39.0 ms, 1.88× spread (iter 15: 2.7×)
+- SST size spread: 1.6× (iter 15: 5×)
+- Container CPU total: 1,550% (iter 15: 1,444% — slightly higher, consistent
+  with less compaction stalling)
+
+Conclusion:
+  Iter 17 confirms the ~40K TPS ceiling at 6 tservers is STRUCTURAL. Evening
+  out the physical load (CPU, SST, Write latency) did not move throughput.
+  The bottleneck is the distributed-transaction-coordinator critical path:
+  every user-txn serially touches ~16 RPCs (Finish + ~7 UpdateTransaction +
+  ~4 Write + ~4.5 Read) because the INSERT→index write path triggers 2PC and
+  the trigger adds a SELECT + conditional DELETE.
+
+  Little's Law: 5000 threads / 149 ms = 33.5K TPS (observed 33.85K). The
+  per-txn critical path length is the cap.
+
+Action for future tuning:
+- Do NOT spend further effort on physical-balance knobs on this schema.
+- Only two levers remain: scale out tservers (proven near-linear 6→12→18),
+  or change the schema (drop secondary index / colocate) to reduce per-txn
+  RPC chain length.
+- YB load balancer's primary/index segregation bug deserves upstream attention
+  but doesn't affect this workload's ceiling.

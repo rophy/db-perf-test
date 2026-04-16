@@ -1,0 +1,39 @@
+=== Tserver Node Specs ===
+Tservers: 6
+  yb-tserver-0 -> ip-10-0-1-120.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-1 -> ip-10-0-1-132.ap-east-2.compute.internal: 32 CPU, 64773708Ki
+  yb-tserver-2 -> ip-10-0-1-156.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+  yb-tserver-3 -> ip-10-0-1-207.ap-east-2.compute.internal: 32 CPU, 64773692Ki
+  yb-tserver-4 -> ip-10-0-1-79.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-5 -> ip-10-0-1-139.ap-east-2.compute.internal: 32 CPU, 64773704Ki
+=== Tserver Metrics (container-level) ===
+Tservers: 6
+CPU: 1550.5%
+Memory: 17079 MB
+Network: RX 36.1 MB/s, TX 36.1 MB/s
+Disk IOPS: Read 0, Write 124
+
+=== Node Metrics (VM-level) ===
+Nodes: 9
+  ip-10-0-1-120.ap-east-2.compute.internal: 64.4% total CPU
+  ip-10-0-1-132.ap-east-2.compute.internal: 63.2% total CPU
+  ip-10-0-1-139.ap-east-2.compute.internal: 62.3% total CPU
+  ip-10-0-1-156.ap-east-2.compute.internal: 63.2% total CPU
+  ip-10-0-1-207.ap-east-2.compute.internal: 64.3% total CPU
+  ip-10-0-1-42.ap-east-2.compute.internal: 12.4% total CPU
+  ip-10-0-1-5.ap-east-2.compute.internal: 3.9% total CPU
+  ip-10-0-1-79.ap-east-2.compute.internal: 68.0% total CPU
+  ip-10-0-1-9.ap-east-2.compute.internal: 5.4% total CPU
+  avg user: 32.1%
+  avg system: 8.9%
+  avg iowait: 0.0%
+  avg steal: 0.0%
+  avg softirq: 3.2%
+
+=== Sysbench Results ===
+TPS: 33850.44
+QPS: 33850.44
+Errors: 0 (0.00/s)
+Reconnects: 0 (0.00/s)
+Latency (95th): 204.11 ms
+Duration: 300.8s
