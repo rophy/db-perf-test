@@ -1,0 +1,1 @@
+AWS first run - 6x c7i.8xlarge db, 1x c7i.8xlarge client, 1x c6i.2xlarge system. Intel Sapphire Rapids. oltp_insert, 24 tables x 100K rows, 3000 threads, 2min, cleanup_duplicate_k trigger installed. Calibration pass for 200K TPS target.

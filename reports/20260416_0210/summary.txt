@@ -1,0 +1,57 @@
+=== Tserver Node Specs ===
+Tservers: 18
+  yb-tserver-0 -> ip-10-0-1-164.ap-east-2.compute.internal: 32 CPU, 64773688Ki
+  yb-tserver-1 -> ip-10-0-1-177.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-10 -> ip-10-0-1-249.ap-east-2.compute.internal: 32 CPU, 64773716Ki
+  yb-tserver-11 -> ip-10-0-1-156.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+  yb-tserver-12 -> ip-10-0-1-179.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-13 -> ip-10-0-1-114.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+  yb-tserver-14 -> ip-10-0-1-120.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-15 -> ip-10-0-1-233.ap-east-2.compute.internal: 32 CPU, 64773716Ki
+  yb-tserver-16 -> ip-10-0-1-207.ap-east-2.compute.internal: 32 CPU, 64773692Ki
+  yb-tserver-17 -> ip-10-0-1-64.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-2 -> ip-10-0-1-125.ap-east-2.compute.internal: 32 CPU, 64773712Ki
+  yb-tserver-3 -> ip-10-0-1-199.ap-east-2.compute.internal: 32 CPU, 64773708Ki
+  yb-tserver-4 -> ip-10-0-1-161.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-5 -> ip-10-0-1-132.ap-east-2.compute.internal: 32 CPU, 64773708Ki
+  yb-tserver-6 -> ip-10-0-1-79.ap-east-2.compute.internal: 32 CPU, 64773720Ki
+  yb-tserver-7 -> ip-10-0-1-113.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+  yb-tserver-8 -> ip-10-0-1-139.ap-east-2.compute.internal: 32 CPU, 64773704Ki
+  yb-tserver-9 -> ip-10-0-1-174.ap-east-2.compute.internal: 32 CPU, 64773724Ki
+=== Tserver Metrics (container-level) ===
+Tservers: 18
+CPU: 587.8%
+Memory: 8039 MB
+Network: RX 20.1 MB/s, TX 19.4 MB/s
+Disk IOPS: Read 0, Write 83
+
+=== Node Metrics (VM-level) ===
+Nodes: 21
+  ip-10-0-1-113.ap-east-2.compute.internal: 23.9% total CPU
+  ip-10-0-1-114.ap-east-2.compute.internal: 28.1% total CPU
+  ip-10-0-1-120.ap-east-2.compute.internal: 30.9% total CPU
+  ip-10-0-1-125.ap-east-2.compute.internal: 34.5% total CPU
+  ip-10-0-1-132.ap-east-2.compute.internal: 25.1% total CPU
+  ip-10-0-1-139.ap-east-2.compute.internal: 28.8% total CPU
+  ip-10-0-1-156.ap-east-2.compute.internal: 24.3% total CPU
+  ip-10-0-1-161.ap-east-2.compute.internal: 30.3% total CPU
+  ip-10-0-1-164.ap-east-2.compute.internal: 26.8% total CPU
+  ip-10-0-1-174.ap-east-2.compute.internal: 21.7% total CPU
+  ip-10-0-1-177.ap-east-2.compute.internal: 27.0% total CPU
+  ip-10-0-1-179.ap-east-2.compute.internal: 25.7% total CPU
+  ip-10-0-1-199.ap-east-2.compute.internal: 22.0% total CPU
+  ip-10-0-1-207.ap-east-2.compute.internal: 23.2% total CPU
+  ip-10-0-1-233.ap-east-2.compute.internal: 25.0% total CPU
+  ip-10-0-1-249.ap-east-2.compute.internal: 23.7% total CPU
+  ip-10-0-1-42.ap-east-2.compute.internal: 18.6% total CPU
+  ip-10-0-1-5.ap-east-2.compute.internal: 5.6% total CPU
+  ip-10-0-1-64.ap-east-2.compute.internal: 30.8% total CPU
+  ip-10-0-1-79.ap-east-2.compute.internal: 22.5% total CPU
+  ip-10-0-1-9.ap-east-2.compute.internal: 6.3% total CPU
+  avg user: 13.6%
+  avg system: 5.5%
+  avg iowait: 0.1%
+  avg steal: 0.0%
+  avg softirq: 2.6%
+
+=== Sysbench Results ===

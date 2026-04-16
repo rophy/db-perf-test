@@ -1,0 +1,377 @@
+=== Sysbench Benchmark ===
+Workload: oltp_insert
+Threads: 8500
+Duration: 300s (warmup: 90s)
+
+sysbench 1.1.0-528b6fb (using bundled LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 8500
+Warmup time: 90s
+Report intermediate results every 10 second(s)
+Initializing random number generator from current time
+
+
+Initializing worker threads...
+
+Server Endpoint: yb-tserver-service 
+Threads started!
+
+Warming up for 90 seconds...
+
+[ 10s ] thds: 8500 tps: 926.40 qps: 926.40 (r/w/o: 0.00/926.40/0.00) lat (ms,95%): 13308.98 err/s: 0.00 reconn/s: 0.00
+[ 20s ] thds: 8500 tps: 1497.20 qps: 1497.20 (r/w/o: 0.00/1497.20/0.00) lat (ms,95%): 13071.47 err/s: 0.00 reconn/s: 0.00
+[ 30s ] thds: 8500 tps: 1654.90 qps: 1654.90 (r/w/o: 0.00/1654.90/0.00) lat (ms,95%): 12609.11 err/s: 0.00 reconn/s: 0.00
+[ 40s ] thds: 8500 tps: 1792.70 qps: 1792.70 (r/w/o: 0.00/1792.70/0.00) lat (ms,95%): 12384.09 err/s: 0.00 reconn/s: 0.00
+[ 50s ] thds: 8500 tps: 1965.01 qps: 1965.01 (r/w/o: 0.00/1965.01/0.00) lat (ms,95%): 13308.98 err/s: 0.00 reconn/s: 0.00
+[ 60s ] thds: 8500 tps: 2187.50 qps: 2187.50 (r/w/o: 0.00/2187.50/0.00) lat (ms,95%): 12384.09 err/s: 0.00 reconn/s: 0.00
+[ 70s ] thds: 8500 tps: 2764.89 qps: 2764.89 (r/w/o: 0.00/2764.89/0.00) lat (ms,95%): 12384.09 err/s: 0.00 reconn/s: 0.00
+[ 80s ] thds: 8500 tps: 6522.50 qps: 6522.50 (r/w/o: 0.00/6522.50/0.00) lat (ms,95%): 10343.39 err/s: 0.00 reconn/s: 0.00
+[ 90s ] thds: 8500 tps: 16249.71 qps: 16249.61 (r/w/o: 0.00/16249.61/0.00) lat (ms,95%): 6135.91 err/s: 0.00 reconn/s: 0.00
+[ 100s ] thds: 8500 tps: 23701.91 qps: 23702.01 (r/w/o: 0.00/23702.01/0.00) lat (ms,95%): 24.83 err/s: 0.00 reconn/s: 0.00
+[ 110s ] thds: 8500 tps: 33330.98 qps: 33330.98 (r/w/o: 0.00/33330.98/0.00) lat (ms,95%): 34.33 err/s: 0.00 reconn/s: 0.00
+[ 120s ] thds: 8500 tps: 52844.96 qps: 52844.76 (r/w/o: 0.00/52844.76/0.00) lat (ms,95%): 38.94 err/s: 0.00 reconn/s: 0.00
+[ 130s ] thds: 8500 tps: 80907.67 qps: 80907.87 (r/w/o: 0.00/80907.87/0.00) lat (ms,95%): 43.39 err/s: 0.00 reconn/s: 0.00
+[ 140s ] thds: 8500 tps: 127913.89 qps: 127913.79 (r/w/o: 0.00/127913.79/0.00) lat (ms,95%): 45.79 err/s: 0.00 reconn/s: 0.00
+[ 150s ] thds: 8500 tps: 146149.68 qps: 146149.48 (r/w/o: 0.00/146149.48/0.00) lat (ms,95%): 134.90 err/s: 0.00 reconn/s: 0.00
+[ 160s ] thds: 8500 tps: 184342.14 qps: 184341.84 (r/w/o: 0.00/184341.84/0.00) lat (ms,95%): 277.21 err/s: 0.00 reconn/s: 0.00
+[ 170s ] thds: 8500 tps: 157383.35 qps: 157383.55 (r/w/o: 0.00/157383.55/0.00) lat (ms,95%): 376.49 err/s: 0.00 reconn/s: 0.00
+[ 180s ] thds: 8500 tps: 163235.95 qps: 163235.85 (r/w/o: 0.00/163235.85/0.00) lat (ms,95%): 272.27 err/s: 0.00 reconn/s: 0.00
+[ 190s ] thds: 8500 tps: 165287.93 qps: 165287.83 (r/w/o: 0.00/165287.83/0.00) lat (ms,95%): 376.49 err/s: 0.00 reconn/s: 0.00
+[ 200s ] thds: 8500 tps: 156934.97 qps: 156935.37 (r/w/o: 0.00/156935.37/0.00) lat (ms,95%): 427.07 err/s: 0.00 reconn/s: 0.00
+[ 210s ] thds: 8500 tps: 146558.48 qps: 146557.98 (r/w/o: 0.00/146557.98/0.00) lat (ms,95%): 267.41 err/s: 0.00 reconn/s: 0.00
+[ 220s ] thds: 8500 tps: 79810.84 qps: 79811.44 (r/w/o: 0.00/79811.44/0.00) lat (ms,95%): 139.85 err/s: 0.00 reconn/s: 0.00
+[ 230s ] thds: 8500 tps: 173969.84 qps: 173969.54 (r/w/o: 0.00/173969.54/0.00) lat (ms,95%): 137.35 err/s: 0.00 reconn/s: 0.00
+[ 240s ] thds: 8500 tps: 44217.16 qps: 44217.56 (r/w/o: 0.00/44217.56/0.00) lat (ms,95%): 144.97 err/s: 0.00 reconn/s: 0.00
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (30895, '30667463899-46662244019-60245551249-02220609749-43693806657-93350428983-22018752589-55947093529-22950172831-96908259351', '90983936198-85347579382-80035102021-78989372718-58839229111')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (12764, '39811603127-18188815383-60226481039-52417624887-26821926145-62647889274-62166462030-08830672316-39299307908-77587704878', '76724027902-63581182002-26074338886-06281024808-35391917896')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (74469, '66086221562-41888287830-69735269315-00787833691-69355524607-88880722314-44073085574-77044536062-84674639426-26092415837', '85078660238-91057272521-74474020537-09826602638-71966935456')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (83481, '07751517512-34946545439-07648535183-95717879751-08176294446-91215624011-57534064408-31735215491-96568377219-06839057655', '25889124922-96661794667-40584822033-75725738636-69913868001')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (11417, '16285071854-81589661114-63475910017-94636067722-89281631168-14953245154-78649047463-93778864576-65538078327-02751664582', '72691130833-98140076861-81939944839-37599853753-50140600721')
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (83888, '74985766138-98730277035-25427845425-27490821642-49540828620-53807980828-99680233949-73151209327-49529011263-46790264450', '39875014338-39120676455-47880909829-84851122168-25617060271')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (13708, '63286005544-90915150434-62894096336-89474456186-82339439021-43120151702-12773432842-61868069972-97969550293-57770250967', '38866098807-18657714006-84439639759-79341695114-20116676092')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (36540, '47505139022-42306526140-67617243774-96670294718-07268624967-71373288905-85385358189-21063280471-77786068809-43135650726', '78318363238-16971133455-97174538957-95594252487-95875619590')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (69331, '33318140601-20638662137-62406697128-02636978773-41776224095-68852715025-79803773687-87955135028-59429052624-04748611046', '94154967184-16087370607-59671080228-75635254517-46841990030')
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (61644, '45501793875-54567827868-77492465049-17163179649-19891299410-17826333230-58479143664-68040014383-96158915353-71484490789', '30183112859-63336727189-92986062128-15089527782-87423572233')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (41528, '27454307796-30293674593-95066330718-20173440283-05725280115-78656794708-48703037151-17722505939-29545492864-29425198680', '91687678740-89433779429-48847404224-57905277392-91582688045')
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (9618, '87868113800-77666353869-02068721268-14734438232-04068880825-35702735019-90872581315-51917893598-66017801682-97987349596', '27448473131-44213156420-42871206774-96375735340-97350752690')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (25490, '93831036408-30196279108-56559360923-21593304344-70511735234-55537891744-84157147721-65746036575-32628947602-71681679308', '08994907305-36531345525-12330363006-04756784008-75515306276')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (54899, '64228010390-71737696729-97185666080-60563462950-39095810369-44894524903-93868705616-76121167321-82075557736-17457260967', '25219568127-43986130305-80118875311-87139870601-46769887962')
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (37257, '69290143723-36420273646-62053526360-50785157560-06200467654-67650655009-32626911212-93654969518-15315400460-22440442631', '32113181894-81330169062-63771078304-60610961290-43990972892')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest7 (k, c, pad) VALUES (57707, '94646412218-10826175523-80053355202-13293310322-49361415153-34623912138-34598072622-17073893399-44860499475-57807562192', '88998920794-91466692825-16717194930-86122680269-60934069824')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (94737, '53934073037-52993099079-28918850184-43787352589-19306867828-64452415111-45943066234-67902654287-38892713415-38155773696', '13360405878-84722030726-74006561193-06678095880-09591571456')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (64458, '45090233548-25174981676-39519819929-45838037714-15269454833-93917406309-44696691403-41760129336-05104163960-26843423121', '66963370158-71341753083-15807779239-79034124020-37963906927')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (92020, '52213239521-89142858755-91254135154-13498375856-15188733912-96771468280-13743052377-07646594902-98609462315-78627899663', '41494291984-35516252795-62588610669-54741695685-03392885428')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (32467, '66390780455-31113833059-88654160071-94910286922-93018815123-50959074243-70247963644-23730132578-96674893838-36531205819', '82106135426-11830880025-00419038792-25386717962-66276836634')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (67845, '05021608047-87889347332-65246985497-46777005816-90287132375-63642138114-48901350349-44849082124-14580339713-04594670525', '65957502728-91024584228-58744044216-22979664568-70643951301')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (42594, '82348875845-78897812241-98535404155-47704145223-93875846468-91832127702-88986067608-89425812018-66395363702-47273438186', '28906025760-83437402018-90174767511-69957817479-15293220934')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (51758, '29256098432-11221811130-91386841483-01124974362-26840762680-44192155928-15676763713-39379454935-01259727957-11552172065', '22209918773-46215223581-00788987999-05572310318-24004251106')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (90992, '10938509839-47211331988-26878231580-84344322244-56969332379-84655024139-22832381006-44258432440-53301338847-97899805681', '85481421764-05043173811-11002158219-71595883145-65547501802')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest2 (k, c, pad) VALUES (8852, '14686473391-70098961130-71605544847-61001577955-80744762996-67943913560-47658015077-28289705257-00020382582-74492514614', '85716731691-08682008203-59595229353-50402447485-01941357453')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (51362, '60737956215-77738861576-90447471765-50538495554-31870263784-23676730069-21450882749-33251473262-48551643901-94614649464', '45682178374-84415201594-30952544978-80136021766-85131894941')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (19579, '51940780065-60086245675-86245066298-93197923064-70478451241-23184902897-52029320110-39122820923-48045464826-60412383599', '19372053428-58600203148-36973838055-17675412136-19972010201')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (82664, '03414332144-68932008897-56327824463-64666829183-43848458436-57047435230-72617594528-60056814421-42834099208-55786693809', '61003382517-56769261369-47971385795-52233074514-07416537396')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (29463, '15074515597-65027691159-59224716752-12942742991-49868677130-29472055258-59665451956-39725813198-69144769956-68243194114', '29544285387-96650636842-59742716351-83761744091-22384312952')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (83467, '59943131802-56586904527-44456908584-47841375460-70780350431-92411575136-10223941158-17310208487-35466936408-19159881323', '84486757425-92498021618-74719381869-62103731939-20489433669')
+(last message repeated 2 times)
+FATAL: failed query was: INSERT INTO sbtest22 (k, c, pad) VALUES (20086, '32771888580-98491345494-83213379431-22963432997-96137670883-37724424302-34410814125-56710457047-03953129277-36769608132', '02058885611-44035493148-53251463455-23522133136-24281256774')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (7543, '06098657987-58542490238-20621793128-76716987248-10057628876-37073952877-74683973946-71702508455-85408085023-89194053272', '70654385612-86881045020-66857776491-79746048619-52613212137')
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (45100, '19474538950-47314683184-84120699459-65391966695-69867587090-10263863909-86451148011-02961694858-55833807822-22737383945', '20963745233-62106398083-13093962042-62461726482-78831305114')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (15396, '71408889103-28582956409-14052864055-32717066547-70017721108-64659202829-28112859921-85292991806-86011892647-82928134732', '95552699777-62725323965-74328309775-81222208523-68484792888')
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (95336, '76354042422-32455152102-77099138469-29523857193-79476641393-30332761181-25760099428-92045231285-70909857320-84868934270', '09429238409-61909328920-45882425327-90070051815-79606164348')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (14159, '49168253385-58884664243-34398518033-92042019606-22216859706-56939126335-75497068827-75754317118-01313608914-18115131529', '86123195267-96913640758-26218543984-78015362023-95878793395')
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (53375, '44905004504-82030196031-47510777619-46300196594-55101273932-77308545764-07329418425-38706599771-50864881056-26759009870', '85474672813-91218357122-97282011845-12488639832-49204837451')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (52002, '54477317921-59229702381-16548042550-13269582788-63216982345-98663965509-06466731657-39599333429-08540975375-63836296190', '25906800392-89453023101-81245842292-16152515303-58890203091')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (68559, '32911869209-43989212606-77768960573-87779240139-14765032966-71402665513-77764535205-10587848447-13375594205-21138218818', '25416009005-71034382786-15988688881-62358630638-13552645573')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (94218, '32065288695-70846778691-92260584963-08017399819-08952881589-55671271843-12469776162-88438367378-90617816848-00951101417', '35207564226-11680144955-94991092175-30323092032-58847911801')
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (36301, '90700933318-51295131485-49737041137-48701333367-66436889476-36230843431-16892056227-96633232795-04449243000-58956908902', '26732616303-00743827996-36325725525-30594883445-80673826966')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (34652, '54320852912-87645836339-89150002693-64277502468-83883150921-44207253973-95632842146-40138277464-45429215274-10159799694', '08093794676-36467932165-06683206824-72050672666-95350570055')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest10 (k, c, pad) VALUES (84234, '78373210342-23064847136-30143037112-85184803202-21060927749-71055441673-86363572669-74412291185-06877430791-49079612295', '23995414759-06914484722-00952334616-70657558739-93084359896')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (34817, '23433919635-63579974204-06814021062-36299958736-48011081829-03632529211-68470573905-85172437642-80897957991-35273606363', '98489252869-42469633701-01930076964-83508579130-51552731175')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 4 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (12810, '09360213619-22827544986-31908469934-56033351808-53622613441-14468606704-10432586046-18551602210-86051854970-53829350126', '19813318088-92748169696-90858610471-88835863593-60628573134')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (32024, '54663690626-30894422406-97085861462-94070488768-78188753463-02351768085-40245748415-67247808367-97507525348-00533470063', '81823877064-53407882365-16280771674-38484299611-80373579295')
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (86150, '40178216865-87458260466-83947953535-39751104447-28606640579-44013174258-85167353329-93112017657-44935939445-83074710788', '70763609701-00714662981-71878409453-81642349296-02218005358')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (22955, '57187186917-41805364263-14836056423-24922444333-37838415931-02488930453-99944661940-78909844315-34210605979-04801411934', '99333849090-67874929548-99982819444-40914817192-53520286453')
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (78102, '66670388172-87206403261-66607392148-49383134919-29246815487-26685395495-54880202165-31149290259-81845392011-18548454461', '48993291501-81614764986-48977591460-40649317622-34554813115')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (23247, '19015512395-34471257348-16202433826-20735751832-61960278835-31757713871-18122513973-66804203149-70483070739-03717913450', '33046929340-18397179019-29917258274-22090030085-32195894940')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (76143, '31448276631-88474384732-70211213099-92440277414-91371788175-60951346881-42236840981-90114098527-82922567000-09406338550', '24730927506-16350545147-60891211117-13867897507-66804458147')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (59035, '83104516955-11523576749-30102981795-02669843742-49903901079-37360767914-68505508279-37526240532-60697165738-18100901615', '66722277467-14900232881-59393402948-67450547610-10537774119')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (56404, '25270198788-15674976566-63418088965-38918240813-70958208797-06658259726-50277761704-19713348076-50152169080-63898852112', '02932877977-00895234136-02699629558-25849383036-45920686958')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (94817, '53979658334-61271233655-29870695741-23739084987-41924267587-10884227644-20693085787-58385043705-95428604904-39954293361', '25152659418-38454182015-93466342607-65366425355-11345877829')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (22842, '49782507574-78614046346-59985348498-55495071235-20082913331-13654973007-13104696479-22888215648-77732511256-44736265193', '36836616172-84238483200-92945402815-45778171449-64306194312')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (50610, '45007733417-72078209883-04651759138-82446697220-38816709854-30990427244-55820053203-58459532457-21635371518-77736684516', '35284921669-88915092369-23063635862-18684831722-88790318660')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (60592, '55569843027-10837856302-89524577236-78230959549-12622546792-01309861977-29396641313-14690507356-26773372740-96722878174', '63552781641-19531297179-25472752491-90777818485-76866296677')
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (29907, '02158127650-50097554280-50389832185-63788547589-94512817779-24793513770-56970665675-08518503093-50122693553-69399790540', '62629999699-67137110571-25607739044-56336804157-34966455815')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: failed query was: INSERT INTO sbtest24 (k, c, pad) VALUES (65704, '79996080633-53359109210-78274430817-86277739320-89145041706-97209632034-34891605884-85735207332-55633915399-40952516357', '09559347903-94543492748-65694166154-16143105924-89942974647')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (48882, '11120532026-02471906842-25863697870-28143517195-06031833246-43043709147-58560033007-21681267369-18008808778-38226662720', '83153102163-73470273252-60145110327-09394588129-62375644956')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (44847, '42844576797-69849072642-83939334133-34672470834-67039773637-14708592562-13092397176-64062634285-21947260323-46864468733', '33286485604-74236751339-69575951773-67005470222-48448700413')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (14649, '11480944593-60203145955-24889942239-73897849333-91493254693-22632737622-34849618661-69274070091-79073852362-72827792295', '06824113489-09787002521-04193774042-26020778328-20759366886')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (90075, '82282429870-99014989339-93213000712-98106397433-32447321636-46036214255-96552966872-41002239202-78281674859-06482150112', '13032941553-72543646236-38103152374-00339191073-96580490411')
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (87584, '64730496554-33851505071-90345988619-64275438488-73353508911-42119584225-45985323814-45056087894-35200366490-26610731785', '50320563844-62755993271-37727752632-18555293684-41638090525')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (88332, '53240202577-84506013389-87311398516-86166714441-94949597060-61086906805-62678761238-20359319721-15538140679-58923078890', '48709798375-07050166559-40331308599-97136704689-33162703843')
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (91400, '60209876636-61554218181-91306796871-82443269144-01900424471-68897100651-71622392625-40522390735-69186352428-01910301752', '66980407948-91613856894-67437207539-66393079442-04475057485')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (38440, '03386705241-43583129241-89531828121-95412623729-01288189993-78078629790-15894304611-17401847006-39958268236-34082814572', '70805598228-39830360624-92692474939-76695749385-77108294573')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 4 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (98287, '77925258100-44515419682-60127293978-00369459068-59484079349-07009228156-11205635490-03513796486-43493718296-21536788242', '98293313203-82058389421-90265071070-71861948232-37418006943')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (18825, '80402582430-17028776998-20847348982-64978145564-84903629751-47695757493-41926738394-25040952608-99608352747-05555136029', '17762729659-01882620758-64284078822-37527654934-65055228960')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (65809, '14668559288-22768789129-05602268687-43503889140-97124025593-08734477730-48626208436-12806448800-06064404935-91605088272', '91979627659-05505065605-57350019318-60244332365-56501225453')
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (18079, '96508668386-98750520527-76669299754-08871096495-77215826225-73028446253-33893305265-60349112751-69484307197-48433544762', '11224414213-88561358973-99498924953-85709716563-67800980067')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest11 (k, c, pad) VALUES (25109, '02063533835-20338955909-58422341806-20078388382-54083729798-79500185102-37002108508-97204710781-55478267411-90548504624', '09012503786-50878871844-86837067518-47263395299-31255083484')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 2 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (22245, '61200888048-21667945316-78515889909-55312753807-53274582416-30693466403-58358280463-95130572558-98499345654-42325265121', '99174146409-63736663537-40468435161-20994543509-35155322361')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (56858, '26611865971-00277325455-57630398589-35882802540-75201106154-86843719729-97688500696-14186158681-65076266123-65968790308', '31669026803-65105492786-97527531490-04834407667-21876475991')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (50771, '11480516385-37241429552-23047679791-95737982718-99701393789-52137576859-30763600780-63335314748-38101856981-47437296461', '32691860322-87744098690-45447655392-40066152435-68673637781')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (52206, '91741175786-04773633246-88392991685-03326656017-93137857326-76144582633-59616518246-22046004445-20936151678-83893589433', '42502645130-57584729620-55456339636-65459676623-87223718364')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (614, '06500089700-50782838561-48027923472-34839143060-64415920678-00704658301-81052387023-05150859569-98158259260-81237182846', '87990606844-04057514028-57744716148-15865698471-52606232563')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (61788, '48895099703-81555957238-55048001638-80354659010-09646968294-55784246854-54875508005-64728403765-67437686519-63566730055', '62083948426-48078530035-89153447155-67231666674-05099414072')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (51522, '73132706458-48087075121-45298023666-59463750778-02259158791-48933407558-24502908233-08246910923-76372419532-26017387895', '73662874251-16719483318-10007636325-11972718112-09740941599')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest3 (k, c, pad) VALUES (71720, '92749406485-97862034955-89405828652-72844097663-59079113358-01656126562-47738661022-97051892436-64621766268-75617701222', '41857861946-51316941573-55044840663-20646738920-19080539064')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest8 (k, c, pad) VALUES (75388, '44441276205-86328702559-01400839071-71098345191-47681031720-10638086418-13990511008-32870331070-40178086062-83519156484', '82274072005-05597776433-58564486772-07632636198-06810484661')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (74277, '28759171638-69205904812-36861864502-11053000925-98832364126-15802833645-45953132031-64825244382-47144990170-45921274117', '14500964573-41668696167-12959861811-28739384005-31572576663')
+FATAL: failed query was: INSERT INTO sbtest4 (k, c, pad) VALUES (20515, '61879349091-52045252722-67262094512-79798428754-37001583161-19372628998-30748332895-51367144357-43519728620-78351381319', '57235163758-17616268220-85544699265-25168715295-12827825135')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest20 (k, c, pad) VALUES (19751, '65385383194-98173069512-56587019103-43358091739-55035390132-30069426850-45384926410-58321180565-38123155109-13979266621', '36665385327-71872624587-25294983499-91630098992-99979895651')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (3370, '68765516371-12875060273-76113767662-38537118400-87430603465-02107741411-48518339317-77877504133-50081880235-02789001608', '41055434617-27100460762-55290148349-27916233283-44358772910')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (93037, '29530982359-77998810683-33211900199-94478396610-71133200862-41521191780-00475258625-01211427890-21770507384-37066378334', '30276861122-01069004194-58949420081-27353437335-75516746580')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (28510, '28691585072-44348599339-60786851276-71424066676-54742030095-81184764449-61571475729-46663656047-57637471321-90085432493', '23690847005-66591936620-57985747906-42900495124-07400114216')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (11245, '01970917367-85558996085-68893375293-11511053732-64934150683-12743620418-51165163996-04806250368-07570310256-10578364422', '55166903172-46505612939-93928799818-20801017247-84947157981')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (77727, '66755770174-65314388868-32370173390-60657957282-84440611263-34411984703-49583646958-20656794862-71219411726-84090704267', '49657573810-33169902593-84736942157-77407662325-15770319383')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (79960, '48999129624-83715400256-94108112857-78283533420-74712228580-42483550987-11470602897-85265474754-38324411986-30987007089', '34129525720-26014586942-74417856511-31609328446-40651321873')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (95264, '17400028908-44040480898-02737827728-32657214224-89069208583-09213282702-16471849665-28053338013-25351101990-97339345238', '56336197486-50447563845-23610544436-11450207776-49375967622')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (28467, '85907083187-11678276112-79063473947-71041431920-06102436475-14810882230-27245437489-56178753992-36561335118-33545784303', '77619358855-99201353383-52629914122-47824405562-94231841243')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (34787, '41787042189-49004802621-46510272330-97845285136-67017657302-66002044960-53384361025-13854002433-47035896029-86380563859', '28016732278-07815961180-86730253502-07949914367-66451950117')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (53472, '04386061706-46801472590-71254719261-67750704680-11592431261-65561801678-21094731173-28049451480-27726888401-05524992891', '39750316169-87039064328-13104706064-99677287447-11263200708')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (18844, '69967301276-23210753355-13168586535-99098887539-71636606834-74173743474-80063188248-12030504547-86666025117-22491998009', '93416320854-90715779129-89406728090-91225089004-37429479994')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (1872, '11038468214-72770659124-70990251413-09144799424-39826335532-31897899376-64834103256-95338150155-27162884706-14053988946', '55575200424-75908694344-95294685130-76606772585-20841652919')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (47791, '67351534677-00048731945-29534378625-78146597794-03204037524-51721114132-20646318228-19706113074-21582904810-34472047769', '11077694032-75956100294-09627705638-74877405869-27476263400')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (48670, '95640946576-14110959795-58233396684-83930234118-41152067898-75091215445-39734635369-92328065519-93138956695-13766802018', '29399717433-72197509563-94961699623-47282322455-97533062597')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (41007, '71315556885-92831563245-78252434117-16319835794-64698822010-48308089254-54369951442-50242698168-90240137303-74300899009', '83495573705-11413177875-84949358091-09176302185-77542014491')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (17722, '38290437728-74971155959-49740199777-60764678642-12669244476-71328467535-28203771702-40646117325-95924115424-86549964260', '43301705831-77255191458-16604861143-28004587917-22527484724')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (16234, '83807945948-31233753070-85749492575-11717707604-96923129723-61339429456-45689200200-83044267928-52592996775-72260559585', '60188451821-10359966104-74419593432-10539102578-73789487774')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (27389, '74591046758-74168542055-31997165474-03085279706-06771694600-22704118109-88999759842-23329153839-89911320949-11625944131', '80643783618-13694515552-25597023922-60750537036-12163453198')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (54327, '11938516700-81449033275-18405737288-18774827271-30042835218-27922055444-29156308078-07784102192-56225619442-08383512620', '28714868299-12039960900-46438058880-71469926490-09813180076')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (63635, '56644159875-80071886431-95485164957-63884317073-87557140896-12281424672-78164112222-68399261325-25495368853-30741612069', '58906051072-42956431957-57696474913-64518006674-68868703263')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (74497, '76586985917-50800217651-05221121980-71789541741-19640607677-92761425614-02080127960-97548533696-65256664118-66004294362', '21698632362-31869596188-32573055812-03192105270-36849941612')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (18938, '52185037125-24531394384-11358752279-45985954468-04939607691-89733885998-24320390580-29083284240-79276520695-49966473920', '55056112149-74217401739-32514398894-17184488235-30768087092')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (69457, '74636984789-66381678939-08938212292-52425483147-60906160493-66239855683-29272324413-84612597451-08075987666-37345086819', '35210630746-94396805577-32229037838-60208023338-13662370216')
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (95971, '99803517491-49451103647-13327063526-42842349292-16906417108-77830164253-75268582479-28952668821-10485760498-04858460048', '85289974407-06913557796-67480881156-93901317619-06983663768')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+(last message repeated 1 times)
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (68521, '67706945372-75410840311-00445446181-55373524001-18510749066-31227011736-74764401066-51049896565-50330584325-55070522223', '71227186361-08311339886-23351340050-10453502716-46887948176')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (74276, '45680331313-45446781907-81789666119-92776387123-92759770926-59636728192-67234499477-89676845019-54782012868-26983652593', '05950789833-89113429195-48670773613-16692860236-77750404455')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (54341, '40152225542-53446999045-59108862744-45871880857-61867256583-07123154649-74697263315-29987051737-88640924975-68794380889', '20234112791-42460001975-41612278630-78279036789-16382538483')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (85385, '15707565834-77046400466-54382202679-77373510433-24686661431-34077173015-17571510070-12555459910-11747165425-43943588870', '26729002580-61584930695-52067365771-88653952286-30776241458')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (72369, '71270303596-12242959774-92991976395-89773015982-97451267333-77420275241-98073509494-37075024314-62464829773-90919970983', '38230665536-49649389155-59652308953-55277265264-36285577690')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (57648, '68207204619-44849910681-96869622738-21751306623-34633112151-35018752065-21077059245-20150095941-36165289055-18326876262', '59030970279-09462624474-73493356930-93645495844-92808199687')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+FATAL: PQexec() failed: 7 Attempted to commit expired transaction
+FATAL: failed query was: INSERT INTO sbtest21 (k, c, pad) VALUES (20716, '81671283501-17325182095-70990278879-30734915179-82470717971-26929255461-03018796750-70483708311-88755432291-32698861791', '06727607686-05671510532-03753314288-10002797846-22874158340')
+FATAL: `thread_run' function failed: /usr/local/share/sysbench/oltp_insert.lua:50: SQL error, errno = 0, state = 'XX000': Attempted to commit expired transaction
+[ 250s ] thds: 8497 tps: 860.00 qps: 860.00 (r/w/o: 0.00/860.00/0.00) lat (ms,95%): 16819.24 err/s: 11.50 reconn/s: 0.00
+[ 260s ] thds: 8497 tps: 14.00 qps: 14.00 (r/w/o: 0.00/14.00/0.00) lat (ms,95%): 24548.75 err/s: 0.00 reconn/s: 0.00
+[ 270s ] thds: 8497 tps: 1.90 qps: 1.90 (r/w/o: 0.00/1.90/0.00) lat (ms,95%): 33340.46 err/s: 0.00 reconn/s: 0.00
