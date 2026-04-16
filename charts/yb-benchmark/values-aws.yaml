@@ -1,4 +1,7 @@
-# AWS k3s values — iter 20: 12 tservers + trigger, masters un-throttled and spread.
+# AWS k3s values — iter 21: 12 tservers + trigger, auto-tablet-split DISABLED.
+# Hypothesis: iter 20 mid-run TPS dip was caused by automatic tablet splits
+# (verified via not_leader_rejections spike + cluster leader count drop).
+# Disabling splits should give a clean steady-state read.
 # Node layout:
 #   - role=db (tainted dedicated=db:NoSchedule): 12× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
 #   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
@@ -117,12 +120,14 @@ yugabyte:
   gflags:
     master:
       replication_factor: 3
+      enable_automatic_tablet_splitting: false
     tserver:
       yb_num_shards_per_tserver: 2
       ysql_num_shards_per_tserver: 2
       bytes_durable_wal_write_mb: 4
       interval_durable_wal_write_ms: 10000
       ysql_max_connections: 1024
+      enable_automatic_tablet_splitting: false
   enableLoadBalancer: false
   ysql:
     enabled: true
