@@ -1,0 +1,43 @@
+Iter 15 — 6 tservers, threads 3000 → 5000 (REGRESSION, ceiling confirmed).
+
+Cluster:
+- 6× c7i.8xlarge (Intel Sapphire Rapids, 32 vCPU / 64 GB) — db (role=db)
+- 1× c7i.8xlarge — client (sysbench)
+- 1× c6i.2xlarge — system (3 yb-masters + prometheus)
+- EBS gp3 16K IOPS / 1000 MB/s per tserver, 200 GB
+
+Change vs iter 13 (baseline @ 3000 threads, 41K TPS):
+- Only change: sysbench threads 3000 → 5000
+- ysql_num_tablets reverted to default (1 tablet per table) — iter 14 regression validated
+- Hypothesis: iter 13's 25% VM CPU headroom could convert to more TPS if we add client threads
+
+Result:
+- TPS avg: 33,738 (iter 13: 40,661 → -17% regression)
+- TPS steady (t=30–290s): 39K–40K (SAME ceiling as iter 13)
+- p95 latency: 215.44 ms (iter 13: 112.67 ms → +91%)
+- max latency: 20,689 ms (huge stall spikes; iter 13 max much lower)
+- avg latency: 149.49 ms (iter 13: 73.79 ms → +103%)
+- 0 errors
+- VM CPU: 62–65% (iter 13: 74–76% — LOWER despite more threads!)
+- Container CPU (sum): 1,444% (iter 13: 1,912% — tservers did LESS work)
+
+Purpose (falsified hypothesis):
+- Tested whether client concurrency was the limit. Adding 2000 threads would burn
+  the CPU headroom and raise TPS.
+- Falsified: steady-state stayed at 40K, extra threads just queued and slowed down.
+- This confirms iter 13's ~41K was NOT thread- or CPU-limited — it is
+  distributed-transaction-coordinator-limited.
+
+Root cause (measured from metrics during iter 15 steady state):
+- Every sysbench INSERT is a distributed transaction (primary tablet + secondary
+  index tablet on different tservers → 2PC path).
+- UpdateTransaction RPC rate: 234,000/s cluster-wide = ~7 per user-txn × 33K TPS,
+  each at 9-19 ms latency.
+- FinishTransaction (commit RPC) rate matches TPS 1:1, at 13.85 ms each.
+- Per-user-txn critical path: ~100 ms (INSERT raft + DELETE raft + FinishTxn).
+- 3000 threads / 100 ms ≈ 30K, 5000 threads / 150 ms ≈ 33K — matches observed.
+
+Action: accept 41K as the practical 6-tserver ceiling for this workload. To push
+past it, either scale out tservers (proven near-linear 6→12→18), drop the
+secondary index (changes the benchmark), or move to a colocated database schema
+(different sharding model).
