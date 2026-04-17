@@ -1,14 +1,9 @@
-# AWS k3s values — iter 21: 12 tservers + trigger, auto-tablet-split DISABLED.
-# Hypothesis: iter 20 mid-run TPS dip was caused by automatic tablet splits
-# (verified via not_leader_rejections spike + cluster leader count drop).
-# Disabling splits should give a clean steady-state read.
-# Node layout:
-#   - role=db (tainted dedicated=db:NoSchedule): 12× c7i.8xlarge (Intel Sapphire Rapids) — 1 tserver per node
-#   - role=client: 1× c7i.8xlarge (Intel Sapphire Rapids) — sysbench
-#   - role=system: 2× c7i.2xlarge (Intel Sapphire Rapids) — yb-masters (spread via anti-affinity) + prometheus
-# CPU note: ap-east-2 does not offer c6a; c6i.8xlarge hit InsufficientInstanceCapacity.
-# Using c7i.8xlarge (Sapphire Rapids, 32 vCPU / 64 GB). Record in EXPERIMENT_LABEL.txt per run.
-# gflags intentionally mirror values-k3s-virsh.yaml (no RocksDB re-tuning).
+# AWS k3s values — iter 22: 14× c7i.16xlarge scale-up (64 vCPU/tserver) targeting ~140K TPS.
+# Node layout (kube-sandbox two-role model):
+#   - role=db (tainted dedicated=db:NoSchedule): 14× c7i.16xlarge (64 vCPU / 128 GB) — 1 tserver per node
+#   - role=system: 4× c7i.4xlarge (16 vCPU / 32 GB) — 3 for yb-masters (anti-affinity spread) + 1 for sysbench
+# Single AZ. Auto-tablet-split stays DISABLED (iter 21 finding).
+# gflags mirror iter 21. Scale-up test: 2× vCPU per tserver + 14 tservers (vs 12× c7i.8xlarge baseline).
 
 fullnameOverride: ""
 
@@ -22,12 +17,27 @@ sysbench:
   resources:
     requests:
       cpu: "4"
-      memory: "4Gi"
+      memory: "8Gi"
     limits:
-      cpu: "28"
-      memory: "16Gi"
+      cpu: null
+      memory: "24Gi"
   nodeSelector:
-    role: client
+    role: system
+  # Prefer a system node that isn't running a yb-master, so sysbench doesn't
+  # steal CPU from the master during the run. With 4 system nodes + 3 masters,
+  # the 4th node is the natural home for sysbench.
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - yb-master
+          topologyKey: kubernetes.io/hostname
 
   db:
     host: yb-tserver-service
@@ -38,7 +48,7 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 6000  # iter-12 matched (12 tservers)
+  threads: 12000
   time: 300
   warmupTime: 90  # iter-4 matched
   reportInterval: 10
@@ -53,7 +63,7 @@ sysbench:
   indexUpdates: 20
   nonIndexUpdates: 20
   numRowsInInsert: 10
-  threadInitTimeout: 120
+  threadInitTimeout: 300
 
 prometheus:
   enabled: true
@@ -86,14 +96,14 @@ nodeExporter:
       cpu: "200m"
       memory: "128Mi"
 
-# YugabyteDB — 3 masters on role=system, 12 tservers on role=db (RF=3)
+# YugabyteDB — 3 masters on role=system, 14 tservers on role=db (RF=3)
 yugabyte:
   enabled: true
   Image:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 12
+    tserver: 14
   resource:
     master:
       requests:
@@ -126,7 +136,7 @@ yugabyte:
       ysql_num_shards_per_tserver: 2
       bytes_durable_wal_write_mb: 4
       interval_durable_wal_write_ms: 10000
-      ysql_max_connections: 1024
+      ysql_max_connections: 1500
       enable_automatic_tablet_splitting: false
   enableLoadBalancer: false
   ysql:
