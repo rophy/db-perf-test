@@ -403,6 +403,14 @@ class ReportGenerator:
                 f'sum(rate(container_fs_writes_total{{namespace="{ns}",'
                 f'pod=~"{tserver_regex}",{pod_cgroup}}}[30s]))'
             ),
+            # Sysbench (client) pod CPU in cores consumed, summed across replicas.
+            # Pod name contains "sysbench" regardless of release name.
+            # NOTE: unlike memory/disk, cAdvisor's CPU metric does not emit a
+            # pod-level aggregate row (container=""); sum per-container rows instead.
+            "client_cpu_cores": (
+                f'sum(rate(container_cpu_usage_seconds_total{{namespace="{ns}",'
+                f'pod=~".*sysbench.*",container!=""}}[30s]))'
+            ),
         }
 
         series_by_key: dict[str, dict[int, float]] = {}
@@ -447,6 +455,9 @@ class ReportGenerator:
             row["net_mb"] = (rx or 0) + (tx or 0) if (rx is not None or tx is not None) else None
             row["disk_write_iops"] = self._nearest_value(
                 series["disk_write_iops"], target_ts, max_skew
+            )
+            row["client_cpu_cores"] = self._nearest_value(
+                series["client_cpu_cores"], target_ts, max_skew
             )
             enriched.append(row)
         return enriched

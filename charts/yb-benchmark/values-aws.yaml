@@ -19,7 +19,6 @@ sysbench:
       cpu: "4"
       memory: "8Gi"
     limits:
-      cpu: null
       memory: "24Gi"
   nodeSelector:
     role: system
@@ -48,9 +47,9 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 12000
-  time: 300
-  warmupTime: 90  # iter-4 matched
+  threads: 18000
+  time: 600
+  warmupTime: 120
   reportInterval: 10
   workload: oltp_insert
 
@@ -136,7 +135,7 @@ yugabyte:
       ysql_num_shards_per_tserver: 2
       bytes_durable_wal_write_mb: 4
       interval_durable_wal_write_ms: 10000
-      ysql_max_connections: 1500
+      ysql_max_connections: 2000
       enable_automatic_tablet_splitting: false
   enableLoadBalancer: false
   ysql:

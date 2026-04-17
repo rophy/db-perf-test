@@ -77,7 +77,7 @@ def print_interval_table(intervals, warmup_len):
         print("(no interval data found)")
         return
 
-    header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}"
+    header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     print(header)
     print('-' * len(header))
     for iv in intervals:
@@ -92,12 +92,14 @@ def print_interval_table(intervals, warmup_len):
         mem = iv.get('mem_mb')
         net = iv.get('net_mb')
         wio = iv.get('disk_write_iops')
+        cli = iv.get('client_cpu_cores')
 
         cpu_s = f"{cpu:5.1f}" if cpu is not None else "  -  "
         mem_s = f"{mem:8,.0f}" if mem is not None else "     -  "
         net_s = f"{net:9.1f}" if net is not None else "      -  "
         wio_s = f"{wio:7,.0f}" if wio is not None else "     -  "
-        print(f"{t:4d}  {phase:<6}  {tps:8,.0f}  {lat:8.1f}  {err:6.2f}  {cpu_s}  {mem_s}  {net_s}  {wio_s}")
+        cli_s = f"{cli:6.2f}" if cli is not None else "   -  "
+        print(f"{t:4d}  {phase:<6}  {tps:8,.0f}  {lat:8.1f}  {err:6.2f}  {cpu_s}  {mem_s}  {net_s}  {wio_s}  {cli_s}")
 
 
 def parse_sysbench_totals(report_path):
