@@ -19,6 +19,7 @@ sysbench:
     limits:
       cpu: "2"
       memory: "1Gi"
+  replicas: 1
   nodeSelector:
     role: master
 

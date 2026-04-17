@@ -601,17 +601,25 @@ class ReportGenerator:
 
         print(f"Report saved to: {output_file}")
 
-        # Copy sysbench output file if it exists
-        sysbench_output = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_output.txt"
+        # Copy sysbench output file(s)
+        sysbench_dir = Path(self.config.output_dir).parent / "output" / "sysbench"
+        sysbench_output = sysbench_dir / "sysbench_output.txt"
         if sysbench_output.exists():
             shutil.copy(sysbench_output, output_dir / "sysbench_output.txt")
             print(f"Copied sysbench output to: {output_dir / 'sysbench_output.txt'}")
+        for pod_file in sorted(sysbench_dir.glob("sysbench_output_*.txt")):
+            shutil.copy(pod_file, output_dir / pod_file.name)
+            print(f"Copied per-pod output: {pod_file.name}")
 
-        # Copy node spec file if it exists
+        # Copy node spec files if they exist
         node_spec = Path(self.config.output_dir).parent / "output" / "sysbench" / "RUN_NODE_SPEC.txt"
         if node_spec.exists():
             shutil.copy(node_spec, output_dir / "RUN_NODE_SPEC.txt")
             print(f"Copied node spec to: {output_dir / 'RUN_NODE_SPEC.txt'}")
+        sysbench_spec = Path(self.config.output_dir).parent / "output" / "sysbench" / "SYSBENCH_NODE_SPEC.txt"
+        if sysbench_spec.exists():
+            shutil.copy(sysbench_spec, output_dir / "SYSBENCH_NODE_SPEC.txt")
+            print(f"Copied sysbench node spec to: {output_dir / 'SYSBENCH_NODE_SPEC.txt'}")
 
         # Copy sysbench_times.txt so report-parser.py can read WARMUP_END_TIME
         times_file = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_times.txt"

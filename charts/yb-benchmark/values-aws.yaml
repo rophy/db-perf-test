@@ -1,9 +1,8 @@
-# AWS k3s values — iter 22: 14× c7i.16xlarge scale-up (64 vCPU/tserver) targeting ~140K TPS.
+# AWS k3s values — multi-sysbench support.
 # Node layout (kube-sandbox two-role model):
-#   - role=db (tainted dedicated=db:NoSchedule): 14× c7i.16xlarge (64 vCPU / 128 GB) — 1 tserver per node
-#   - role=system: 4× c7i.4xlarge (16 vCPU / 32 GB) — 3 for yb-masters (anti-affinity spread) + 1 for sysbench
+#   - role=db (tainted dedicated=db:NoSchedule): tserver nodes — 1 tserver per node
+#   - role=system: system nodes — yb-masters (anti-affinity spread) + sysbench pods (1 per node)
 # Single AZ. Auto-tablet-split stays DISABLED (iter 21 finding).
-# gflags mirror iter 21. Scale-up test: 2× vCPU per tserver + 14 tservers (vs 12× c7i.8xlarge baseline).
 
 fullnameOverride: ""
 
@@ -27,6 +26,14 @@ sysbench:
   # the 4th node is the natural home for sysbench.
   affinity:
     podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/component
+            operator: In
+            values:
+            - sysbench
+        topologyKey: kubernetes.io/hostname
       preferredDuringSchedulingIgnoredDuringExecution:
       - weight: 100
         podAffinityTerm:
@@ -45,11 +52,13 @@ sysbench:
     password: yugabyte
     name: yugabyte
 
+  replicas: 2
+
   tables: 24
   tableSize: 100000
-  threads: 18000
-  time: 600
-  warmupTime: 120
+  threads: 6000
+  time: 300
+  warmupTime: 90
   reportInterval: 10
   workload: oltp_insert
 

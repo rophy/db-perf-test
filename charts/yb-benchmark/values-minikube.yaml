@@ -29,6 +29,8 @@ sysbench:
     password: yugabyte
     name: yugabyte
 
+  replicas: 1
+
   # Benchmark parameters
   tables: 10
   tableSize: 100000

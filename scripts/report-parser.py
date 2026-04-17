@@ -32,10 +32,10 @@ def parse_node_spec(report_path):
 
 
 def read_times(report_path):
-    """Return (run_start, warmup_end, run_end) in epoch seconds, or (None, None, None)."""
+    """Return dict of timestamp/config values from sysbench_times.txt."""
     path = os.path.join(report_path, 'sysbench_times.txt')
     if not os.path.exists(path):
-        return None, None, None
+        return {}
     values = {}
     with open(path, 'r') as f:
         for line in f:
@@ -47,11 +47,35 @@ def read_times(report_path):
                 values[k.strip()] = int(v.strip())
             except ValueError:
                 pass
-    return (
-        values.get('RUN_START_TIME'),
-        values.get('WARMUP_END_TIME'),
-        values.get('RUN_END_TIME'),
-    )
+    return values
+
+
+def parse_sysbench_spec(report_path):
+    """Print sysbench pod-to-node mapping from SYSBENCH_NODE_SPEC.txt."""
+    spec_path = os.path.join(report_path, 'SYSBENCH_NODE_SPEC.txt')
+    if not os.path.exists(spec_path):
+        return
+
+    with open(spec_path, 'r') as f:
+        lines = f.read().strip().split('\n')
+
+    if len(lines) < 2:
+        return
+
+    data_lines = lines[1:]
+    print(f"\n=== Sysbench Clients ===")
+    print(f"Pods: {len(data_lines)}")
+    for line in data_lines:
+        parts = line.split('\t')
+        if len(parts) >= 2:
+            print(f"  {parts[0]} -> {parts[1]}")
+
+
+INTERVAL_RE = re.compile(
+    r'\[\s*(\d+)s\s*\]\s*thds:\s*\d+\s*tps:\s*([\d.]+)\s*qps:\s*[\d.]+\s*'
+    r'\(r/w/o:\s*[\d.]+/[\d.]+/[\d.]+\)\s*lat\s*\(ms,95%\):\s*([\d.]+)\s*'
+    r'err/s:\s*([\d.]+)'
+)
 
 
 def read_intervals(report_path):
@@ -70,14 +94,42 @@ def read_intervals(report_path):
         return []
 
 
-def print_interval_table(intervals, warmup_len):
-    """Print per-interval table. warmup_len is seconds; None disables Phase column."""
+def read_per_pod_intervals(report_path):
+    """Read per-pod sysbench_output_N.txt files. Returns list of {time -> {tps, lat_95, err_s}}."""
+    pods = []
+    i = 0
+    while True:
+        path = os.path.join(report_path, f'sysbench_output_{i}.txt')
+        if not os.path.exists(path):
+            break
+        with open(path) as f:
+            text = f.read()
+        by_time = {}
+        for m in INTERVAL_RE.finditer(text):
+            by_time[int(m.group(1))] = {
+                'tps': float(m.group(2)),
+                'lat_95': float(m.group(3)),
+                'err_s': float(m.group(4)),
+            }
+        pods.append(by_time)
+        i += 1
+    return pods
+
+
+def print_interval_table(intervals, warmup_len, per_pod=None):
+    """Print per-interval table. warmup_len is seconds; None disables Phase column.
+    per_pod is a list of per-pod interval dicts (from read_per_pod_intervals)."""
     print("\n=== Sysbench Per-Interval Metrics ===")
     if not intervals:
         print("(no interval data found)")
         return
 
-    header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+    multi = per_pod and len(per_pod) > 1
+
+    if multi:
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {'p95(ms)':>20}  {'err/s':>13}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+    else:
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     print(header)
     print('-' * len(header))
     for iv in intervals:
@@ -99,7 +151,17 @@ def print_interval_table(intervals, warmup_len):
         net_s = f"{net:9.1f}" if net is not None else "      -  "
         wio_s = f"{wio:7,.0f}" if wio is not None else "     -  "
         cli_s = f"{cli:6.2f}" if cli is not None else "   -  "
-        print(f"{t:4d}  {phase:<6}  {tps:8,.0f}  {lat:8.1f}  {err:6.2f}  {cpu_s}  {mem_s}  {net_s}  {wio_s}  {cli_s}")
+
+        if multi:
+            pod_tps = [p.get(t, {}).get('tps') for p in per_pod]
+            pod_lat = [p.get(t, {}).get('lat_95') for p in per_pod]
+            pod_err = [p.get(t, {}).get('err_s') for p in per_pod]
+            tps_s = '/'.join(f'{v:,.0f}' if v is not None else '-' for v in pod_tps)
+            lat_s = '/'.join(f'{v:.0f}' if v is not None else '-' for v in pod_lat)
+            err_s = '/'.join(f'{v:.1f}' if v is not None else '-' for v in pod_err)
+            print(f"{t:4d}  {phase:<6}  {tps_s:>20}  {lat_s:>20}  {err_s:>13}  {cpu_s}  {mem_s}  {net_s}  {wio_s}  {cli_s}")
+        else:
+            print(f"{t:4d}  {phase:<6}  {tps:8,.0f}  {lat:8.1f}  {err:6.2f}  {cpu_s}  {mem_s}  {net_s}  {wio_s}  {cli_s}")
 
 
 def parse_sysbench_totals(report_path):
@@ -145,12 +207,16 @@ def main():
         print(f"Error: {report_path} is not a directory", file=sys.stderr)
         sys.exit(1)
 
-    run_start, warmup_end, _run_end = read_times(report_path)
+    times = read_times(report_path)
+    run_start = times.get('RUN_START_TIME')
+    warmup_end = times.get('WARMUP_END_TIME')
     warmup_len = (warmup_end - run_start) if (run_start and warmup_end) else None
 
     parse_node_spec(report_path)
+    parse_sysbench_spec(report_path)
     intervals = read_intervals(report_path)
-    print_interval_table(intervals, warmup_len)
+    per_pod = read_per_pod_intervals(report_path)
+    print_interval_table(intervals, warmup_len, per_pod)
     parse_sysbench_totals(report_path)
 
 
