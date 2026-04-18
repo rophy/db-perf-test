@@ -56,7 +56,7 @@ sysbench:
 
   tables: 24
   tableSize: 100000
-  threads: 6000
+  threads: 10500
   time: 300
   warmupTime: 90
   reportInterval: 10
@@ -111,7 +111,7 @@ yugabyte:
     tag: 2025.2.2.1-b1
   replicas:
     master: 3
-    tserver: 14
+    tserver: 57
   resource:
     master:
       requests:
@@ -122,8 +122,8 @@ yugabyte:
         memory: null
     tserver:
       requests:
-        cpu: "16"
-        memory: "32Gi"
+        cpu: "8"
+        memory: "16Gi"
       limits:
         cpu: null
         memory: null
@@ -144,7 +144,7 @@ yugabyte:
       ysql_num_shards_per_tserver: 2
       bytes_durable_wal_write_mb: 4
       interval_durable_wal_write_ms: 10000
-      ysql_max_connections: 2000
+      ysql_max_connections: 1000
       enable_automatic_tablet_splitting: false
   enableLoadBalancer: false
   ysql:

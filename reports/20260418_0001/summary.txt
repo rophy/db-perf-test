@@ -1,0 +1,108 @@
+=== Tserver Node Specs ===
+Tservers: 57
+  yb-tserver-0 -> ip-10-0-1-78.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-1 -> ip-10-0-1-156.ap-east-2.compute.internal: 16 CPU, 32315652Ki
+  yb-tserver-10 -> ip-10-0-1-30.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-11 -> ip-10-0-1-130.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-12 -> ip-10-0-1-80.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-13 -> ip-10-0-1-129.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-14 -> ip-10-0-1-179.ap-east-2.compute.internal: 16 CPU, 32315652Ki
+  yb-tserver-15 -> ip-10-0-1-64.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-16 -> ip-10-0-1-161.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-17 -> ip-10-0-1-175.ap-east-2.compute.internal: 16 CPU, 32315652Ki
+  yb-tserver-18 -> ip-10-0-1-7.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-19 -> ip-10-0-1-108.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-2 -> ip-10-0-1-113.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-20 -> ip-10-0-1-50.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-21 -> ip-10-0-1-171.ap-east-2.compute.internal: 16 CPU, 32315652Ki
+  yb-tserver-22 -> ip-10-0-1-184.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-23 -> ip-10-0-1-252.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-24 -> ip-10-0-1-98.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-25 -> ip-10-0-1-191.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-26 -> ip-10-0-1-193.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-27 -> ip-10-0-1-9.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-28 -> ip-10-0-1-8.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-29 -> ip-10-0-1-240.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-3 -> ip-10-0-1-213.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-30 -> ip-10-0-1-61.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-31 -> ip-10-0-1-217.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-32 -> ip-10-0-1-44.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-33 -> ip-10-0-1-16.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-34 -> ip-10-0-1-48.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-35 -> ip-10-0-1-17.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-36 -> ip-10-0-1-112.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-37 -> ip-10-0-1-122.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-38 -> ip-10-0-1-49.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-39 -> ip-10-0-1-95.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-4 -> ip-10-0-1-143.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-40 -> ip-10-0-1-228.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-41 -> ip-10-0-1-248.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-42 -> ip-10-0-1-96.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-43 -> ip-10-0-1-13.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-44 -> ip-10-0-1-152.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-45 -> ip-10-0-1-174.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-46 -> ip-10-0-1-92.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-47 -> ip-10-0-1-137.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-48 -> ip-10-0-1-38.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-49 -> ip-10-0-1-111.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-5 -> ip-10-0-1-107.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-50 -> ip-10-0-1-52.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-51 -> ip-10-0-1-181.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-52 -> ip-10-0-1-31.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-53 -> ip-10-0-1-155.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-54 -> ip-10-0-1-20.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-55 -> ip-10-0-1-55.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-56 -> ip-10-0-1-253.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-6 -> ip-10-0-1-75.ap-east-2.compute.internal: 16 CPU, 32315652Ki
+  yb-tserver-7 -> ip-10-0-1-140.ap-east-2.compute.internal: 16 CPU, 32315652Ki
+  yb-tserver-8 -> ip-10-0-1-237.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+  yb-tserver-9 -> ip-10-0-1-178.ap-east-2.compute.internal: 16 CPU, 32315660Ki
+
+=== Sysbench Clients ===
+Pods: 2
+  yb-bench-sysbench-0 -> ip-10-0-1-211.ap-east-2.compute.internal
+  yb-bench-sysbench-1 -> ip-10-0-1-212.ap-east-2.compute.internal
+
+=== Sysbench Per-Interval Metrics ===
+T(s)  Phase                    TPS               p95(ms)          err/s   CPU%   Mem(MB)  Net(MB/s)   WrIOPS  CliCPU
+--------------------------------------------------------------------------------------------------------------------
+  10  warmup         19,876/19,556             1740/1771        0.0/0.0    1.8    83,118       20.1       84    1.11
+  20  warmup         50,116/50,410             2238/2238        0.0/0.0    7.3   148,110       95.0      130    1.22
+  30  warmup         51,861/51,593             2009/2009        0.0/0.0   15.0   171,287      253.1      217    0.09
+  40  warmup         50,094/50,426             1803/1803        0.0/0.0   18.6   190,137      393.1      230    0.26
+  50  warmup         50,316/49,816             1171/1192        0.0/0.0   20.1   201,825      422.8      253    0.29
+  60  warmup         48,259/47,815               332/338        0.0/0.0   21.9   213,018      487.9      324    0.36
+  70  warmup         44,204/44,099                 89/91        0.0/0.0   24.5   225,998      601.5      321    0.26
+  80  warmup         47,784/47,740               167/164        0.0/0.0   32.4   240,061      806.9      475    0.26
+  90  warmup         45,703/44,948                 73/77        0.0/0.0   52.7   259,998     1168.8    1,155    0.26
+ 100  run            44,395/44,680                 30/30        0.0/0.0   69.9   289,021     1600.4    1,891    2.09
+ 110  run            47,165/47,834                 94/94        0.0/0.0   76.2   305,646     1823.6    2,561    2.09
+ 120  run            45,862/45,715               140/140        0.0/0.0   73.9   319,452     1741.7    2,830    1.43
+ 130  run            45,680/45,973                 67/69        0.0/0.0   72.6   328,321     1884.6    2,171    2.83
+ 140  run            46,070/46,302                 24/24        0.0/0.0   72.3   333,520     1749.6    2,217    1.11
+ 150  run            45,321/45,944               135/132        0.0/0.0   71.8   340,465     1907.2    2,759    1.76
+ 160  run            44,999/45,222                 21/22        0.0/0.0   71.3   343,811     1791.8    1,947    1.85
+ 170  run            44,680/44,205                 20/21        0.0/0.0   69.0   348,277     1836.8    1,788    1.62
+ 180  run            43,271/43,238               132/132        0.0/0.0   68.9   351,796     1500.9    2,224    0.81
+ 190  run            45,942/45,594               123/130        0.0/0.0   69.8   353,757     1670.2    2,751    1.67
+ 200  run            44,024/43,878                 33/33        0.0/0.0   68.8   356,563     1686.1    3,856    1.54
+ 210  run            39,402/40,145                 20/20        0.0/0.0   69.0   359,474     1484.8    2,017    0.95
+ 220  run            44,728/44,974                 48/49        0.0/0.0   69.4   366,351     1667.4    1,861    0.68
+ 230  run            46,452/46,423               145/148        0.0/0.0   68.9   369,739     1686.4    2,445    0.68
+ 240  run            42,287/43,016                 52/49        0.0/0.0   69.3   369,344     1643.8    2,848    0.80
+ 250  run            46,222/46,083                 26/26        0.0/0.0   69.2   370,650     1715.4    1,928    0.80
+ 260  run            43,571/44,022               119/119        0.0/0.0   68.5   373,641     1628.9    2,026    1.57
+ 270  run            42,449/42,266                 67/66        0.0/0.0   68.8   376,318     1787.8    1,800    0.80
+ 280  run            43,780/44,306                 25/24        0.0/0.0   68.2   379,077     1859.1    2,283    1.56
+ 290  run            44,336/44,823               115/113        0.0/0.0   68.2   377,591     1493.5    2,962    0.48
+ 300  run            42,938/43,419                 99/98        0.0/0.0   68.7   379,289     1760.6    2,653    1.59
+
+=== Sysbench Totals (as reported by sysbench; INCLUDES warmup) ===
+NOTE: these are run-averaged over warmup+run. For steady-state numbers,
+      read the per-interval table above and eyeball the post-warmup rows.
+  TPS avg:         90,735.79  (total txns: 27,546,506)
+  QPS avg:         90,735.79  (total qrys: 27,546,506)
+  p95 latency:        511.33 ms
+  Errors:                  0  (0.00/s)
+  Reconnects:              0  (0.00/s)
+  Elapsed:             303.6 s
