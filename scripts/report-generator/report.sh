@@ -44,16 +44,21 @@ echo ""
 
 # Execute
 echo "Generating report..."
-REPORT_OUTPUT=$(python3 "${SCRIPT_DIR}/generate_report.py" \
-    --start "$START_TIME" \
-    --end "$END_TIME" \
-    --kube-context "$KUBE_CONTEXT" \
-    --namespace "$NAMESPACE" \
-    --release-name "$RELEASE_NAME" \
-    --prometheus-url "$PROMETHEUS_URL" \
-    --output-dir "$OUTPUT_DIR" \
-    --title "Sysbench Stress Test Report" \
-    --pods "yb-tserver.*" "yb-master.*" "sysbench.*")
+PYTHON_ARGS=(
+    --start "$START_TIME"
+    --end "$END_TIME"
+    --kube-context "$KUBE_CONTEXT"
+    --namespace "$NAMESPACE"
+    --release-name "$RELEASE_NAME"
+    --prometheus-url "$PROMETHEUS_URL"
+    --output-dir "$OUTPUT_DIR"
+    --title "Sysbench Stress Test Report"
+    --pods "yb-tserver.*" "yb-master.*" "sysbench.*"
+)
+if [[ -n "$WARMUP_END_TIME" ]]; then
+    PYTHON_ARGS+=(--warmup-end "$WARMUP_END_TIME")
+fi
+REPORT_OUTPUT=$(python3 "${SCRIPT_DIR}/generate_report.py" "${PYTHON_ARGS[@]}")
 
 echo "$REPORT_OUTPUT"
 

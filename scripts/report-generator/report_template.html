@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -125,6 +128,40 @@
             position: relative;
             height: 300px;
             margin-bottom: 20px;
+        }
+        .chart-toolbar {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+        .toolbar-btn {
+            background: rgba(255, 255, 255, 0.92);
+            color: #555;
+            border: 1px solid #ddd;
+            padding: 3px 9px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        .toolbar-btn:hover {
+            background: #f0f3ff;
+            color: #4c5fd5;
+            border-color: #4c5fd5;
+        }
+        .pod-card-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .pod-card-header .pod-card-title h3 {
+            margin-bottom: 4px;
         }
         .chart-grid {
             display: grid;
@@ -543,8 +580,13 @@
             {% if by_pod[role] %}
             {% for card in by_pod[role] %}
             <div class="pod-card" data-pod="{{ card.pod }}" data-instance="{{ card.instance }}" data-role="{{ role }}">
-                <h3>{{ card.pod }}</h3>
-                <div class="pod-host">on node <strong>{{ card.instance }}</strong></div>
+                <div class="pod-card-header">
+                    <div class="pod-card-title">
+                        <h3>{{ card.pod }}</h3>
+                        <div class="pod-host">on node <strong>{{ card.instance }}</strong></div>
+                    </div>
+                    <button class="toolbar-btn pod-reset-btn" type="button">Reset zoom</button>
+                </div>
                 <div class="pod-charts">
                     <div class="mini-card">
                         <h4>CPU (cores)</h4>
@@ -758,6 +800,184 @@
             'rgba(236, 72, 153, 0.1)',
         ];
 
+        // Run-window timestamps for warmup shading + annotation. Null if not provided.
+        const RUN_START_MS  = {{ start_epoch }} * 1000;
+        const RUN_END_MS    = {{ end_epoch }} * 1000;
+        const WARMUP_END_MS = {% if warmup_end_epoch %}{{ warmup_end_epoch }} * 1000{% else %}null{% endif %};
+
+        // Custom plugin: draws a dashed vertical guide at chart._crosshairX (canvas px).
+        // The crosshair is set externally by syncCrosshair() and rendered each frame.
+        const crosshairPlugin = {
+            id: 'crosshair',
+            afterDatasetsDraw(chart) {
+                const x = chart._crosshairX;
+                if (x == null) return;
+                const { top, bottom } = chart.chartArea;
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(76, 95, 213, 0.55)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+                ctx.stroke();
+                ctx.restore();
+            },
+        };
+        Chart.register(crosshairPlugin);
+
+        // Common annotation block (warmup shaded box + warmup-end vertical line).
+        // Returned as a fresh object each call so different charts can mutate
+        // without aliasing.
+        function warmupAnnotations() {
+            if (WARMUP_END_MS == null) return {};
+            return {
+                warmupBox: {
+                    type: 'box',
+                    xMin: RUN_START_MS,
+                    xMax: WARMUP_END_MS,
+                    backgroundColor: 'rgba(180, 180, 180, 0.12)',
+                    borderWidth: 0,
+                },
+                warmupLine: {
+                    type: 'line',
+                    xMin: WARMUP_END_MS,
+                    xMax: WARMUP_END_MS,
+                    borderColor: 'rgba(120, 120, 120, 0.55)',
+                    borderWidth: 1,
+                    borderDash: [4, 4],
+                    label: {
+                        display: true,
+                        content: 'warmup end',
+                        position: 'start',
+                        backgroundColor: 'rgba(120, 120, 120, 0.7)',
+                        color: 'white',
+                        font: { size: 10 },
+                        padding: { x: 4, y: 2 },
+                    },
+                },
+            };
+        }
+
+        // Shared chart options. timeAxis=true uses a Date X-axis (Prometheus
+        // series); false uses the simple categorical axis (sysbench intervals).
+        function commonOptions(yAxisLabel, timeAxis = true) {
+            const xScale = timeAxis
+                ? { type: 'time',
+                    time: { displayFormats: { second: 'HH:mm:ss', minute: 'HH:mm' } },
+                    title: { display: true, text: 'Time' } }
+                : { title: { display: true, text: 'Time (s)' } };
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: xScale,
+                    y: { beginAtZero: true, title: { display: true, text: yAxisLabel } },
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    annotation: { annotations: timeAxis ? warmupAnnotations() : {} },
+                    zoom: {
+                        pan: { enabled: false },
+                        zoom: {
+                            wheel: { enabled: true, modifierKey: 'shift' },
+                            drag:  { enabled: true, backgroundColor: 'rgba(76,95,213,0.15)' },
+                            mode: 'x',
+                        },
+                    },
+                },
+            };
+        }
+
+        // Inject a CSV-export button into the chart's container. Idempotent.
+        function attachToolbar(chart, exportName) {
+            const container = chart.canvas.parentElement;
+            if (!container || container.querySelector('.chart-toolbar')) return;
+            const bar = document.createElement('div');
+            bar.className = 'chart-toolbar';
+            const csv = document.createElement('button');
+            csv.type = 'button';
+            csv.className = 'toolbar-btn';
+            csv.textContent = '⬇ CSV';
+            csv.title = 'Download time-series as CSV';
+            csv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadChartCSV(chart, exportName);
+            });
+            bar.appendChild(csv);
+            container.appendChild(bar);
+            // Make the container a positioning context for the absolute toolbar.
+            if (getComputedStyle(container).position === 'static') {
+                container.style.position = 'relative';
+            }
+        }
+
+        // Serialize all datasets into a CSV with one row per X value. Dataset 0's
+        // X axis seeds the row order; other datasets are assumed aligned.
+        function downloadChartCSV(chart, exportName) {
+            const datasets = chart.data.datasets;
+            if (!datasets.length) return;
+            const header = ['x', ...datasets.map(d => `"${(d.label || '').replace(/"/g, '""')}"`)].join(',');
+            const rows = [header];
+            const xs = datasets[0].data.map(d => (d && d.x instanceof Date) ? d.x.toISOString() : (d && d.x != null ? d.x : ''));
+            for (let i = 0; i < xs.length; i++) {
+                const row = [xs[i]];
+                for (const ds of datasets) {
+                    const pt = ds.data[i];
+                    const y = pt && pt.y != null ? pt.y : '';
+                    row.push(y);
+                }
+                rows.push(row.join(','));
+            }
+            const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (exportName || 'chart') + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Sync a crosshair guide across every Chart instance inside `card`.
+        // No-op if the card has fewer than 2 charts.
+        function syncCrosshair(card) {
+            const charts = [...card.querySelectorAll('canvas')]
+                .map(c => Chart.getChart(c)).filter(Boolean);
+            if (charts.length < 2) return;
+            for (const chart of charts) {
+                chart.canvas.addEventListener('mousemove', (e) => {
+                    const rect = chart.canvas.getBoundingClientRect();
+                    const px = e.clientX - rect.left;
+                    const dataX = chart.scales.x.getValueForPixel(px);
+                    for (const c of charts) {
+                        c._crosshairX = c.scales.x.getPixelForValue(dataX);
+                        c.draw();
+                    }
+                });
+                chart.canvas.addEventListener('mouseleave', () => {
+                    for (const c of charts) {
+                        c._crosshairX = null;
+                        c.draw();
+                    }
+                });
+            }
+        }
+
+        // Wire the per-pod "Reset zoom" button to reset every chart in the card.
+        function attachPodResetButton(card) {
+            const btn = card.querySelector('.pod-reset-btn');
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                card.querySelectorAll('canvas').forEach(c => {
+                    const chart = Chart.getChart(c);
+                    if (chart && chart.resetZoom) chart.resetZoom();
+                });
+            });
+        }
+
         function createChart(canvasId, seriesData, yAxisLabel) {
             const canvas = document.getElementById(canvasId);
             if (!canvas || !seriesData || seriesData.length === 0) return;
@@ -775,45 +995,13 @@
                 pointRadius: 0,
             }));
 
-            new Chart(canvas, {
+            const chart = new Chart(canvas, {
                 type: 'line',
                 data: { datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                displayFormats: {
-                                    second: 'HH:mm:ss',
-                                    minute: 'HH:mm',
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: yAxisLabel
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
+                options: commonOptions(yAxisLabel, true),
             });
+            attachToolbar(chart, canvasId);
+            return chart;
         }
 
         // Build a Chart.js line chart from a list of {label, series, dashed} entries.
@@ -835,27 +1023,13 @@
                 tension: 0.3,
                 pointRadius: 0,
             }));
-            new Chart(canvas, {
+            const chart = new Chart(canvas, {
                 type: 'line',
                 data: { datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: { displayFormats: { second: 'HH:mm:ss', minute: 'HH:mm' } },
-                            title: { display: true, text: 'Time' },
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: yAxisLabel },
-                        },
-                    },
-                    plugins: { legend: { position: 'top' } },
-                },
+                options: commonOptions(yAxisLabel, true),
             });
+            attachToolbar(chart, canvasId);
+            return chart;
         }
 
         const metricsData = {{ metrics | tojson }};
@@ -918,6 +1092,12 @@
                     { label: card.instance + ' read IOPS',  series: node.node_disk_read_iops,  dashed: true },
                 ], 'IOPS');
             }
+            // Wire crosshair sync + reset zoom for each card now that all 4
+            // charts in the card exist.
+            document.querySelectorAll(`.tab-content#tab-${role} .pod-card`).forEach(card => {
+                syncCrosshair(card);
+                attachPodResetButton(card);
+            });
         }
 
         // -------- Raw cluster charts (legacy view) --------
@@ -953,20 +1133,13 @@
         function createSimpleChart(canvasId, labels, datasets, yAxisLabel) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
-            new Chart(canvas, {
+            const chart = new Chart(canvas, {
                 type: 'line',
                 data: { labels, datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        x: { title: { display: true, text: 'Time (s)' } },
-                        y: { beginAtZero: true, title: { display: true, text: yAxisLabel } }
-                    },
-                    plugins: { legend: { position: 'top' } }
-                }
+                options: commonOptions(yAxisLabel, false),
             });
+            attachToolbar(chart, canvasId);
+            return chart;
         }
 
         const sbLabels = sysbenchIntervals.map(i => i.time + 's');

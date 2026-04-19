@@ -54,6 +54,7 @@ class ReportConfig:
     """Configuration for report generation."""
     start_time: float
     end_time: float
+    warmup_end: Optional[float] = None
     step: int = 30
     kube_context: str = "minikube"
     namespace: str = "yugabyte-test"
@@ -758,6 +759,9 @@ class ReportGenerator:
             "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
             "end_time": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
             "duration": f"{duration_min:.1f} minutes",
+            "start_epoch": int(self.config.start_time),
+            "end_epoch": int(self.config.end_time),
+            "warmup_end_epoch": int(self.config.warmup_end) if self.config.warmup_end else None,
             "pods": self.config.pods,
             "metrics": self.metrics_data,
             "by_pod": self.by_pod,
@@ -983,6 +987,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generate stress test report from Prometheus metrics")
     parser.add_argument("--start", type=float, required=True, help="Start timestamp (Unix)")
     parser.add_argument("--end", type=float, required=True, help="End timestamp (Unix)")
+    parser.add_argument("--warmup-end", type=float, default=None,
+                        help="Warmup end timestamp (Unix); shaded on charts if set")
     parser.add_argument("--step", type=int, default=30, help="Query step in seconds (default: 30)")
     parser.add_argument("--kube-context", default="minikube", help="Kubernetes context")
     parser.add_argument("--namespace", default="yugabyte-test", help="Kubernetes namespace")
@@ -1002,6 +1008,7 @@ def main():
     config = ReportConfig(
         start_time=args.start,
         end_time=args.end,
+        warmup_end=args.warmup_end,
         step=args.step,
         kube_context=args.kube_context,
         namespace=args.namespace,
