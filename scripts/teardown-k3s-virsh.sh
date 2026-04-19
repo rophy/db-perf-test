@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-ygdb}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
 VM_PREFIX="${VM_PREFIX:-ygdb}"
 WORKER_COUNT="${WORKER_COUNT:-3}"
 

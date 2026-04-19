@@ -77,11 +77,11 @@ make sysbench-run KUBE_CONTEXT=my-eks-cluster
 DISK_DELAY_MS=50 ./scripts/setup-slow-disk.sh
 
 # Deploy YugabyteDB
-make deploy-k3s-virsh KUBE_CONTEXT=k3s-ygdb
+make deploy-k3s-virsh KUBE_CONTEXT=k3s-virsh
 
 # Run benchmark
-make sysbench-prepare KUBE_CONTEXT=k3s-ygdb
-make sysbench-run KUBE_CONTEXT=k3s-ygdb
+make sysbench-prepare KUBE_CONTEXT=k3s-virsh
+make sysbench-run KUBE_CONTEXT=k3s-virsh
 
 # Optional: throttle disk throughput on running cluster (non-destructive)
 DISK_BW_MBPS=10 ./scripts/setup-slow-throughput.sh
@@ -90,7 +90,7 @@ DISK_BW_MBPS=10 ./scripts/setup-slow-throughput.sh
 DISK_DELAY_MS=5 ./scripts/adjust-disk-delay.sh
 
 # Cleanup
-make clean KUBE_CONTEXT=k3s-ygdb
+make clean KUBE_CONTEXT=k3s-virsh
 ./scripts/teardown-k3s-virsh.sh
 ```
 

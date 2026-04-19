@@ -12,7 +12,7 @@ set -euo pipefail
 #   ft-run.sh --scenario 2-tserver-down --target "yb-tserver-0 yb-tserver-1"
 #   ft-run.sh --scenario 1-master-down --target yb-master-0
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-ygdb}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
 FAILURE_MODE="${FAILURE_MODE:-pod-delete}"
 FAILURE_DURATION="${FAILURE_DURATION:-30}"

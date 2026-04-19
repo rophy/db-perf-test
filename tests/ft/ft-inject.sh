@@ -10,7 +10,7 @@ set -euo pipefail
 #
 # Targets: yb-tserver-0, yb-tserver-1, yb-tserver-2, yb-master-0, etc.
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-ygdb}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
 FAILURE_MODE="${FAILURE_MODE:-pod-delete}"
 

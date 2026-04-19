@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Configuration
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-ygdb}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
 VM_PREFIX="${VM_PREFIX:-ygdb}"
 CONTROL_CPUS="${CONTROL_CPUS:-2}"
 CONTROL_MEMORY="${CONTROL_MEMORY:-8192}"

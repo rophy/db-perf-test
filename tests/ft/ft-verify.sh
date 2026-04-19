@@ -6,7 +6,7 @@ set -euo pipefail
 #
 # Usage: ft-verify.sh <journal_file> [report_dir]
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-ygdb}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
 
 JOURNAL_FILE="${1:?Usage: ft-verify.sh <journal_file> [report_dir]}"

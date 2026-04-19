@@ -68,4 +68,4 @@ Test results are saved to `tests/ft/reports/<scenario>_<timestamp>/`:
 ## Prerequisites
 
 - k3s-virsh cluster running with YugabyteDB deployed
-- kubectl context: `k3s-ygdb` (or set `KUBE_CONTEXT`)
+- kubectl context: `k3s-virsh` (or set `KUBE_CONTEXT`)
