@@ -279,52 +279,98 @@ class ReportGenerator:
     def collect_container_metrics(self):
         """Collect CPU, memory, network, disk metrics for pods."""
         pods_regex = "|".join(self.config.pods)
+        ns = self.config.namespace
 
-        # Use container="" to get pod-level cgroup metrics (aggregates all containers)
-        pod_cgroup = 'container=""'
+        # Sum of real per-container rows. Avoid the pod-cgroup row (container="")
+        # because it drifts ~20-30% from the per-container sum under rate(). Also
+        # exclude "POD" (docker/EKS pause-container label) for portability; on k3s
+        # the pause container has no container label so this filter is a no-op.
+        container_filter = 'container!="",container!="POD"'
 
-        # CPU usage (percentage)
-        cpu_query = f'sum(rate(container_cpu_usage_seconds_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}[30s])) by (pod) * 100'
-        self.metrics_data["cpu"] = self._query_and_aggregate(cpu_query, "CPU Usage (%)")
+        # Window for cAdvisor-sourced rates. cAdvisor refreshes its counters
+        # internally only every ~10-15s regardless of Prometheus scrape_interval,
+        # so a 15s window often captures fewer than 2 distinct raw samples and
+        # irate returns no value. 30s reliably spans 2+ refreshes.
+        cadvisor_window = "30s"
 
-        # Memory usage (MB)
-        mem_query = f'sum(container_memory_working_set_bytes{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}) by (pod) / 1024 / 1024'
+        # CPU usage (cores).
+        cpu_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_cpu_usage_seconds_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}]))'
+        )
+        self.metrics_data["cpu"] = self._query_and_aggregate(cpu_query, "CPU Usage (cores)")
+
+        # Memory usage (MB) — gauge, no rate. Sum per-container rows for parity
+        # with the CPU query.
+        mem_query = (
+            f'sum by (instance, pod) ('
+            f'container_memory_working_set_bytes{{namespace="{ns}",'
+            f'pod=~"{pods_regex}",{container_filter}}}) / 1024 / 1024'
+        )
         self.metrics_data["memory"] = self._query_and_aggregate(mem_query, "Memory Usage (MB)")
 
-        # Network RX (bytes/s) - network metrics are only at pod level
-        net_rx_query = f'sum(rate(container_network_receive_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod)'
+        # Network RX/TX (bytes/s) — cAdvisor only emits pod-level rows for these
+        # (shared netns), so no container filter is needed.
+        net_rx_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_network_receive_bytes_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}"}}[{cadvisor_window}]))'
+        )
         self.metrics_data["network_rx"] = self._query_and_aggregate(net_rx_query, "Network RX (B/s)")
 
-        # Network TX (bytes/s) - network metrics are only at pod level
-        net_tx_query = f'sum(rate(container_network_transmit_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}"}}[30s])) by (pod)'
+        net_tx_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_network_transmit_bytes_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}"}}[{cadvisor_window}]))'
+        )
         self.metrics_data["network_tx"] = self._query_and_aggregate(net_tx_query, "Network TX (B/s)")
 
-        # Disk Read IOPS (ops/s)
-        disk_read_iops_query = f'sum(rate(container_fs_reads_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}[30s])) by (pod)'
+        # Disk Read/Write IOPS and Throughput — per-container rows with same filter.
+        disk_read_iops_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_fs_reads_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}]))'
+        )
         self.metrics_data["disk_read_iops"] = self._query_and_aggregate(disk_read_iops_query, "Disk Read IOPS")
 
-        # Disk Write IOPS (ops/s)
-        disk_write_iops_query = f'sum(rate(container_fs_writes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}[30s])) by (pod)'
+        disk_write_iops_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_fs_writes_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}]))'
+        )
         self.metrics_data["disk_write_iops"] = self._query_and_aggregate(disk_write_iops_query, "Disk Write IOPS")
 
-        # Disk Read Throughput (MB/s)
-        disk_read_throughput_query = f'sum(rate(container_fs_reads_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}[30s])) by (pod) / 1024 / 1024'
+        disk_read_throughput_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_fs_reads_bytes_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}])) / 1024 / 1024'
+        )
         self.metrics_data["disk_read_throughput"] = self._query_and_aggregate(disk_read_throughput_query, "Disk Read (MB/s)")
 
-        # Disk Write Throughput (MB/s)
-        disk_write_throughput_query = f'sum(rate(container_fs_writes_bytes_total{{namespace="{self.config.namespace}",pod=~"{pods_regex}",{pod_cgroup}}}[30s])) by (pod) / 1024 / 1024'
+        disk_write_throughput_query = (
+            f'sum by (instance, pod) ('
+            f'irate(container_fs_writes_bytes_total{{namespace="{ns}",'
+            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}])) / 1024 / 1024'
+        )
         self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)")
 
     def collect_node_metrics(self):
         """Collect node-level CPU metrics from node_exporter."""
-        # Node CPU usage by mode (percentage) - grouped by instance
-        # Total CPU utilization (100% - idle%)
-        node_cpu_query = '(1 - avg(rate(node_cpu_seconds_total{mode="idle"}[30s])) by (instance)) * 100'
-        self.metrics_data["node_cpu"] = self._query_and_aggregate_by_instance(node_cpu_query, "Node CPU Total (%)")
+        # Node CPU in cores-used, per instance.
+        #   count-by-instance of idle rows  = total CPUs on that node
+        #   sum-by-instance of irate(idle)  = idle cores
+        #   difference                      = cores in use
+        # Reported in cores so it overlays 1:1 with container CPU (also cores).
+        node_cpu_query = (
+            '(count by (instance) (node_cpu_seconds_total{mode="idle"})) '
+            '- sum by (instance) (irate(node_cpu_seconds_total{mode="idle"}[15s]))'
+        )
+        self.metrics_data["node_cpu"] = self._query_and_aggregate_by_instance(node_cpu_query, "Node CPU Total (cores)")
 
-        # CPU breakdown by mode
+        # CPU breakdown by mode (kept as percent — informational detail charts).
         for mode in ["user", "system", "iowait", "steal", "softirq"]:
-            query = f'avg(rate(node_cpu_seconds_total{{mode="{mode}"}}[30s])) by (instance) * 100'
+            query = f'avg by (instance) (irate(node_cpu_seconds_total{{mode="{mode}"}}[15s])) * 100'
             self.metrics_data[f"node_cpu_{mode}"] = self._query_and_aggregate_by_instance(query, f"Node CPU {mode} (%)")
 
     def _query_and_aggregate_by_instance(self, query: str, display_name: str) -> dict:
@@ -377,39 +423,42 @@ class ReportGenerator:
         """
         ns = self.config.namespace
         tserver_regex = "yb-tserver.*"
-        pod_cgroup = 'container=""'
+        container_filter = 'container!="",container!="POD"'
+        # node_cpu_seconds_total refreshes every scrape (5s); cAdvisor refreshes
+        # every ~10-15s so its rate windows must be wider. See collect_container_metrics.
+        node_window = "15s"
+        cadvisor_window = "30s"
 
         queries = {
-            # DB-node VM CPU %, averaged across all role=db nodes
-            "cpu_pct": (
-                '(1 - avg(rate(node_cpu_seconds_total{mode="idle",role="db"}[30s]))) * 100'
+            # DB-node VM CPU in cores-used, averaged across role=db nodes.
+            "cpu_cores": (
+                'avg('
+                'count by (instance) (node_cpu_seconds_total{mode="idle",role="db"}) '
+                f'- sum by (instance) (irate(node_cpu_seconds_total{{mode="idle",role="db"}}[{node_window}])))'
             ),
-            # Total tserver-container memory in MB
+            # Total tserver-container memory in MB (sum of per-container rows).
             "mem_mb": (
                 f'sum(container_memory_working_set_bytes{{namespace="{ns}",'
-                f'pod=~"{tserver_regex}",{pod_cgroup}}}) / 1024 / 1024'
+                f'pod=~"{tserver_regex}",{container_filter}}}) / 1024 / 1024'
             ),
-            # Network RX+TX MB/s across tserver pods
+            # Network RX+TX MB/s across tserver pods (pod-level only — no container filter).
             "net_rx_mb": (
-                f'sum(rate(container_network_receive_bytes_total{{namespace="{ns}",'
-                f'pod=~"{tserver_regex}"}}[30s])) / 1024 / 1024'
+                f'sum(irate(container_network_receive_bytes_total{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}"}}[{cadvisor_window}])) / 1024 / 1024'
             ),
             "net_tx_mb": (
-                f'sum(rate(container_network_transmit_bytes_total{{namespace="{ns}",'
-                f'pod=~"{tserver_regex}"}}[30s])) / 1024 / 1024'
+                f'sum(irate(container_network_transmit_bytes_total{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}"}}[{cadvisor_window}])) / 1024 / 1024'
             ),
-            # Disk write IOPS across tserver pods
+            # Disk write IOPS across tserver pods.
             "disk_write_iops": (
-                f'sum(rate(container_fs_writes_total{{namespace="{ns}",'
-                f'pod=~"{tserver_regex}",{pod_cgroup}}}[30s]))'
+                f'sum(irate(container_fs_writes_total{{namespace="{ns}",'
+                f'pod=~"{tserver_regex}",{container_filter}}}[{cadvisor_window}]))'
             ),
             # Sysbench (client) pod CPU in cores consumed, summed across replicas.
-            # Pod name contains "sysbench" regardless of release name.
-            # NOTE: unlike memory/disk, cAdvisor's CPU metric does not emit a
-            # pod-level aggregate row (container=""); sum per-container rows instead.
             "client_cpu_cores": (
-                f'sum(rate(container_cpu_usage_seconds_total{{namespace="{ns}",'
-                f'pod=~".*sysbench.*",container!=""}}[30s]))'
+                f'sum(irate(container_cpu_usage_seconds_total{{namespace="{ns}",'
+                f'pod=~".*sysbench.*",{container_filter}}}[{cadvisor_window}]))'
             ),
         }
 
@@ -448,7 +497,7 @@ class ReportGenerator:
         for iv in intervals:
             target_ts = int(self.config.start_time + iv["time"])
             row = dict(iv)
-            row["cpu_pct"] = self._nearest_value(series["cpu_pct"], target_ts, max_skew)
+            row["cpu_cores"] = self._nearest_value(series["cpu_cores"], target_ts, max_skew)
             row["mem_mb"] = self._nearest_value(series["mem_mb"], target_ts, max_skew)
             rx = self._nearest_value(series["net_rx_mb"], target_ts, max_skew)
             tx = self._nearest_value(series["net_tx_mb"], target_ts, max_skew)
@@ -466,7 +515,9 @@ class ReportGenerator:
         """Collect custom rate and total metrics."""
         for metric_expr in self.config.rate_metrics:
             key = f"rate_{metric_expr.replace('{', '_').replace('}', '_').replace(',', '_')}"
-            query = f"sum(rate({metric_expr}[30s]))"
+            # 30s window is wider than cAdvisor's internal refresh cadence (~10-15s)
+            # and plenty for node_exporter (5s scrapes). Works for both source types.
+            query = f"sum(irate({metric_expr}[30s]))"
             self.metrics_data[key] = self._query_and_aggregate(query, f"Rate: {metric_expr}")
 
         for metric_expr in self.config.total_metrics:

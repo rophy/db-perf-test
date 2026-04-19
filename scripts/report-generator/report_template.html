@@ -375,7 +375,7 @@
                 Each row is one sysbench reporting interval. TPS / latency / errors come
                 from sysbench. CPU / memory / network / disk are sampled from Prometheus
                 at the same instant (sum across tserver pods, except CPU which is the
-                average of DB-node VM CPU %).
+                average of DB-node VM cores used).
             </p>
             <table class="summary-table">
                 <thead>
@@ -384,7 +384,7 @@
                         <th>TPS</th>
                         <th>Lat p95 (ms)</th>
                         <th>Err/s</th>
-                        <th>CPU %</th>
+                        <th>CPU (cores)</th>
                         <th>Mem (MB)</th>
                         <th>Net (MB/s)</th>
                         <th>Disk WrIOPS</th>
@@ -397,7 +397,7 @@
                         <td class="stat-value">{{ "%.0f"|format(iv.tps) }}</td>
                         <td class="stat-value">{{ "%.1f"|format(iv.lat_95) }}</td>
                         <td class="stat-value">{{ "%.2f"|format(iv.err_s) }}</td>
-                        <td class="stat-value">{% if iv.cpu_pct is not none %}{{ "%.1f"|format(iv.cpu_pct) }}{% else %}—{% endif %}</td>
+                        <td class="stat-value">{% if iv.cpu_cores is not none %}{{ "%.2f"|format(iv.cpu_cores) }}{% else %}—{% endif %}</td>
                         <td class="stat-value">{% if iv.mem_mb is not none %}{{ "%.0f"|format(iv.mem_mb) }}{% else %}—{% endif %}</td>
                         <td class="stat-value">{% if iv.net_mb is not none %}{{ "%.1f"|format(iv.net_mb) }}{% else %}—{% endif %}</td>
                         <td class="stat-value">{% if iv.disk_write_iops is not none %}{{ "%.0f"|format(iv.disk_write_iops) }}{% else %}—{% endif %}</td>
@@ -460,7 +460,7 @@
             <div class="chart-grid">
                 {% if metrics.cpu and metrics.cpu.series %}
                 <div class="chart-card">
-                    <h3>CPU Usage (%)</h3>
+                    <h3>CPU Usage (cores)</h3>
                     <div class="chart-container">
                         <canvas id="cpu-chart"></canvas>
                     </div>
@@ -537,7 +537,7 @@
             <h2>Node-Level CPU (VM)</h2>
             <div class="chart-grid">
                 <div class="chart-card">
-                    <h3>Total CPU Usage (%)</h3>
+                    <h3>Total CPU Usage (cores)</h3>
                     <div class="chart-container">
                         <canvas id="node-cpu-chart"></canvas>
                     </div>
@@ -702,7 +702,7 @@
         const metricsData = {{ metrics | tojson }};
 
         // Resource charts
-        if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'CPU %');
+        if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'cores');
         if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
         if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
         if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
@@ -714,7 +714,7 @@
         if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
 
         // Node-level CPU charts
-        if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'CPU %');
+        if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'cores');
         if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
         if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
         if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');

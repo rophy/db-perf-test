@@ -127,9 +127,9 @@ def print_interval_table(intervals, warmup_len, per_pod=None):
     multi = per_pod and len(per_pod) > 1
 
     if multi:
-        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {'p95(ms)':>20}  {'err/s':>13}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {'p95(ms)':>20}  {'err/s':>13}  {'CPU(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     else:
-        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU%':>5}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     print(header)
     print('-' * len(header))
     for iv in intervals:
@@ -140,13 +140,13 @@ def print_interval_table(intervals, warmup_len, per_pod=None):
         tps = iv.get('tps', 0) or 0
         lat = iv.get('lat_95', 0) or 0
         err = iv.get('err_s', 0) or 0
-        cpu = iv.get('cpu_pct')
+        cpu = iv.get('cpu_cores')
         mem = iv.get('mem_mb')
         net = iv.get('net_mb')
         wio = iv.get('disk_write_iops')
         cli = iv.get('client_cpu_cores')
 
-        cpu_s = f"{cpu:5.1f}" if cpu is not None else "  -  "
+        cpu_s = f"{cpu:7.2f}" if cpu is not None else "   -   "
         mem_s = f"{mem:8,.0f}" if mem is not None else "     -  "
         net_s = f"{net:9.1f}" if net is not None else "      -  "
         wio_s = f"{wio:7,.0f}" if wio is not None else "     -  "
