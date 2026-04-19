@@ -578,6 +578,40 @@
         {% for role, label in [('master', 'yb-master'), ('tserver', 'tservers'), ('other', 'others')] %}
         <div class="tab-content" id="tab-{{ role }}">
             {% if by_pod[role] %}
+            {% set role_instances = by_pod[role] | map(attribute='instance') | list | unique | list %}
+            {% if role_instances %}
+            <div class="pod-card aggregated-card" data-role="{{ role }}">
+                <div class="pod-card-header">
+                    <div class="pod-card-title">
+                        <h3>Aggregated</h3>
+                        <div class="pod-host">
+                            node_exporter view across {{ role_instances|length }}
+                            {% if role_instances|length == 1 %}node{% else %}nodes{% endif %}:
+                            <strong>{{ role_instances | join(', ') }}</strong>
+                        </div>
+                    </div>
+                    <button class="toolbar-btn pod-reset-btn" type="button">Reset zoom</button>
+                </div>
+                <div class="pod-charts">
+                    <div class="mini-card">
+                        <h4>CPU (cores)</h4>
+                        <div class="chart-container"><canvas id="agg-{{ role }}-cpu"></canvas></div>
+                    </div>
+                    <div class="mini-card">
+                        <h4>Memory (MB)</h4>
+                        <div class="chart-container"><canvas id="agg-{{ role }}-mem"></canvas></div>
+                    </div>
+                    <div class="mini-card">
+                        <h4>Network (MB/s)</h4>
+                        <div class="chart-container"><canvas id="agg-{{ role }}-net"></canvas></div>
+                    </div>
+                    <div class="mini-card">
+                        <h4>Disk IOPS</h4>
+                        <div class="chart-container"><canvas id="agg-{{ role }}-disk"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             {% for card in by_pod[role] %}
             <div class="pod-card" data-pod="{{ card.pod }}" data-instance="{{ card.instance }}" data-role="{{ role }}">
                 <div class="pod-card-header">
@@ -1066,6 +1100,35 @@
         // -------- Per-pod cards --------
         function buildPodCards(role) {
             const cards = byPod[role] || [];
+
+            // First card: aggregated node_exporter view across the distinct
+            // host nodes that run pods of this role. One line per node,
+            // matching the 4-chart (CPU/Mem/Net/Disk) mini-card layout.
+            const nodeNames = [...new Set(cards.map(c => c.instance))].sort();
+            if (nodeNames.length > 0) {
+                const nodes = nodeNames.map(inst => ({ instance: inst, ...(byNode[inst] || {}) }));
+
+                createOverlayChart('agg-' + role + '-cpu',
+                    nodes.map(n => ({ label: n.instance, series: n.node_cpu })),
+                    'cores');
+
+                createOverlayChart('agg-' + role + '-mem',
+                    nodes.map(n => ({ label: n.instance, series: n.node_memory })),
+                    'MB');
+
+                // RX (solid) and TX (dashed) per node on one chart.
+                const netLayers = [];
+                for (const n of nodes) netLayers.push({ label: n.instance + ' RX', series: n.node_network_rx });
+                for (const n of nodes) netLayers.push({ label: n.instance + ' TX', series: n.node_network_tx, dashed: true });
+                createOverlayChart('agg-' + role + '-net', netLayers, 'MB/s');
+
+                // Write (solid) and Read (dashed) per node.
+                const diskLayers = [];
+                for (const n of nodes) diskLayers.push({ label: n.instance + ' write', series: n.node_disk_write_iops });
+                for (const n of nodes) diskLayers.push({ label: n.instance + ' read',  series: n.node_disk_read_iops, dashed: true });
+                createOverlayChart('agg-' + role + '-disk', diskLayers, 'IOPS');
+            }
+
             for (const card of cards) {
                 const node = byNode[card.instance] || {};
                 createOverlayChart('pod-' + card.pod + '-cpu', [
@@ -1083,7 +1146,7 @@
                     { label: card.pod + ' TX', series: card.network_tx },
                     { label: card.instance + ' RX', series: node.node_network_rx, dashed: true },
                     { label: card.instance + ' TX', series: node.node_network_tx, dashed: true },
-                ], 'B/s');
+                ], 'MB/s');
 
                 createOverlayChart('pod-' + card.pod + '-disk', [
                     { label: card.pod + ' write IOPS', series: card.disk_write_iops },
@@ -1092,8 +1155,8 @@
                     { label: card.instance + ' read IOPS',  series: node.node_disk_read_iops,  dashed: true },
                 ], 'IOPS');
             }
-            // Wire crosshair sync + reset zoom for each card now that all 4
-            // charts in the card exist.
+            // Wire crosshair sync + reset zoom for every card (aggregated and
+            // per-pod) now that all 4 charts in each card exist.
             document.querySelectorAll(`.tab-content#tab-${role} .pod-card`).forEach(card => {
                 syncCrosshair(card);
                 attachPodResetButton(card);
