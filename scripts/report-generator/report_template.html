@@ -28,7 +28,7 @@
             color: white;
             padding: 30px;
             border-radius: 10px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         header h1 {
@@ -49,6 +49,40 @@
         }
         .metadata-label {
             font-weight: 600;
+        }
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e3e8ff;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 10px 18px;
+            background: white;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #666;
+            font-weight: 500;
+            transition: background 120ms, color 120ms;
+        }
+        .tab:hover {
+            background: #f0f3ff;
+            color: #4c5fd5;
+        }
+        .tab.active {
+            background: #4c5fd5;
+            color: white;
+            border-color: #4c5fd5;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
         }
         .section {
             background: white;
@@ -148,6 +182,45 @@
             font-weight: 600;
             color: #555;
         }
+        .pod-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .pod-card h3 {
+            font-size: 1.1rem;
+            color: #444;
+            margin-bottom: 4px;
+        }
+        .pod-card .pod-host {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+        .pod-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 18px;
+        }
+        .pod-charts .chart-container {
+            height: 220px;
+            margin-bottom: 0;
+        }
+        .pod-charts .mini-card h4 {
+            font-size: 0.92rem;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .empty-tab {
+            padding: 40px;
+            text-align: center;
+            color: #888;
+            background: white;
+            border-radius: 10px;
+        }
         footer {
             text-align: center;
             padding: 20px;
@@ -190,431 +263,476 @@
             </div>
         </header>
 
-        {% if cluster_spec %}
-        <section class="section">
-            <h2>Cluster Configuration</h2>
-            <div class="spec-grid">
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Component</th>
-                            <th>Replicas</th>
-                            <th>CPU Request</th>
-                            <th>CPU Limit</th>
-                            <th>Memory Request</th>
-                            <th>Memory Limit</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if cluster_spec.master %}
-                        <tr>
-                            <td>yb-master</td>
-                            <td class="stat-value">{{ cluster_spec.master.replicas }}</td>
-                            <td>{{ cluster_spec.master.cpu_request }}</td>
-                            <td>{{ cluster_spec.master.cpu_limit }}</td>
-                            <td>{{ cluster_spec.master.mem_request }}</td>
-                            <td>{{ cluster_spec.master.mem_limit }}</td>
-                        </tr>
+        <div class="tab-bar" id="tab-bar">
+            <div class="tab active" data-tab="overview">Overview</div>
+            <div class="tab" data-tab="master">yb-master ({{ by_pod.master|length }})</div>
+            <div class="tab" data-tab="tserver">tservers ({{ by_pod.tserver|length }})</div>
+            <div class="tab" data-tab="other">others ({{ by_pod.other|length }})</div>
+            <div class="tab" data-tab="raw">Raw</div>
+        </div>
+
+        <div class="tab-content active" id="tab-overview">
+            {% if cluster_spec %}
+            <section class="section">
+                <h2>Cluster Configuration</h2>
+                <div class="spec-grid">
+                    <table class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Replicas</th>
+                                <th>CPU Request</th>
+                                <th>CPU Limit</th>
+                                <th>Memory Request</th>
+                                <th>Memory Limit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if cluster_spec.master %}
+                            <tr>
+                                <td>yb-master</td>
+                                <td class="stat-value">{{ cluster_spec.master.replicas }}</td>
+                                <td>{{ cluster_spec.master.cpu_request }}</td>
+                                <td>{{ cluster_spec.master.cpu_limit }}</td>
+                                <td>{{ cluster_spec.master.mem_request }}</td>
+                                <td>{{ cluster_spec.master.mem_limit }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if cluster_spec.tserver %}
+                            <tr>
+                                <td>yb-tserver</td>
+                                <td class="stat-value">{{ cluster_spec.tserver.replicas }}</td>
+                                <td>{{ cluster_spec.tserver.cpu_request }}</td>
+                                <td>{{ cluster_spec.tserver.cpu_limit }}</td>
+                                <td>{{ cluster_spec.tserver.mem_request }}</td>
+                                <td>{{ cluster_spec.tserver.mem_limit }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="spec-info">
+                        {% if cluster_spec.yugabyte_version %}
+                        <div class="metadata-item">
+                            <span class="metadata-label">YugabyteDB Version:</span>
+                            <span>{{ cluster_spec.yugabyte_version }}</span>
+                        </div>
                         {% endif %}
-                        {% if cluster_spec.tserver %}
-                        <tr>
-                            <td>yb-tserver</td>
-                            <td class="stat-value">{{ cluster_spec.tserver.replicas }}</td>
-                            <td>{{ cluster_spec.tserver.cpu_request }}</td>
-                            <td>{{ cluster_spec.tserver.cpu_limit }}</td>
-                            <td>{{ cluster_spec.tserver.mem_request }}</td>
-                            <td>{{ cluster_spec.tserver.mem_limit }}</td>
-                        </tr>
+                        {% if cluster_spec.storage %}
+                        <div class="metadata-item">
+                            <span class="metadata-label">Storage Class:</span>
+                            <span>{{ cluster_spec.storage.storage_class }}</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="metadata-label">PVC Size:</span>
+                            <span>{{ cluster_spec.storage.size }}</span>
+                        </div>
                         {% endif %}
-                    </tbody>
-                </table>
-                <div class="spec-info">
-                    {% if cluster_spec.yugabyte_version %}
-                    <div class="metadata-item">
-                        <span class="metadata-label">YugabyteDB Version:</span>
-                        <span>{{ cluster_spec.yugabyte_version }}</span>
                     </div>
-                    {% endif %}
-                    {% if cluster_spec.storage %}
-                    <div class="metadata-item">
-                        <span class="metadata-label">Storage Class:</span>
-                        <span>{{ cluster_spec.storage.storage_class }}</span>
-                    </div>
-                    <div class="metadata-item">
-                        <span class="metadata-label">PVC Size:</span>
-                        <span>{{ cluster_spec.storage.size }}</span>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if sysbench_results %}
+            <section class="section">
+                <h2>Sysbench Results</h2>
+                <div class="spec-grid">
+                    <table class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if sysbench_results.tps is defined %}
+                            <tr>
+                                <td>Transactions per Second (TPS)</td>
+                                <td class="stat-value">{{ "%.2f"|format(sysbench_results.tps) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if sysbench_results.qps is defined %}
+                            <tr>
+                                <td>Queries per Second (QPS)</td>
+                                <td class="stat-value">{{ "%.2f"|format(sysbench_results.qps) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if sysbench_results.transactions is defined %}
+                            <tr>
+                                <td>Total Transactions</td>
+                                <td class="stat-value">{{ sysbench_results.transactions }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if sysbench_results.queries is defined %}
+                            <tr>
+                                <td>Total Queries</td>
+                                <td class="stat-value">{{ sysbench_results.queries }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if sysbench_results.sql_stats %}
+                            <tr>
+                                <td>Queries (Read / Write / Other)</td>
+                                <td class="stat-value">{{ sysbench_results.sql_stats.get('read', 'N/A') }} / {{ sysbench_results.sql_stats.get('write', 'N/A') }} / {{ sysbench_results.sql_stats.get('other', 'N/A') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if sysbench_results.errors is defined %}
+                            <tr>
+                                <td>Errors (total / per sec)</td>
+                                <td class="stat-value">{{ sysbench_results.errors }} ({{ "%.2f"|format(sysbench_results.errors_per_sec) }}/s)</td>
+                            </tr>
+                            {% endif %}
+                            {% if sysbench_results.elapsed is defined %}
+                            <tr>
+                                <td>Elapsed Time</td>
+                                <td class="stat-value">{{ "%.1f"|format(sysbench_results.elapsed) }}s</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+
+                    <table class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>Latency</th>
+                                <th>Value (ms)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if sysbench_results.lat_min is defined %}
+                            <tr><td>Min</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_min) }}</td></tr>
+                            {% endif %}
+                            {% if sysbench_results.lat_avg is defined %}
+                            <tr><td>Avg</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_avg) }}</td></tr>
+                            {% endif %}
+                            {% if sysbench_results.lat_p95 is defined %}
+                            <tr><td>95th Percentile</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_p95) }}</td></tr>
+                            {% endif %}
+                            {% if sysbench_results.lat_max is defined %}
+                            <tr><td>Max</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_max) }}</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+
+                    {% if sysbench_results.fairness_avg is defined %}
+                    <div class="spec-info">
+                        <div class="metadata-item">
+                            <span class="metadata-label">Thread Fairness (events avg/stddev):</span>
+                            <span>{{ "%.2f"|format(sysbench_results.fairness_avg) }} / {{ "%.2f"|format(sysbench_results.fairness_stddev) }}</span>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
-            </div>
-        </section>
-        {% endif %}
+            </section>
 
-        {% if sysbench_results %}
-        <section class="section">
-            <h2>Sysbench Results</h2>
-            <div class="spec-grid">
+            {% if sysbench_results.intervals %}
+            <section class="section">
+                <h2>Sysbench Time Series</h2>
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <h3>TPS over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="sysbench-tps-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>95th Percentile Latency over Time</h3>
+                        <div class="chart-container">
+                            <canvas id="sysbench-lat-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>QPS Breakdown (Read/Write/Other)</h3>
+                        <div class="chart-container">
+                            <canvas id="sysbench-qps-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Errors per Second</h3>
+                        <div class="chart-container">
+                            <canvas id="sysbench-err-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <h3 style="margin-top: 20px;">Per-Interval Metrics</h3>
+                <p style="color: #666; font-size: 13px; margin-top: -6px;">
+                    Each row is one sysbench reporting interval. TPS / latency / errors come
+                    from sysbench. CPU / memory / network / disk are sampled from Prometheus
+                    at the same instant (sum across tserver pods, except CPU which is the
+                    average of DB-node VM cores used).
+                </p>
                 <table class="summary-table">
                     <thead>
                         <tr>
-                            <th>Metric</th>
+                            <th>T (s)</th>
+                            <th>TPS</th>
+                            <th>Lat p95 (ms)</th>
+                            <th>Err/s</th>
+                            <th>CPU (cores)</th>
+                            <th>Mem (MB)</th>
+                            <th>Net (MB/s)</th>
+                            <th>Disk WrIOPS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for iv in sysbench_results.intervals %}
+                        <tr>
+                            <td class="stat-value">{{ iv.time }}</td>
+                            <td class="stat-value">{{ "%.0f"|format(iv.tps) }}</td>
+                            <td class="stat-value">{{ "%.1f"|format(iv.lat_95) }}</td>
+                            <td class="stat-value">{{ "%.2f"|format(iv.err_s) }}</td>
+                            <td class="stat-value">{% if iv.cpu_cores is not none %}{{ "%.2f"|format(iv.cpu_cores) }}{% else %}—{% endif %}</td>
+                            <td class="stat-value">{% if iv.mem_mb is not none %}{{ "%.0f"|format(iv.mem_mb) }}{% else %}—{% endif %}</td>
+                            <td class="stat-value">{% if iv.net_mb is not none %}{{ "%.1f"|format(iv.net_mb) }}{% else %}—{% endif %}</td>
+                            <td class="stat-value">{% if iv.disk_write_iops is not none %}{{ "%.0f"|format(iv.disk_write_iops) }}{% else %}—{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+            {% endif %}
+            {% endif %}
+
+            {% if sysbench_params %}
+            <section class="section">
+                <h2>Sysbench Parameters</h2>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
                             <th>Value</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if sysbench_results.tps is defined %}
+                        {% for key, value in sysbench_params.items() %}
                         <tr>
-                            <td>Transactions per Second (TPS)</td>
-                            <td class="stat-value">{{ "%.2f"|format(sysbench_results.tps) }}</td>
+                            <td>{{ key }}</td>
+                            <td class="stat-value">{{ value }}</td>
                         </tr>
-                        {% endif %}
-                        {% if sysbench_results.qps is defined %}
-                        <tr>
-                            <td>Queries per Second (QPS)</td>
-                            <td class="stat-value">{{ "%.2f"|format(sysbench_results.qps) }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if sysbench_results.transactions is defined %}
-                        <tr>
-                            <td>Total Transactions</td>
-                            <td class="stat-value">{{ sysbench_results.transactions }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if sysbench_results.queries is defined %}
-                        <tr>
-                            <td>Total Queries</td>
-                            <td class="stat-value">{{ sysbench_results.queries }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if sysbench_results.sql_stats %}
-                        <tr>
-                            <td>Queries (Read / Write / Other)</td>
-                            <td class="stat-value">{{ sysbench_results.sql_stats.get('read', 'N/A') }} / {{ sysbench_results.sql_stats.get('write', 'N/A') }} / {{ sysbench_results.sql_stats.get('other', 'N/A') }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if sysbench_results.errors is defined %}
-                        <tr>
-                            <td>Errors (total / per sec)</td>
-                            <td class="stat-value">{{ sysbench_results.errors }} ({{ "%.2f"|format(sysbench_results.errors_per_sec) }}/s)</td>
-                        </tr>
-                        {% endif %}
-                        {% if sysbench_results.elapsed is defined %}
-                        <tr>
-                            <td>Elapsed Time</td>
-                            <td class="stat-value">{{ "%.1f"|format(sysbench_results.elapsed) }}s</td>
-                        </tr>
-                        {% endif %}
+                        {% endfor %}
                     </tbody>
                 </table>
+            </section>
+            {% endif %}
 
+            <section class="section">
+                <h2>Metrics Summary</h2>
                 <table class="summary-table">
                     <thead>
                         <tr>
-                            <th>Latency</th>
-                            <th>Value (ms)</th>
+                            <th>Metric</th>
+                            <th>Min</th>
+                            <th>Avg</th>
+                            <th>Max</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% if sysbench_results.lat_min is defined %}
-                        <tr><td>Min</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_min) }}</td></tr>
-                        {% endif %}
-                        {% if sysbench_results.lat_avg is defined %}
-                        <tr><td>Avg</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_avg) }}</td></tr>
-                        {% endif %}
-                        {% if sysbench_results.lat_p95 is defined %}
-                        <tr><td>95th Percentile</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_p95) }}</td></tr>
-                        {% endif %}
-                        {% if sysbench_results.lat_max is defined %}
-                        <tr><td>Max</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_max) }}</td></tr>
-                        {% endif %}
+                        {% for key, metric in metrics.items() %}
+                        <tr>
+                            <td>{{ metric.name }}</td>
+                            <td class="stat-value">{{ "%.2f"|format(metric.min) }}</td>
+                            <td class="stat-value">{{ "%.2f"|format(metric.avg) }}</td>
+                            <td class="stat-value">{{ "%.2f"|format(metric.max) }}</td>
+                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
+            </section>
+        </div>
 
-                {% if sysbench_results.fairness_avg is defined %}
-                <div class="spec-info">
-                    <div class="metadata-item">
-                        <span class="metadata-label">Thread Fairness (events avg/stddev):</span>
-                        <span>{{ "%.2f"|format(sysbench_results.fairness_avg) }} / {{ "%.2f"|format(sysbench_results.fairness_stddev) }}</span>
+        {% for role, label in [('master', 'yb-master'), ('tserver', 'tservers'), ('other', 'others')] %}
+        <div class="tab-content" id="tab-{{ role }}">
+            {% if by_pod[role] %}
+            {% for card in by_pod[role] %}
+            <div class="pod-card" data-pod="{{ card.pod }}" data-instance="{{ card.instance }}" data-role="{{ role }}">
+                <h3>{{ card.pod }}</h3>
+                <div class="pod-host">on node <strong>{{ card.instance }}</strong></div>
+                <div class="pod-charts">
+                    <div class="mini-card">
+                        <h4>CPU (cores)</h4>
+                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-cpu"></canvas></div>
                     </div>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-
-        {% if sysbench_results.intervals %}
-        <section class="section">
-            <h2>Sysbench Time Series</h2>
-            <div class="chart-grid">
-                <div class="chart-card">
-                    <h3>TPS over Time</h3>
-                    <div class="chart-container">
-                        <canvas id="sysbench-tps-chart"></canvas>
+                    <div class="mini-card">
+                        <h4>Memory (MB)</h4>
+                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-mem"></canvas></div>
                     </div>
-                </div>
-                <div class="chart-card">
-                    <h3>95th Percentile Latency over Time</h3>
-                    <div class="chart-container">
-                        <canvas id="sysbench-lat-chart"></canvas>
+                    <div class="mini-card">
+                        <h4>Network (B/s)</h4>
+                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-net"></canvas></div>
                     </div>
-                </div>
-                <div class="chart-card">
-                    <h3>QPS Breakdown (Read/Write/Other)</h3>
-                    <div class="chart-container">
-                        <canvas id="sysbench-qps-chart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-card">
-                    <h3>Errors per Second</h3>
-                    <div class="chart-container">
-                        <canvas id="sysbench-err-chart"></canvas>
+                    <div class="mini-card">
+                        <h4>Disk Write IOPS</h4>
+                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-disk"></canvas></div>
                     </div>
                 </div>
             </div>
-            <h3 style="margin-top: 20px;">Per-Interval Metrics</h3>
-            <p style="color: #666; font-size: 13px; margin-top: -6px;">
-                Each row is one sysbench reporting interval. TPS / latency / errors come
-                from sysbench. CPU / memory / network / disk are sampled from Prometheus
-                at the same instant (sum across tserver pods, except CPU which is the
-                average of DB-node VM cores used).
-            </p>
-            <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>T (s)</th>
-                        <th>TPS</th>
-                        <th>Lat p95 (ms)</th>
-                        <th>Err/s</th>
-                        <th>CPU (cores)</th>
-                        <th>Mem (MB)</th>
-                        <th>Net (MB/s)</th>
-                        <th>Disk WrIOPS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for iv in sysbench_results.intervals %}
-                    <tr>
-                        <td class="stat-value">{{ iv.time }}</td>
-                        <td class="stat-value">{{ "%.0f"|format(iv.tps) }}</td>
-                        <td class="stat-value">{{ "%.1f"|format(iv.lat_95) }}</td>
-                        <td class="stat-value">{{ "%.2f"|format(iv.err_s) }}</td>
-                        <td class="stat-value">{% if iv.cpu_cores is not none %}{{ "%.2f"|format(iv.cpu_cores) }}{% else %}—{% endif %}</td>
-                        <td class="stat-value">{% if iv.mem_mb is not none %}{{ "%.0f"|format(iv.mem_mb) }}{% else %}—{% endif %}</td>
-                        <td class="stat-value">{% if iv.net_mb is not none %}{{ "%.1f"|format(iv.net_mb) }}{% else %}—{% endif %}</td>
-                        <td class="stat-value">{% if iv.disk_write_iops is not none %}{{ "%.0f"|format(iv.disk_write_iops) }}{% else %}—{% endif %}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-        {% endif %}
-        {% endif %}
-
-        {% if sysbench_params %}
-        <section class="section">
-            <h2>Sysbench Parameters</h2>
-            <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>Parameter</th>
-                        <th>Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for key, value in sysbench_params.items() %}
-                    <tr>
-                        <td>{{ key }}</td>
-                        <td class="stat-value">{{ value }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-        {% endif %}
-
-        <section class="section">
-            <h2>Metrics Summary</h2>
-            <table class="summary-table">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>Min</th>
-                        <th>Avg</th>
-                        <th>Max</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for key, metric in metrics.items() %}
-                    <tr>
-                        <td>{{ metric.name }}</td>
-                        <td class="stat-value">{{ "%.2f"|format(metric.min) }}</td>
-                        <td class="stat-value">{{ "%.2f"|format(metric.avg) }}</td>
-                        <td class="stat-value">{{ "%.2f"|format(metric.max) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-
-        <section class="section">
-            <h2>Resource Usage Charts</h2>
-            <div class="chart-grid">
-                {% if metrics.cpu and metrics.cpu.series %}
-                <div class="chart-card">
-                    <h3>CPU Usage (cores)</h3>
-                    <div class="chart-container">
-                        <canvas id="cpu-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.memory and metrics.memory.series %}
-                <div class="chart-card">
-                    <h3>Memory Usage (MB)</h3>
-                    <div class="chart-container">
-                        <canvas id="memory-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.network_rx and metrics.network_rx.series %}
-                <div class="chart-card">
-                    <h3>Network RX (B/s)</h3>
-                    <div class="chart-container">
-                        <canvas id="network-rx-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.network_tx and metrics.network_tx.series %}
-                <div class="chart-card">
-                    <h3>Network TX (B/s)</h3>
-                    <div class="chart-container">
-                        <canvas id="network-tx-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.disk_read_iops and metrics.disk_read_iops.series %}
-                <div class="chart-card">
-                    <h3>Disk Read IOPS</h3>
-                    <div class="chart-container">
-                        <canvas id="disk-read-iops-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.disk_write_iops and metrics.disk_write_iops.series %}
-                <div class="chart-card">
-                    <h3>Disk Write IOPS</h3>
-                    <div class="chart-container">
-                        <canvas id="disk-write-iops-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.disk_read_throughput and metrics.disk_read_throughput.series %}
-                <div class="chart-card">
-                    <h3>Disk Read Throughput (MB/s)</h3>
-                    <div class="chart-container">
-                        <canvas id="disk-read-throughput-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.disk_write_throughput and metrics.disk_write_throughput.series %}
-                <div class="chart-card">
-                    <h3>Disk Write Throughput (MB/s)</h3>
-                    <div class="chart-container">
-                        <canvas id="disk-write-throughput-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-
-        {% if metrics.node_cpu and metrics.node_cpu.series %}
-        <section class="section">
-            <h2>Node-Level CPU (VM)</h2>
-            <div class="chart-grid">
-                <div class="chart-card">
-                    <h3>Total CPU Usage (cores)</h3>
-                    <div class="chart-container">
-                        <canvas id="node-cpu-chart"></canvas>
-                    </div>
-                </div>
-
-                {% if metrics.node_cpu_user and metrics.node_cpu_user.series %}
-                <div class="chart-card">
-                    <h3>CPU User (%)</h3>
-                    <div class="chart-container">
-                        <canvas id="node-cpu-user-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.node_cpu_system and metrics.node_cpu_system.series %}
-                <div class="chart-card">
-                    <h3>CPU System (%)</h3>
-                    <div class="chart-container">
-                        <canvas id="node-cpu-system-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.node_cpu_iowait and metrics.node_cpu_iowait.series %}
-                <div class="chart-card">
-                    <h3>CPU IOWait (%)</h3>
-                    <div class="chart-container">
-                        <canvas id="node-cpu-iowait-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.node_cpu_steal and metrics.node_cpu_steal.series %}
-                <div class="chart-card">
-                    <h3>CPU Steal (%)</h3>
-                    <div class="chart-container">
-                        <canvas id="node-cpu-steal-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if metrics.node_cpu_softirq and metrics.node_cpu_softirq.series %}
-                <div class="chart-card">
-                    <h3>CPU SoftIRQ (%)</h3>
-                    <div class="chart-container">
-                        <canvas id="node-cpu-softirq-chart"></canvas>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-        {% endif %}
-
-        {% set custom_metrics = [] %}
-        {% for key, metric in metrics.items() %}
-            {% if key.startswith('rate_') or key.startswith('total_') %}
-                {% set _ = custom_metrics.append((key, metric)) %}
+            {% endfor %}
+            {% else %}
+            <div class="empty-tab">No {{ label }} pods captured for this run.</div>
             {% endif %}
+        </div>
         {% endfor %}
 
-        {% if custom_metrics %}
-        <section class="section">
-            <h2>Custom Metrics</h2>
-            <div class="chart-grid">
-                {% for key, metric in custom_metrics %}
-                {% if metric.series %}
-                <div class="chart-card">
-                    <h3>{{ metric.name }}</h3>
-                    <div class="chart-container">
-                        <canvas id="chart-{{ key }}"></canvas>
+        <div class="tab-content" id="tab-raw">
+            <section class="section">
+                <h2>Resource Usage Charts (per pod)</h2>
+                <div class="chart-grid">
+                    {% if metrics.cpu and metrics.cpu.series %}
+                    <div class="chart-card">
+                        <h3>CPU Usage (cores)</h3>
+                        <div class="chart-container">
+                            <canvas id="cpu-chart"></canvas>
+                        </div>
                     </div>
+                    {% endif %}
+
+                    {% if metrics.memory and metrics.memory.series %}
+                    <div class="chart-card">
+                        <h3>Memory Usage (MB)</h3>
+                        <div class="chart-container">
+                            <canvas id="memory-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.network_rx and metrics.network_rx.series %}
+                    <div class="chart-card">
+                        <h3>Network RX (B/s)</h3>
+                        <div class="chart-container">
+                            <canvas id="network-rx-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.network_tx and metrics.network_tx.series %}
+                    <div class="chart-card">
+                        <h3>Network TX (B/s)</h3>
+                        <div class="chart-container">
+                            <canvas id="network-tx-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.disk_read_iops and metrics.disk_read_iops.series %}
+                    <div class="chart-card">
+                        <h3>Disk Read IOPS</h3>
+                        <div class="chart-container">
+                            <canvas id="disk-read-iops-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.disk_write_iops and metrics.disk_write_iops.series %}
+                    <div class="chart-card">
+                        <h3>Disk Write IOPS</h3>
+                        <div class="chart-container">
+                            <canvas id="disk-write-iops-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.disk_read_throughput and metrics.disk_read_throughput.series %}
+                    <div class="chart-card">
+                        <h3>Disk Read Throughput (MB/s)</h3>
+                        <div class="chart-container">
+                            <canvas id="disk-read-throughput-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.disk_write_throughput and metrics.disk_write_throughput.series %}
+                    <div class="chart-card">
+                        <h3>Disk Write Throughput (MB/s)</h3>
+                        <div class="chart-container">
+                            <canvas id="disk-write-throughput-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
+            </section>
+
+            {% if metrics.node_cpu and metrics.node_cpu.series %}
+            <section class="section">
+                <h2>Node-Level CPU (VM)</h2>
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <h3>Total CPU Usage (cores)</h3>
+                        <div class="chart-container">
+                            <canvas id="node-cpu-chart"></canvas>
+                        </div>
+                    </div>
+
+                    {% if metrics.node_cpu_user and metrics.node_cpu_user.series %}
+                    <div class="chart-card">
+                        <h3>CPU User (%)</h3>
+                        <div class="chart-container">
+                            <canvas id="node-cpu-user-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.node_cpu_system and metrics.node_cpu_system.series %}
+                    <div class="chart-card">
+                        <h3>CPU System (%)</h3>
+                        <div class="chart-container">
+                            <canvas id="node-cpu-system-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.node_cpu_iowait and metrics.node_cpu_iowait.series %}
+                    <div class="chart-card">
+                        <h3>CPU IOWait (%)</h3>
+                        <div class="chart-container">
+                            <canvas id="node-cpu-iowait-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.node_cpu_steal and metrics.node_cpu_steal.series %}
+                    <div class="chart-card">
+                        <h3>CPU Steal (%)</h3>
+                        <div class="chart-container">
+                            <canvas id="node-cpu-steal-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if metrics.node_cpu_softirq and metrics.node_cpu_softirq.series %}
+                    <div class="chart-card">
+                        <h3>CPU SoftIRQ (%)</h3>
+                        <div class="chart-container">
+                            <canvas id="node-cpu-softirq-chart"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% set custom_metrics = [] %}
+            {% for key, metric in metrics.items() %}
+                {% if key.startswith('rate_') or key.startswith('total_') %}
+                    {% set _ = custom_metrics.append((key, metric)) %}
                 {% endif %}
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
+            {% endfor %}
+
+            {% if custom_metrics %}
+            <section class="section">
+                <h2>Custom Metrics</h2>
+                <div class="chart-grid">
+                    {% for key, metric in custom_metrics %}
+                    {% if metric.series %}
+                    <div class="chart-card">
+                        <h3>{{ metric.name }}</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-{{ key }}"></canvas>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </div>
 
         <footer>
             <p>Generated by db-perf-test Report Generator</p>
@@ -698,37 +816,137 @@
             });
         }
 
-        // Initialize charts with data from template
+        // Build a Chart.js line chart from a list of {label, series, dashed} entries.
+        // `series` is {timestamps, values}. dashed=true draws a dashed line (used
+        // for the host-node overlay so it visually distinguishes from pod lines).
+        function createOverlayChart(canvasId, layers, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const datasets = layers.filter(l => l.series && l.series.timestamps).map((l, idx) => ({
+                label: l.label,
+                data: l.series.timestamps.map((t, i) => ({
+                    x: new Date(t * 1000),
+                    y: l.series.values[i],
+                })),
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colorsBg[idx % colorsBg.length],
+                borderDash: l.dashed ? [6, 4] : [],
+                fill: !l.dashed,
+                tension: 0.3,
+                pointRadius: 0,
+            }));
+            new Chart(canvas, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { displayFormats: { second: 'HH:mm:ss', minute: 'HH:mm' } },
+                            title: { display: true, text: 'Time' },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: yAxisLabel },
+                        },
+                    },
+                    plugins: { legend: { position: 'top' } },
+                },
+            });
+        }
+
         const metricsData = {{ metrics | tojson }};
+        const byPod = {{ by_pod | tojson }};
+        const byNode = {{ by_node | tojson }};
 
-        // Resource charts
-        if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'cores');
-        if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
-        if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
-        if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
+        // -------- Tab switching --------
+        const builtTabs = new Set(['overview']);
 
-        // Disk I/O charts
-        if (metricsData.disk_read_iops) createChart('disk-read-iops-chart', metricsData.disk_read_iops.series, 'IOPS');
-        if (metricsData.disk_write_iops) createChart('disk-write-iops-chart', metricsData.disk_write_iops.series, 'IOPS');
-        if (metricsData.disk_read_throughput) createChart('disk-read-throughput-chart', metricsData.disk_read_throughput.series, 'MB/s');
-        if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
+        const tabBuilders = {
+            master:  () => buildPodCards('master'),
+            tserver: () => buildPodCards('tserver'),
+            other:   () => buildPodCards('other'),
+            raw:     () => buildRawCharts(),
+        };
 
-        // Node-level CPU charts
-        if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'cores');
-        if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
-        if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
-        if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');
-        if (metricsData.node_cpu_steal) createChart('node-cpu-steal-chart', metricsData.node_cpu_steal.series, 'CPU %');
-        if (metricsData.node_cpu_softirq) createChart('node-cpu-softirq-chart', metricsData.node_cpu_softirq.series, 'CPU %');
-
-        // Custom metrics charts
-        Object.keys(metricsData).forEach(key => {
-            if (key.startsWith('rate_') || key.startsWith('total_')) {
-                createChart('chart-' + key, metricsData[key].series, 'Value');
+        function activateTab(name) {
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === name);
+            });
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.toggle('active', el.id === 'tab-' + name);
+            });
+            if (!builtTabs.has(name) && tabBuilders[name]) {
+                tabBuilders[name]();
+                builtTabs.add(name);
             }
+        }
+
+        document.querySelectorAll('.tab').forEach(el => {
+            el.addEventListener('click', () => activateTab(el.dataset.tab));
         });
 
-        // Sysbench interval charts
+        // -------- Per-pod cards --------
+        function buildPodCards(role) {
+            const cards = byPod[role] || [];
+            for (const card of cards) {
+                const node = byNode[card.instance] || {};
+                createOverlayChart('pod-' + card.pod + '-cpu', [
+                    { label: card.pod + ' (cores)', series: card.cpu },
+                    { label: card.instance + ' total (cores)', series: node.node_cpu, dashed: true },
+                ], 'cores');
+
+                createOverlayChart('pod-' + card.pod + '-mem', [
+                    { label: card.pod + ' (MB)', series: card.memory },
+                    { label: card.instance + ' total (MB)', series: node.node_memory, dashed: true },
+                ], 'MB');
+
+                createOverlayChart('pod-' + card.pod + '-net', [
+                    { label: card.pod + ' RX', series: card.network_rx },
+                    { label: card.pod + ' TX', series: card.network_tx },
+                    { label: card.instance + ' RX', series: node.node_network_rx, dashed: true },
+                    { label: card.instance + ' TX', series: node.node_network_tx, dashed: true },
+                ], 'B/s');
+
+                createOverlayChart('pod-' + card.pod + '-disk', [
+                    { label: card.pod + ' write IOPS', series: card.disk_write_iops },
+                    { label: card.pod + ' read IOPS', series: card.disk_read_iops },
+                    { label: card.instance + ' write IOPS', series: node.node_disk_write_iops, dashed: true },
+                    { label: card.instance + ' read IOPS',  series: node.node_disk_read_iops,  dashed: true },
+                ], 'IOPS');
+            }
+        }
+
+        // -------- Raw cluster charts (legacy view) --------
+        function buildRawCharts() {
+            if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'cores');
+            if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
+            if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
+            if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
+
+            if (metricsData.disk_read_iops) createChart('disk-read-iops-chart', metricsData.disk_read_iops.series, 'IOPS');
+            if (metricsData.disk_write_iops) createChart('disk-write-iops-chart', metricsData.disk_write_iops.series, 'IOPS');
+            if (metricsData.disk_read_throughput) createChart('disk-read-throughput-chart', metricsData.disk_read_throughput.series, 'MB/s');
+            if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
+
+            if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'cores');
+            if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
+            if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
+            if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');
+            if (metricsData.node_cpu_steal) createChart('node-cpu-steal-chart', metricsData.node_cpu_steal.series, 'CPU %');
+            if (metricsData.node_cpu_softirq) createChart('node-cpu-softirq-chart', metricsData.node_cpu_softirq.series, 'CPU %');
+
+            Object.keys(metricsData).forEach(key => {
+                if (key.startsWith('rate_') || key.startsWith('total_')) {
+                    createChart('chart-' + key, metricsData[key].series, 'Value');
+                }
+            });
+        }
+
+        // -------- Sysbench interval charts (Overview, eager) --------
         {% if sysbench_results and sysbench_results.intervals %}
         const sysbenchIntervals = {{ sysbench_results.intervals | tojson }};
 
