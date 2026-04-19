@@ -236,6 +236,9 @@ class ReportGenerator:
         self.prometheus = PrometheusClient(self.executor, config.prometheus_url)
         self.cluster_collector = ClusterSpecCollector(config.kube_context, config.namespace)
         self.metrics_data = {}
+        self.by_pod = {"master": [], "tserver": [], "other": []}
+        self.by_node = {}
+        self.pod_to_node = {}
         self.cluster_spec = {}
 
     def validate_connectivity(self):
@@ -356,7 +359,7 @@ class ReportGenerator:
         self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)")
 
     def collect_node_metrics(self):
-        """Collect node-level CPU metrics from node_exporter."""
+        """Collect node-level CPU/memory/network/disk from node_exporter."""
         # Node CPU in cores-used, per instance.
         #   count-by-instance of idle rows  = total CPUs on that node
         #   sum-by-instance of irate(idle)  = idle cores
@@ -372,6 +375,43 @@ class ReportGenerator:
         for mode in ["user", "system", "iowait", "steal", "softirq"]:
             query = f'avg by (instance) (irate(node_cpu_seconds_total{{mode="{mode}"}}[15s])) * 100'
             self.metrics_data[f"node_cpu_{mode}"] = self._query_and_aggregate_by_instance(query, f"Node CPU {mode} (%)")
+
+        # Node memory used (MB) = MemTotal - MemAvailable.
+        node_mem_query = (
+            '(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024'
+        )
+        self.metrics_data["node_memory"] = self._query_and_aggregate_by_instance(node_mem_query, "Node Memory Used (MB)")
+
+        # Node network RX/TX across non-loopback devices (bytes/s).
+        self.metrics_data["node_network_rx"] = self._query_and_aggregate_by_instance(
+            'sum by (instance) (irate(node_network_receive_bytes_total{device!="lo"}[15s]))',
+            "Node Network RX (B/s)",
+        )
+        self.metrics_data["node_network_tx"] = self._query_and_aggregate_by_instance(
+            'sum by (instance) (irate(node_network_transmit_bytes_total{device!="lo"}[15s]))',
+            "Node Network TX (B/s)",
+        )
+
+        # Node disk I/O summed across devices. Exclude loop/dm devices to focus
+        # on physical disks; wrapped in sum-by-instance so a node with multiple
+        # devices still returns one series per instance.
+        disk_filter = 'device!~"loop.*|dm-.*"'
+        self.metrics_data["node_disk_read_iops"] = self._query_and_aggregate_by_instance(
+            f'sum by (instance) (irate(node_disk_reads_completed_total{{{disk_filter}}}[15s]))',
+            "Node Disk Read IOPS",
+        )
+        self.metrics_data["node_disk_write_iops"] = self._query_and_aggregate_by_instance(
+            f'sum by (instance) (irate(node_disk_writes_completed_total{{{disk_filter}}}[15s]))',
+            "Node Disk Write IOPS",
+        )
+        self.metrics_data["node_disk_read_throughput"] = self._query_and_aggregate_by_instance(
+            f'sum by (instance) (irate(node_disk_read_bytes_total{{{disk_filter}}}[15s])) / 1024 / 1024',
+            "Node Disk Read (MB/s)",
+        )
+        self.metrics_data["node_disk_write_throughput"] = self._query_and_aggregate_by_instance(
+            f'sum by (instance) (irate(node_disk_written_bytes_total{{{disk_filter}}}[15s])) / 1024 / 1024',
+            "Node Disk Write (MB/s)",
+        )
 
     def _query_and_aggregate_by_instance(self, query: str, display_name: str) -> dict:
         """Query metrics and aggregate results, grouped by instance (node)."""
@@ -408,6 +448,7 @@ class ReportGenerator:
             "series": [
                 {
                     "name": s.labels.get("instance", s.name),
+                    "instance": s.labels.get("instance"),
                     "timestamps": s.timestamps,
                     "values": s.values
                 }
@@ -563,12 +604,96 @@ class ReportGenerator:
             "series": [
                 {
                     "name": s.labels.get("pod", s.name),
+                    "pod": s.labels.get("pod"),
+                    "instance": s.labels.get("instance"),
                     "timestamps": s.timestamps,
                     "values": s.values
                 }
                 for s in series_list
             ]
         }
+
+    @staticmethod
+    def _classify_pod(pod_name: str) -> str:
+        """Bucket a pod by name prefix for the tabbed report view."""
+        if pod_name.startswith("yb-master"):
+            return "master"
+        if pod_name.startswith("yb-tserver"):
+            return "tserver"
+        return "other"
+
+    # Pod-level metric keys (cAdvisor) that carry per-pod series.
+    _POD_METRIC_KEYS = (
+        "cpu", "memory",
+        "network_rx", "network_tx",
+        "disk_read_iops", "disk_write_iops",
+        "disk_read_throughput", "disk_write_throughput",
+    )
+
+    # Node-level metric keys (node_exporter) that carry per-instance series.
+    _NODE_METRIC_KEYS = (
+        "node_cpu", "node_memory",
+        "node_network_rx", "node_network_tx",
+        "node_disk_read_iops", "node_disk_write_iops",
+        "node_disk_read_throughput", "node_disk_write_throughput",
+    )
+
+    def restructure_by_pod_and_node(self):
+        """Reshape flat metrics into by_pod (master/tserver/other) + by_node.
+
+        Stored on self as by_pod / by_node / pod_to_node. The flat
+        metrics_data keys are left untouched — the Overview + Raw tabs and
+        the Metrics Summary table still consume them directly.
+        """
+        pods: dict[tuple[str, str], dict] = {}
+        for mkey in self._POD_METRIC_KEYS:
+            metric = self.metrics_data.get(mkey)
+            if not metric:
+                continue
+            for s in metric.get("series", []):
+                pod = s.get("pod")
+                instance = s.get("instance")
+                if not pod:
+                    continue
+                card = pods.setdefault(
+                    (instance or "", pod),
+                    {"pod": pod, "instance": instance, "role": self._classify_pod(pod)},
+                )
+                card[mkey] = {
+                    "timestamps": s.get("timestamps", []),
+                    "values": s.get("values", []),
+                }
+
+        by_pod: dict[str, list] = {"master": [], "tserver": [], "other": []}
+        for card in pods.values():
+            by_pod[card["role"]].append(card)
+        for role in by_pod:
+            by_pod[role].sort(key=lambda c: c.get("pod", ""))
+
+        nodes: dict[str, dict] = {}
+        for mkey in self._NODE_METRIC_KEYS:
+            metric = self.metrics_data.get(mkey)
+            if not metric:
+                continue
+            for s in metric.get("series", []):
+                instance = s.get("instance")
+                if not instance:
+                    continue
+                node = nodes.setdefault(instance, {"instance": instance})
+                node[mkey] = {
+                    "timestamps": s.get("timestamps", []),
+                    "values": s.get("values", []),
+                }
+
+        pod_to_node = {
+            card["pod"]: card["instance"]
+            for card in pods.values()
+            if card.get("pod") and card.get("instance")
+        }
+
+        self.by_pod = by_pod
+        self.by_node = nodes
+        self.pod_to_node = pod_to_node
 
     def generate_report(self) -> str:
         """Generate HTML report."""
@@ -584,6 +709,9 @@ class ReportGenerator:
 
         print("Collecting custom metrics...")
         self.collect_custom_metrics()
+
+        # Reshape flat series into by_pod / by_node views for the tabbed template.
+        self.restructure_by_pod_and_node()
 
         # Load template
         template_path = Path(__file__).parent / "report_template.html"
@@ -632,6 +760,9 @@ class ReportGenerator:
             "duration": f"{duration_min:.1f} minutes",
             "pods": self.config.pods,
             "metrics": self.metrics_data,
+            "by_pod": self.by_pod,
+            "by_node": self.by_node,
+            "pod_to_node": self.pod_to_node,
             "cluster_spec": self.cluster_spec,
             "sysbench_results": sysbench_results,
             "sysbench_params": sysbench_params,
