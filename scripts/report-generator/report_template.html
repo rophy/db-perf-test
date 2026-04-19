@@ -303,7 +303,7 @@
         <div class="tab-bar" id="tab-bar">
             <div class="tab active" data-tab="overview">Overview</div>
             <div class="tab" data-tab="master">yb-master ({{ by_pod.master|length }})</div>
-            <div class="tab" data-tab="tserver">tservers ({{ by_pod.tserver|length }})</div>
+            <div class="tab" data-tab="tserver">t-server ({{ by_pod.tserver|length }})</div>
             <div class="tab" data-tab="other">others ({{ by_pod.other|length }})</div>
             <div class="tab" data-tab="raw">Raw</div>
         </div>
@@ -597,7 +597,7 @@
                         <div class="chart-container"><canvas id="pod-{{ card.pod }}-mem"></canvas></div>
                     </div>
                     <div class="mini-card">
-                        <h4>Network (B/s)</h4>
+                        <h4>Network (MB/s)</h4>
                         <div class="chart-container"><canvas id="pod-{{ card.pod }}-net"></canvas></div>
                     </div>
                     <div class="mini-card">
@@ -637,7 +637,7 @@
 
                     {% if metrics.network_rx and metrics.network_rx.series %}
                     <div class="chart-card">
-                        <h3>Network RX (B/s)</h3>
+                        <h3>Network RX (MB/s)</h3>
                         <div class="chart-container">
                             <canvas id="network-rx-chart"></canvas>
                         </div>
@@ -646,7 +646,7 @@
 
                     {% if metrics.network_tx and metrics.network_tx.series %}
                     <div class="chart-card">
-                        <h3>Network TX (B/s)</h3>
+                        <h3>Network TX (MB/s)</h3>
                         <div class="chart-container">
                             <canvas id="network-tx-chart"></canvas>
                         </div>

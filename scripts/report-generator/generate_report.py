@@ -280,16 +280,42 @@ class ReportGenerator:
             print(f"Error: Failed to check prometheus deployment: {e}", file=sys.stderr)
             sys.exit(1)
 
+    # (pod_regex, container_label_match) for each role we chart. Each role
+    # queries the pod's MAIN container only (yb-tserver pods → container=
+    # "yb-tserver", yb-master pods → container="yb-master"). Sidecars
+    # (yb-cleanup, yugabyted-ui), pod-cgroup row, and pause container are
+    # implicitly excluded by the positive container match.
+    #
+    # Why per-role + positive match instead of negative-filter sum across
+    # containers: when one container's irate window contains only 1 raw
+    # sample, Prometheus drops its irate to null. sum() across the rest then
+    # leaves only tiny sidecar values, producing false-zero dips on the chart
+    # (the original Issue #2 symptom resurfaced for one container's bad luck).
+    # Positive single-container match is either present or absent — never
+    # artificially small.
+    _ROLE_QUERIES = (
+        ("yb-tserver.*", 'container="yb-tserver"'),
+        ("yb-master.*",  'container="yb-master"'),
+    )
+
+    # Prometheus query_range step per metric source. Each step is matched
+    # to its source's natural sample cadence — denser steps just plateau,
+    # sparser steps lose detail.
+    #
+    # cAdvisor refreshes internally every ~10-15s regardless of Prometheus
+    # scrape_interval, so step=10 yields one fresh value per cAdvisor cycle
+    # plus ~one repeat plateau per ~15s gap. step=5 here would add no real
+    # information (just more plateaus), and step >=15 risks dropping points
+    # at irate-window edges where only one raw sample falls in [t-30, t].
+    _CADVISOR_STEP = 10
+    # node_exporter is updated on every Prometheus scrape (5s in this chart),
+    # so each step=5 evaluation point gives a genuinely new value. Going to
+    # step=10 would throw away half the resolution for no reason.
+    _NODE_STEP = 5
+
     def collect_container_metrics(self):
         """Collect CPU, memory, network, disk metrics for pods."""
-        pods_regex = "|".join(self.config.pods)
         ns = self.config.namespace
-
-        # Sum of real per-container rows. Avoid the pod-cgroup row (container="")
-        # because it drifts ~20-30% from the per-container sum under rate(). Also
-        # exclude "POD" (docker/EKS pause-container label) for portability; on k3s
-        # the pause container has no container label so this filter is a no-op.
-        container_filter = 'container!="",container!="POD"'
 
         # Window for cAdvisor-sourced rates. cAdvisor refreshes its counters
         # internally only every ~10-15s regardless of Prometheus scrape_interval,
@@ -297,67 +323,76 @@ class ReportGenerator:
         # irate returns no value. 30s reliably spans 2+ refreshes.
         cadvisor_window = "30s"
 
+        # Build the union of per-role queries via PromQL `or`. Label sets
+        # (instance, pod) never overlap between roles, so `or` gives a clean
+        # union without dedup surprises.
+        def union(make_one):
+            return " or ".join(make_one(pods, cf) for pods, cf in self._ROLE_QUERIES)
+
+        # Pod-level metrics with no container labels (network, shared netns).
+        net_pods_regex = "|".join(p for p, _ in self._ROLE_QUERIES)
+
         # CPU usage (cores).
-        cpu_query = (
+        cpu_query = union(lambda pods, cf: (
             f'sum by (instance, pod) ('
             f'irate(container_cpu_usage_seconds_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}]))'
-        )
-        self.metrics_data["cpu"] = self._query_and_aggregate(cpu_query, "CPU Usage (cores)")
+            f'pod=~"{pods}",{cf}}}[{cadvisor_window}]))'
+        ))
+        self.metrics_data["cpu"] = self._query_and_aggregate(cpu_query, "CPU Usage (cores)", step=self._CADVISOR_STEP)
 
-        # Memory usage (MB) — gauge, no rate. Sum per-container rows for parity
-        # with the CPU query.
-        mem_query = (
+        # Memory usage (MB) — gauge, no rate.
+        mem_query = union(lambda pods, cf: (
             f'sum by (instance, pod) ('
             f'container_memory_working_set_bytes{{namespace="{ns}",'
-            f'pod=~"{pods_regex}",{container_filter}}}) / 1024 / 1024'
-        )
-        self.metrics_data["memory"] = self._query_and_aggregate(mem_query, "Memory Usage (MB)")
+            f'pod=~"{pods}",{cf}}}) / 1024 / 1024'
+        ))
+        self.metrics_data["memory"] = self._query_and_aggregate(mem_query, "Memory Usage (MB)", step=self._CADVISOR_STEP)
 
-        # Network RX/TX (bytes/s) — cAdvisor only emits pod-level rows for these
-        # (shared netns), so no container filter is needed.
+        # Network RX/TX (MB/s) — cAdvisor only emits pod-level rows for these
+        # (shared netns), so no container filter is needed. Unit matches
+        # memory (MB) for consistent axes across pod cards.
         net_rx_query = (
             f'sum by (instance, pod) ('
             f'irate(container_network_receive_bytes_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}"}}[{cadvisor_window}]))'
+            f'pod=~"{net_pods_regex}"}}[{cadvisor_window}])) / 1024 / 1024'
         )
-        self.metrics_data["network_rx"] = self._query_and_aggregate(net_rx_query, "Network RX (B/s)")
+        self.metrics_data["network_rx"] = self._query_and_aggregate(net_rx_query, "Network RX (MB/s)", step=self._CADVISOR_STEP)
 
         net_tx_query = (
             f'sum by (instance, pod) ('
             f'irate(container_network_transmit_bytes_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}"}}[{cadvisor_window}]))'
+            f'pod=~"{net_pods_regex}"}}[{cadvisor_window}])) / 1024 / 1024'
         )
-        self.metrics_data["network_tx"] = self._query_and_aggregate(net_tx_query, "Network TX (B/s)")
+        self.metrics_data["network_tx"] = self._query_and_aggregate(net_tx_query, "Network TX (MB/s)", step=self._CADVISOR_STEP)
 
-        # Disk Read/Write IOPS and Throughput — per-container rows with same filter.
-        disk_read_iops_query = (
+        # Disk Read/Write IOPS and Throughput — same per-role split as CPU.
+        disk_read_iops_query = union(lambda pods, cf: (
             f'sum by (instance, pod) ('
             f'irate(container_fs_reads_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}]))'
-        )
-        self.metrics_data["disk_read_iops"] = self._query_and_aggregate(disk_read_iops_query, "Disk Read IOPS")
+            f'pod=~"{pods}",{cf}}}[{cadvisor_window}]))'
+        ))
+        self.metrics_data["disk_read_iops"] = self._query_and_aggregate(disk_read_iops_query, "Disk Read IOPS", step=self._CADVISOR_STEP)
 
-        disk_write_iops_query = (
+        disk_write_iops_query = union(lambda pods, cf: (
             f'sum by (instance, pod) ('
             f'irate(container_fs_writes_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}]))'
-        )
-        self.metrics_data["disk_write_iops"] = self._query_and_aggregate(disk_write_iops_query, "Disk Write IOPS")
+            f'pod=~"{pods}",{cf}}}[{cadvisor_window}]))'
+        ))
+        self.metrics_data["disk_write_iops"] = self._query_and_aggregate(disk_write_iops_query, "Disk Write IOPS", step=self._CADVISOR_STEP)
 
-        disk_read_throughput_query = (
+        disk_read_throughput_query = union(lambda pods, cf: (
             f'sum by (instance, pod) ('
             f'irate(container_fs_reads_bytes_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}])) / 1024 / 1024'
-        )
-        self.metrics_data["disk_read_throughput"] = self._query_and_aggregate(disk_read_throughput_query, "Disk Read (MB/s)")
+            f'pod=~"{pods}",{cf}}}[{cadvisor_window}])) / 1024 / 1024'
+        ))
+        self.metrics_data["disk_read_throughput"] = self._query_and_aggregate(disk_read_throughput_query, "Disk Read (MB/s)", step=self._CADVISOR_STEP)
 
-        disk_write_throughput_query = (
+        disk_write_throughput_query = union(lambda pods, cf: (
             f'sum by (instance, pod) ('
             f'irate(container_fs_writes_bytes_total{{namespace="{ns}",'
-            f'pod=~"{pods_regex}",{container_filter}}}[{cadvisor_window}])) / 1024 / 1024'
-        )
-        self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)")
+            f'pod=~"{pods}",{cf}}}[{cadvisor_window}])) / 1024 / 1024'
+        ))
+        self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)", step=self._CADVISOR_STEP)
 
     def collect_node_metrics(self):
         """Collect node-level CPU/memory/network/disk from node_exporter."""
@@ -370,27 +405,38 @@ class ReportGenerator:
             '(count by (instance) (node_cpu_seconds_total{mode="idle"})) '
             '- sum by (instance) (irate(node_cpu_seconds_total{mode="idle"}[15s]))'
         )
-        self.metrics_data["node_cpu"] = self._query_and_aggregate_by_instance(node_cpu_query, "Node CPU Total (cores)")
+        self.metrics_data["node_cpu"] = self._query_and_aggregate_by_instance(
+            node_cpu_query, "Node CPU Total (cores)", step=self._NODE_STEP)
 
         # CPU breakdown by mode (kept as percent — informational detail charts).
         for mode in ["user", "system", "iowait", "steal", "softirq"]:
             query = f'avg by (instance) (irate(node_cpu_seconds_total{{mode="{mode}"}}[15s])) * 100'
-            self.metrics_data[f"node_cpu_{mode}"] = self._query_and_aggregate_by_instance(query, f"Node CPU {mode} (%)")
+            self.metrics_data[f"node_cpu_{mode}"] = self._query_and_aggregate_by_instance(
+                query, f"Node CPU {mode} (%)", step=self._NODE_STEP)
 
         # Node memory used (MB) = MemTotal - MemAvailable.
         node_mem_query = (
             '(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024'
         )
-        self.metrics_data["node_memory"] = self._query_and_aggregate_by_instance(node_mem_query, "Node Memory Used (MB)")
+        self.metrics_data["node_memory"] = self._query_and_aggregate_by_instance(
+            node_mem_query, "Node Memory Used (MB)", step=self._NODE_STEP)
 
-        # Node network RX/TX across non-loopback devices (bytes/s).
+        # Node network RX/TX — pick the BUSIEST non-loopback interface per node.
+        # Can't sum here: on K8s, CNI plugins mirror pod traffic across multiple
+        # virtual interfaces (flannel.1, cni0, vethXX, ...) so summing counts
+        # the same bytes 3-4× (seen: 4× over-count on k3s-virsh). A filter-list
+        # of virtual-interface names is fragile (new CNIs, multi-ENI on EKS).
+        # max() reports the hottest interface, which is either the physical NIC
+        # (single-NIC + mirrors) or the busiest ENI (multi-NIC) — both are
+        # meaningful ceilings for "how loaded is the node's network path".
+        # Underreports in the rare case of balanced multi-NIC traffic.
         self.metrics_data["node_network_rx"] = self._query_and_aggregate_by_instance(
-            'sum by (instance) (irate(node_network_receive_bytes_total{device!="lo"}[15s]))',
-            "Node Network RX (B/s)",
+            'max by (instance) (irate(node_network_receive_bytes_total{device!="lo"}[15s])) / 1024 / 1024',
+            "Node Network RX (MB/s)", step=self._NODE_STEP,
         )
         self.metrics_data["node_network_tx"] = self._query_and_aggregate_by_instance(
-            'sum by (instance) (irate(node_network_transmit_bytes_total{device!="lo"}[15s]))',
-            "Node Network TX (B/s)",
+            'max by (instance) (irate(node_network_transmit_bytes_total{device!="lo"}[15s])) / 1024 / 1024',
+            "Node Network TX (MB/s)", step=self._NODE_STEP,
         )
 
         # Node disk I/O summed across devices. Exclude loop/dm devices to focus
@@ -399,28 +445,29 @@ class ReportGenerator:
         disk_filter = 'device!~"loop.*|dm-.*"'
         self.metrics_data["node_disk_read_iops"] = self._query_and_aggregate_by_instance(
             f'sum by (instance) (irate(node_disk_reads_completed_total{{{disk_filter}}}[15s]))',
-            "Node Disk Read IOPS",
+            "Node Disk Read IOPS", step=self._NODE_STEP,
         )
         self.metrics_data["node_disk_write_iops"] = self._query_and_aggregate_by_instance(
             f'sum by (instance) (irate(node_disk_writes_completed_total{{{disk_filter}}}[15s]))',
-            "Node Disk Write IOPS",
+            "Node Disk Write IOPS", step=self._NODE_STEP,
         )
         self.metrics_data["node_disk_read_throughput"] = self._query_and_aggregate_by_instance(
             f'sum by (instance) (irate(node_disk_read_bytes_total{{{disk_filter}}}[15s])) / 1024 / 1024',
-            "Node Disk Read (MB/s)",
+            "Node Disk Read (MB/s)", step=self._NODE_STEP,
         )
         self.metrics_data["node_disk_write_throughput"] = self._query_and_aggregate_by_instance(
             f'sum by (instance) (irate(node_disk_written_bytes_total{{{disk_filter}}}[15s])) / 1024 / 1024',
-            "Node Disk Write (MB/s)",
+            "Node Disk Write (MB/s)", step=self._NODE_STEP,
         )
 
-    def _query_and_aggregate_by_instance(self, query: str, display_name: str) -> dict:
+    def _query_and_aggregate_by_instance(self, query: str, display_name: str,
+                                         step: Optional[int] = None) -> dict:
         """Query metrics and aggregate results, grouped by instance (node)."""
         series_list = self.prometheus.query_range(
             query,
             self.config.start_time,
             self.config.end_time,
-            self.config.step
+            step if step is not None else self.config.step
         )
 
         all_values = []
@@ -465,7 +512,8 @@ class ReportGenerator:
         """
         ns = self.config.namespace
         tserver_regex = "yb-tserver.*"
-        container_filter = 'container!="",container!="POD"'
+        # Main t-server container only (see _ROLE_QUERIES rationale).
+        tserver_container = 'container="yb-tserver"'
         # node_cpu_seconds_total refreshes every scrape (5s); cAdvisor refreshes
         # every ~10-15s so its rate windows must be wider. See collect_container_metrics.
         node_window = "15s"
@@ -481,7 +529,7 @@ class ReportGenerator:
             # Total tserver-container memory in MB (sum of per-container rows).
             "mem_mb": (
                 f'sum(container_memory_working_set_bytes{{namespace="{ns}",'
-                f'pod=~"{tserver_regex}",{container_filter}}}) / 1024 / 1024'
+                f'pod=~"{tserver_regex}",{tserver_container}}}) / 1024 / 1024'
             ),
             # Network RX+TX MB/s across tserver pods (pod-level only — no container filter).
             "net_rx_mb": (
@@ -495,12 +543,12 @@ class ReportGenerator:
             # Disk write IOPS across tserver pods.
             "disk_write_iops": (
                 f'sum(irate(container_fs_writes_total{{namespace="{ns}",'
-                f'pod=~"{tserver_regex}",{container_filter}}}[{cadvisor_window}]))'
+                f'pod=~"{tserver_regex}",{tserver_container}}}[{cadvisor_window}]))'
             ),
             # Sysbench (client) pod CPU in cores consumed, summed across replicas.
             "client_cpu_cores": (
                 f'sum(irate(container_cpu_usage_seconds_total{{namespace="{ns}",'
-                f'pod=~".*sysbench.*",{container_filter}}}[{cadvisor_window}]))'
+                f'pod=~".*sysbench.*",container="sysbench"}}[{cadvisor_window}]))'
             ),
         }
 
@@ -567,13 +615,14 @@ class ReportGenerator:
             query = f"sum({metric_expr})"
             self.metrics_data[key] = self._query_and_aggregate(query, f"Total: {metric_expr}")
 
-    def _query_and_aggregate(self, query: str, display_name: str) -> dict:
+    def _query_and_aggregate(self, query: str, display_name: str,
+                             step: Optional[int] = None) -> dict:
         """Query metrics and aggregate results."""
         series_list = self.prometheus.query_range(
             query,
             self.config.start_time,
             self.config.end_time,
-            self.config.step
+            step if step is not None else self.config.step
         )
 
         # Filter to only tserver pods for summary statistics
