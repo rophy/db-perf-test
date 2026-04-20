@@ -1832,7 +1832,7 @@
 
         function initExplorer() {
             const statusEl = document.getElementById('explorer-status');
-            const dumpUrl = "./metrics_dump.json.gz";
+            const dumpUrl = "https://db-perf-test-ape2.s3.ap-east-2.amazonaws.com/reports/20260420_1532/metrics_dump.json.gz";
             statusEl.textContent = 'Loading metrics dump...';
             fetch(dumpUrl)
                 .then(r => {

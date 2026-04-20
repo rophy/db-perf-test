@@ -41,3 +41,6 @@ metrics_dump.json.gz
 
 # VM images and cloud-init ISOs
 .vms/
+
+# Local environment overrides
+.env

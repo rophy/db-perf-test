@@ -91,7 +91,8 @@ sysbench-logs: ## Show sysbench container logs
 
 # Report generation
 report: ## Generate performance report from last benchmark run
-	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) ./scripts/report-generator/report.sh
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) ./scripts/report-generator/report.sh
 
 # Utilities
 status: ## Show status of all components
