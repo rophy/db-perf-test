@@ -127,9 +127,9 @@ def print_interval_table(intervals, warmup_len, per_pod=None):
     multi = per_pod and len(per_pod) > 1
 
     if multi:
-        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {'p95(ms)':>20}  {'err/s':>13}  {'CPU(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {'p95(ms)':>20}  {'err/s':>13}  {'CPU/nd(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     else:
-        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU/nd(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     print(header)
     print('-' * len(header))
     for iv in intervals:
