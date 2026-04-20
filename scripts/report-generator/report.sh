@@ -13,6 +13,7 @@ NAMESPACE="${NAMESPACE:-yugabyte-test}"
 RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://${RELEASE_NAME}-prometheus:9090}"
+METRICS_DUMP_BASE_URL="${METRICS_DUMP_BASE_URL:-}"
 
 # Read timestamps from sysbench_times.txt (key=value lines)
 TIMES_FILE="${PROJECT_ROOT}/output/sysbench/sysbench_times.txt"
@@ -54,6 +55,7 @@ PYTHON_ARGS=(
     --output-dir "$OUTPUT_DIR"
     --title "Sysbench Stress Test Report"
     --pods "yb-tserver.*" "yb-master.*" "sysbench.*"
+    --metrics-dump-base-url "$METRICS_DUMP_BASE_URL"
 )
 if [[ -n "$WARMUP_END_TIME" ]]; then
     PYTHON_ARGS+=(--warmup-end "$WARMUP_END_TIME")

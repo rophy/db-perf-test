@@ -7,6 +7,7 @@ Generates HTML reports with Chart.js visualizations from Prometheus metrics.
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -65,6 +66,7 @@ class ReportConfig:
     total_metrics: list[str] = field(default_factory=list)
     title: str = "Sysbench Stress Test Report"
     output_dir: str = "reports"
+    metrics_dump_base_url: str = ""
 
     @property
     def duration_seconds(self) -> float:
@@ -997,15 +999,43 @@ class ReportGenerator:
             "sysbench_params": sysbench_params,
             "format_number": format_number,
             "yb_metrics_index": self.yb_metrics_index,
+            "metrics_dump_url": "__METRICS_DUMP_URL__",
         }
 
         return template.render(**report_data)
+
+    def _upload_to_s3(self, local_file: Path, s3_key: str):
+        """Upload a file to S3 using aws cli."""
+        m = re.match(r'https?://(.+?)\.s3[.-]website[.-].*', self.config.metrics_dump_base_url)
+        if not m:
+            m = re.match(r'https?://(.+?)\.s3\..*', self.config.metrics_dump_base_url)
+        if not m:
+            print(f"Warning: cannot parse S3 bucket from {self.config.metrics_dump_base_url}", file=sys.stderr)
+            return
+        bucket = m.group(1)
+        cmd = ["aws", "s3", "cp", str(local_file), f"s3://{bucket}/{s3_key}"]
+        aws_profile = os.environ.get("AWS_PROFILE", "")
+        if aws_profile:
+            cmd = ["env", f"AWS_PROFILE={aws_profile}"] + cmd
+        print(f"Uploading to s3://{bucket}/{s3_key}...")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            print(f"Uploaded to S3: {self.config.metrics_dump_base_url}/{s3_key}")
+        else:
+            print(f"Warning: S3 upload failed: {result.stderr.strip()}", file=sys.stderr)
 
     def save_report(self, html_content: str):
         """Save report to file."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
         output_dir = Path(self.config.output_dir) / timestamp
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Resolve metrics dump URL now that timestamp is known.
+        if self.config.metrics_dump_base_url:
+            dump_url = f"{self.config.metrics_dump_base_url}/reports/{timestamp}/metrics_dump.json.gz"
+        else:
+            dump_url = "./metrics_dump.json.gz"
+        html_content = html_content.replace("__METRICS_DUMP_URL__", dump_url)
 
         output_file = output_dir / "report.html"
         with open(output_file, "w") as f:
@@ -1023,6 +1053,11 @@ class ReportGenerator:
             size_mb = dump_file.stat().st_size / 1024 / 1024
             raw_mb = len(raw) / 1024 / 1024
             print(f"Saved YB metrics dump: {dump_file} ({size_mb:.1f} MB gzip, {raw_mb:.1f} MB raw, {len(self.yb_dump)} series)")
+
+            # Upload to S3 if configured.
+            if self.config.metrics_dump_base_url:
+                s3_key = f"reports/{timestamp}/metrics_dump.json.gz"
+                self._upload_to_s3(dump_file, s3_key)
 
         # Copy sysbench output file(s)
         sysbench_dir = Path(self.config.output_dir).parent / "output" / "sysbench"
@@ -1239,6 +1274,8 @@ def main():
                         help="Total metric expression (can be repeated)")
     parser.add_argument("--title", default="Sysbench Stress Test Report", help="Report title")
     parser.add_argument("--output-dir", default="reports", help="Output directory")
+    parser.add_argument("--metrics-dump-base-url", default="",
+                        help="S3 website base URL for metrics dump (e.g. http://bucket.s3-website.region.amazonaws.com)")
 
     args = parser.parse_args()
 
@@ -1256,6 +1293,7 @@ def main():
         total_metrics=args.total_metrics,
         title=args.title,
         output_dir=args.output_dir,
+        metrics_dump_base_url=args.metrics_dump_base_url,
     )
 
     generator = ReportGenerator(config)

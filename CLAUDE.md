@@ -90,6 +90,12 @@ Before committing to an interpretation:
   - **CONTINUOUSLY** monitor status with `make status` and pod logs to confirm tasks are not stuck
   - Check for errors in pod events and logs if tasks appear stalled
 
+### Metrics Dump Storage
+- Report metrics dumps (`metrics_dump.json.gz`) are stored in S3, not git
+- Set `METRICS_DUMP_BASE_URL` env var to enable S3 upload during `make report`
+- Example: `METRICS_DUMP_BASE_URL="https://db-perf-test-ape2.s3.ap-east-2.amazonaws.com" make report`
+- Without the env var, dumps are saved locally and report uses relative path
+
 ### Kubernetes Resource Changes
 - **NEVER** update Kubernetes resources manually with `kubectl set`, `kubectl patch`, or `kubectl create`
 - **ALWAYS** update manifest files in `k8s/` and apply with `kubectl apply -k` or `helm upgrade`

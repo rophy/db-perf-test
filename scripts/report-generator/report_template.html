@@ -1276,8 +1276,9 @@
 
         function initExplorer() {
             const statusEl = document.getElementById('explorer-status');
-            statusEl.textContent = 'Loading metrics_dump.json.gz...';
-            fetch('./metrics_dump.json.gz')
+            const dumpUrl = {{ metrics_dump_url | tojson }};
+            statusEl.textContent = 'Loading metrics dump...';
+            fetch(dumpUrl)
                 .then(r => {
                     if (!r.ok) throw new Error(`HTTP ${r.status}`);
                     const ds = new DecompressionStream('gzip');

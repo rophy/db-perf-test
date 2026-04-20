@@ -36,5 +36,8 @@ charts/*/Chart.lock
 
 output/
 
+# Metrics dumps (stored in S3, not git)
+metrics_dump.json.gz
+
 # VM images and cloud-init ISOs
 .vms/
