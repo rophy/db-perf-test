@@ -34,7 +34,7 @@ sysbench:
   # Benchmark parameters
   tables: 10
   tableSize: 100000
-  threads: 768
+  threads: 128
   time: 120
   warmupTime: 30
   reportInterval: 10
@@ -50,7 +50,7 @@ sysbench:
   pointSelects: 2
   indexUpdates: 20
   nonIndexUpdates: 20
-  numRowsInInsert: 10
+  numRowsInInsert: 1
   threadInitTimeout: 90
 
 # Prometheus configuration
