@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'reports/*/report.html'
+      - 'reports/**'
 
 permissions:
   contents: read

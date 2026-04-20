@@ -100,12 +100,59 @@ class QueryExecutor:
             return None
 
 
+    def exec_pod_curl(self, pod: str, container: str, url: str) -> Optional[str]:
+        """Execute curl inside a specific pod (YB pods have curl, not wget)."""
+        cmd = [
+            "kubectl", "--context", self.kube_context,
+            "exec", "-n", self.namespace, pod, "-c", container,
+            "--", "curl", "-s", url
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                return result.stdout
+            return None
+        except Exception:
+            return None
+
+
 class PrometheusClient:
     """Client for querying Prometheus metrics."""
 
     def __init__(self, executor: QueryExecutor, base_url: str):
         self.executor = executor
         self.base_url = base_url
+
+    def label_values(self, label: str, match: str = "") -> list[str]:
+        """Fetch distinct values for a label, optionally filtered by match[]."""
+        url = f"{self.base_url}/api/v1/label/{label}/values"
+        if match:
+            url += f"?match[]={quote(match)}"
+        response = self.executor.exec_curl(url)
+        if not response:
+            return []
+        try:
+            data = json.loads(response)
+            if data.get("status") == "success":
+                return data.get("data", [])
+        except json.JSONDecodeError:
+            pass
+        return []
+
+    def query_range_raw(self, query: str, start: float, end: float, step: int) -> list[dict]:
+        """Execute a range query and return raw result dicts (metric + values)."""
+        encoded_query = quote(query)
+        url = f"{self.base_url}/api/v1/query_range?query={encoded_query}&start={start}&end={end}&step={step}"
+        response = self.executor.exec_curl(url)
+        if not response:
+            return []
+        try:
+            data = json.loads(response)
+            if data.get("status") != "success":
+                return []
+            return data.get("data", {}).get("result", [])
+        except json.JSONDecodeError:
+            return []
 
     def query_range(self, query: str, start: float, end: float, step: int) -> list[MetricSeries]:
         """Execute a range query and return metric series."""
@@ -745,6 +792,130 @@ class ReportGenerator:
         self.by_node = nodes
         self.pod_to_node = pod_to_node
 
+    _YB_DUMP_STEP = 5
+    _YB_DUMP_BATCH_SIZE = 50
+    _YB_IRATE_WINDOW = "15s"
+
+    def _fetch_yb_metric_types(self) -> dict[str, str]:
+        """Fetch metric TYPE annotations from YB tserver and master endpoints."""
+        types: dict[str, str] = {}
+        endpoints = [
+            ("yb-tserver-0", "yb-tserver", "http://localhost:9000/prometheus-metrics"),
+            ("yb-master-0", "yb-master", "http://localhost:7000/prometheus-metrics"),
+        ]
+        for pod, container, url in endpoints:
+            output = self.executor.exec_pod_curl(pod, container, url)
+            if not output:
+                continue
+            for line in output.split("\n"):
+                if line.startswith("# TYPE "):
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        types[parts[2]] = parts[3]
+        return types
+
+    def collect_yb_metrics_dump(self) -> list[dict]:
+        """Dump all YugabyteDB metrics for the run window with meaningful PromQL.
+
+        Counters are queried as irate() rates, gauges as raw values.
+        Per-tablet/table metrics are pre-aggregated to per-instance with sum by.
+
+        Prometheus doesn't support irate() with __name__ regex selectors,
+        so counters are queried one metric at a time. Gauges can be batched.
+        """
+        metric_types = self._fetch_yb_metric_types()
+        print(f"Fetched {len(metric_types)} YB metric type annotations "
+              f"({sum(1 for v in metric_types.values() if v == 'counter')} counters, "
+              f"{sum(1 for v in metric_types.values() if v == 'gauge')} gauges)")
+
+        names = self.prometheus.label_values(
+            "__name__", '{job=~"yb-tserver|yb-master"}'
+        )
+        if not names:
+            print("Warning: no YB metric names found", file=sys.stderr)
+            return []
+
+        # Skip _bucket metrics (histogram detail not useful in explorer).
+        names = [n for n in names if not n.endswith("_bucket")]
+
+        counters = []
+        gauges = []
+        for n in names:
+            base = re.sub(r"_(count|sum)$", "", n)
+            mtype = metric_types.get(n) or metric_types.get(base, "counter")
+            if mtype == "gauge":
+                gauges.append(n)
+            else:
+                counters.append(n)
+
+        print(f"Querying {len(counters)} counters (irate, parallel) + "
+              f"{len(gauges)} gauges ({self._YB_DUMP_BATCH_SIZE}/batch)...")
+
+        all_series: list[dict] = []
+
+        # Counters: irate per metric (Prometheus rejects irate with __name__ regex).
+        # Parallelized with ThreadPoolExecutor since each kubectl exec is I/O-bound.
+        print("  Counters (irate, sum by instance):")
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _query_counter(name: str) -> list[dict]:
+            query = (
+                f'sum by (exported_instance)'
+                f'(irate({name}{{job=~"yb-tserver|yb-master"}}[{self._YB_IRATE_WINDOW}]))'
+            )
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time,
+                self._YB_DUMP_STEP,
+            )
+            for r in results:
+                r.setdefault("metric", {})["__name__"] = name
+            return results
+
+        done_count = 0
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            futures = {pool.submit(_query_counter, n): n for n in counters}
+            for future in as_completed(futures):
+                results = future.result()
+                all_series.extend(results)
+                done_count += 1
+                if done_count % 200 == 0 or done_count == len(counters):
+                    print(f"    {done_count}/{len(counters)}, {len(all_series)} series total")
+
+        # Gauges: can batch via __name__ regex.
+        print("  Gauges (raw, sum by instance):")
+        for i in range(0, len(gauges), self._YB_DUMP_BATCH_SIZE):
+            batch = gauges[i:i + self._YB_DUMP_BATCH_SIZE]
+            regex = "|".join(batch)
+            query = (
+                f'sum by (__name__, exported_instance)'
+                f'({{__name__=~"{regex}",job=~"yb-tserver|yb-master"}})'
+            )
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time,
+                self._YB_DUMP_STEP,
+            )
+            all_series.extend(results)
+            done = min(i + self._YB_DUMP_BATCH_SIZE, len(gauges))
+            if (i // self._YB_DUMP_BATCH_SIZE) % 10 == 0 or done == len(gauges):
+                print(f"    {done}/{len(gauges)}, {len(all_series)} series total")
+
+        return all_series
+
+    @staticmethod
+    def build_metrics_index(dump: list[dict]) -> list[dict]:
+        """Build a summary index of metric names for the explorer picker."""
+        name_info: dict[str, dict] = {}
+        for s in dump:
+            m = s.get("metric", {})
+            name = m.get("__name__", "")
+            if name not in name_info:
+                name_info[name] = {
+                    "name": name,
+                    "count": 0,
+                }
+            name_info[name]["count"] += 1
+        return sorted(name_info.values(), key=lambda x: x["name"])
+
     def generate_report(self) -> str:
         """Generate HTML report."""
         # Collect cluster specifications
@@ -759,6 +930,11 @@ class ReportGenerator:
 
         print("Collecting custom metrics...")
         self.collect_custom_metrics()
+
+        # Dump all YB metrics for the Metrics Explorer tab.
+        print("Collecting YB metrics dump...")
+        self.yb_dump = self.collect_yb_metrics_dump()
+        self.yb_metrics_index = self.build_metrics_index(self.yb_dump)
 
         # Reshape flat series into by_pod / by_node views for the tabbed template.
         self.restructure_by_pod_and_node()
@@ -820,6 +996,7 @@ class ReportGenerator:
             "sysbench_results": sysbench_results,
             "sysbench_params": sysbench_params,
             "format_number": format_number,
+            "yb_metrics_index": self.yb_metrics_index,
         }
 
         return template.render(**report_data)
@@ -835,6 +1012,17 @@ class ReportGenerator:
             f.write(html_content)
 
         print(f"Report saved to: {output_file}")
+
+        # Save YB metrics dump for the Metrics Explorer tab (gzip compressed).
+        if self.yb_dump:
+            import gzip as _gzip
+            dump_file = output_dir / "metrics_dump.json.gz"
+            raw = json.dumps(self.yb_dump, separators=(",", ":")).encode()
+            with _gzip.open(dump_file, "wb") as f:
+                f.write(raw)
+            size_mb = dump_file.stat().st_size / 1024 / 1024
+            raw_mb = len(raw) / 1024 / 1024
+            print(f"Saved YB metrics dump: {dump_file} ({size_mb:.1f} MB gzip, {raw_mb:.1f} MB raw, {len(self.yb_dump)} series)")
 
         # Copy sysbench output file(s)
         sysbench_dir = Path(self.config.output_dir).parent / "output" / "sysbench"
