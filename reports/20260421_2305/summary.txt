@@ -1,0 +1,35 @@
+=== Tserver Node Specs ===
+Tservers: 3
+  yb-tserver-0 -> ygdb-worker-3: 2 CPU, 8132504Ki
+  yb-tserver-1 -> ygdb-worker-2: 2 CPU, 8132504Ki
+  yb-tserver-2 -> ygdb-worker-1: 2 CPU, 8132504Ki
+
+=== Sysbench Clients ===
+Pods: 1
+  yb-bench-sysbench-0 -> ygdb-control
+
+=== Sysbench Per-Interval Metrics ===
+T(s)  Phase                    TPS               p95(ms)          err/s  CPU/nd(cr)   Mem(MB)  Net(MB/s)   WrIOPS  CliCPU
+-------------------------------------------------------------------------------------------------------------------------
+  10  warmup            462/19,556               17/1771        0.0/0.0     1.68     3,369       46.9       75    0.04
+  20  warmup            445/50,410               18/2238        0.0/0.0     1.68     3,373       18.4       43    0.03
+  30  warmup            443/51,593               18/2009        0.0/0.0     1.67     3,377       18.3       55    0.04
+  40  run               454/50,426               17/1803        0.0/0.0     1.67     3,394       17.9       54    0.04
+  50  run               438/49,816               18/1192        0.0/0.0     1.68     3,411       11.6       69    0.04
+  60  run               445/47,815                18/338        0.0/0.0     1.68     3,420       12.0       60    0.04
+  70  run               447/44,099                 17/91        0.0/0.0     1.69     3,426       12.0       31    0.04
+  80  run               441/47,740                18/164        0.0/0.0     1.69     3,428       17.7       42    0.04
+  90  run               448/44,948                 17/77        0.0/0.0     1.68     3,408       17.5       59    0.04
+ 100  run               444/44,680                 17/30        0.0/0.0     1.68     3,438       11.3       48    0.04
+ 110  run               440/47,834                 18/94        0.0/0.0     1.69     3,445       11.9       57    0.04
+ 120  run               439/45,715                18/140        0.0/0.0     1.68     3,448       17.5       52    0.04
+
+=== Sysbench Totals (as reported by sysbench; INCLUDES warmup) ===
+NOTE: these are run-averaged over warmup+run. For steady-state numbers,
+      read the per-interval table above and eyeball the post-warmup rows.
+  TPS avg:            445.14  (total txns: 53,422)
+  QPS avg:            445.14  (total qrys: 53,422)
+  p95 latency:         17.32 ms
+  Errors:                  0  (0.00/s)
+  Reconnects:              0  (0.00/s)
+  Elapsed:             120.0 s

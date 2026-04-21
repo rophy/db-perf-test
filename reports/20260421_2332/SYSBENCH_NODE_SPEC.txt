@@ -1,0 +1,2 @@
+pod_name	node_name
+yb-bench-sysbench-0	ygdb-control
