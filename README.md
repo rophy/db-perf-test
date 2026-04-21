@@ -27,7 +27,7 @@ Three deployment environments are supported:
 | Environment | Infra | Use Case |
 |---|---|---|
 | **minikube** | minikube (KVM2) | Local development, quick benchmarks |
-| **AWS** | EKS (m6i.xlarge) | Production-scale benchmarks |
+| **AWS** | k3s on c7i.8xlarge (via kube-sandbox terraform) | Production-scale benchmarks |
 | **k3s-virsh** | libvirt VMs + k3s | Performance tuning lab with I/O simulation |
 
 ### k3s-virsh: Performance Tuning Lab
@@ -44,8 +44,9 @@ Topology: 1 control node (4 CPU / 8 GB) + 3 worker nodes (4 CPU / 8 GB), Ubuntu 
 
 - kubectl
 - Helm 3.x
-- Kubernetes cluster (minikube, EKS, or k3s-virsh)
+- Kubernetes cluster (minikube, k3s-virsh, or AWS via kube-sandbox)
 - Python 3 with Jinja2 (`pip install Jinja2`) for report generation
+- Node.js + npm for report JS vendor libs (`make vendor`)
 - For k3s-virsh: libvirt, virt-install, qemu-img, genisoimage
 
 ## Quick Start
@@ -55,16 +56,19 @@ Topology: 1 control node (4 CPU / 8 GB) + 3 worker nodes (4 CPU / 8 GB), Ubuntu 
 ```bash
 ./scripts/setup-minikube.sh
 make deploy-minikube
-make sysbench-prepare && make sysbench-run
+make sysbench-cleanup && make sysbench-prepare && make sysbench-trigger
+make sysbench-run
 make report
 ```
 
 ### AWS
 
 ```bash
-make deploy-aws KUBE_CONTEXT=my-eks-cluster
-make sysbench-prepare KUBE_CONTEXT=my-eks-cluster
-make sysbench-run KUBE_CONTEXT=my-eks-cluster
+make deploy-aws KUBE_CONTEXT=kube-sandbox
+make sysbench-cleanup KUBE_CONTEXT=kube-sandbox
+make sysbench-prepare KUBE_CONTEXT=kube-sandbox
+make sysbench-trigger KUBE_CONTEXT=kube-sandbox
+make sysbench-run KUBE_CONTEXT=kube-sandbox
 ```
 
 ### k3s-virsh (Performance Tuning Lab)
@@ -80,7 +84,9 @@ DISK_DELAY_MS=50 ./scripts/setup-slow-disk.sh
 make deploy-k3s-virsh KUBE_CONTEXT=k3s-virsh
 
 # Run benchmark
+make sysbench-cleanup KUBE_CONTEXT=k3s-virsh
 make sysbench-prepare KUBE_CONTEXT=k3s-virsh
+make sysbench-trigger KUBE_CONTEXT=k3s-virsh
 make sysbench-run KUBE_CONTEXT=k3s-virsh
 
 # Optional: throttle disk throughput on running cluster (non-destructive)
@@ -102,22 +108,28 @@ Reports are saved to `reports/<timestamp>/report.html`.
 .
 ├── charts/
 │   └── yb-benchmark/              # Helm chart
-│       ├── Chart.yaml             # YugabyteDB as optional dependency
+│       ├── Chart.yaml
+│       ├── charts/yugabyte/       # Vendored YugabyteDB subchart (v2.23.1)
 │       ├── values-aws.yaml        # AWS production settings
 │       ├── values-minikube.yaml   # Minikube dev settings
 │       ├── values-k3s-virsh.yaml  # k3s-virsh tuning lab settings
 │       └── templates/
-│           ├── sysbench.yaml           # Sysbench deployment
+│           ├── sysbench.yaml           # Sysbench StatefulSet
 │           ├── sysbench-configmap.yaml # Sysbench scripts (prepare/run/cleanup)
-│           └── prometheus.yaml         # Prometheus stack
+│           └── prometheus.yaml         # Prometheus + node-exporter + cAdvisor
 ├── scripts/
 │   ├── setup-minikube.sh          # Minikube cluster setup
 │   ├── setup-k3s-virsh.sh        # VM creation + k3s install
 │   ├── teardown-k3s-virsh.sh     # VM cleanup
 │   ├── setup-slow-disk.sh        # dm-delay storage setup
 │   ├── setup-slow-throughput.sh   # virsh blkdeviotune wrapper
+│   ├── trigger-setup.sql          # cleanup_duplicate_k trigger DDL
 │   └── report-generator/          # HTML report generation
-├── .vms/                          # VM disks and cloud images (gitignored)
+├── reports/                       # Generated reports (committed to git)
+│   ├── vendor/                    # JS libs for reports (built by make vendor, gitignored)
+│   └── <timestamp>/report.html
+├── package.json                   # JS vendor deps (chart.js, plugins)
+├── .env.example                   # Environment variables template
 ├── Makefile                       # Deployment and benchmark targets
 └── README.md
 ```
@@ -139,9 +151,11 @@ Reports are saved to `reports/<timestamp>/report.html`.
 | Target | Description |
 |--------|-------------|
 | `make sysbench-prepare` | Create tables and load test data (params from values file) |
+| `make sysbench-trigger` | Install `cleanup_duplicate_k` trigger on all sbtest tables |
 | `make sysbench-run` | Run benchmark (params from values file) |
 | `make sysbench-cleanup` | Drop benchmark tables |
 | `make sysbench-shell` | Open shell in sysbench container |
+| `make vendor` | Install JS vendor libs for reports (npm) |
 | `make report` | Generate HTML performance report |
 
 ### Utilities
@@ -170,14 +184,14 @@ All sysbench parameters are defined in Helm values files (single source of truth
 
 Parameters follow [YugabyteDB official benchmark docs](https://docs.yugabyte.com/stable/benchmark/sysbench-ysql/).
 
-| Parameter | AWS Default | Minikube Default | Description |
-|-----------|-------------|------------------|-------------|
-| `sysbench.tables` | 20 | 2 | Number of tables |
-| `sysbench.tableSize` | 5000000 | 1000 | Rows per table |
-| `sysbench.threads` | 60 | 2 | Concurrent threads |
-| `sysbench.time` | 1800 | 60 | Test duration (seconds) |
-| `sysbench.warmupTime` | 300 | 10 | In-run warmup (seconds) |
-| `sysbench.workload` | oltp_read_write | oltp_read_write | Workload type |
+| Parameter | AWS | k3s-virsh | Minikube | Description |
+|-----------|-----|-----------|----------|-------------|
+| `sysbench.tables` | 24 | 10 | 10 | Number of tables |
+| `sysbench.tableSize` | 100000 | 100000 | 100000 | Rows per table |
+| `sysbench.threads` | 21000 | 128 | 24 | Concurrent threads |
+| `sysbench.time` | 300 | 120 | 120 | Test duration (seconds) |
+| `sysbench.warmupTime` | 90 | 30 | 30 | In-run warmup (seconds) |
+| `sysbench.workload` | oltp_insert | oltp_insert | oltp_read_write | Workload type |
 
 To customize, edit `charts/yb-benchmark/values-*.yaml` and redeploy.
 
@@ -194,7 +208,8 @@ These flags are configured in `sysbench.*` per YugabyteDB docs:
 
 ### Available Workloads
 
-- `oltp_read_write` - Mixed read/write transactions (default)
+- `oltp_insert` - Single-row insert transactions (used for write scaling benchmarks)
+- `oltp_read_write` - Mixed read/write transactions
 - `oltp_read_only` - Read-only transactions
 - `oltp_write_only` - Write-only transactions
 
@@ -203,11 +218,14 @@ These flags are configured in `sysbench.*` per YugabyteDB docs:
 After `make sysbench-run`, generate a report with `make report`.
 
 The report includes:
-- CPU utilization per pod
+- Per-interval TPS, latency, CPU/node, memory, network, disk IOPS
+- CPU utilization per pod (container-level via cAdvisor)
 - Memory usage over time
 - Network I/O statistics
-- Min/Avg/Max summary table
-- Interactive Chart.js visualizations
+- Metrics Explorer tab with all YugabyteDB metrics (loaded from S3)
+- Interactive Chart.js visualizations (vendor libs installed via `make vendor`)
+
+Reports are published to GitHub Pages at `https://rophy.github.io/db-perf-test/`.
 
 ## Helm Chart
 
