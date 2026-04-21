@@ -23,9 +23,6 @@ help: ## Show this help
 
 # Deployment
 deploy-aws: ## Deploy full stack with AWS-optimized settings
-	@helm repo add yugabytedb https://charts.yugabyte.com 2>/dev/null || true
-	@helm repo update yugabytedb
-	@helm dependency build $(CHART_DIR)
 	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \
@@ -35,9 +32,6 @@ deploy-aws: ## Deploy full stack with AWS-optimized settings
 		--wait --timeout 15m
 
 deploy-minikube: ## Deploy full stack with minikube-optimized settings
-	@helm repo add yugabytedb https://charts.yugabyte.com 2>/dev/null || true
-	@helm repo update yugabytedb
-	@helm dependency build $(CHART_DIR)
 	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \
@@ -47,9 +41,6 @@ deploy-minikube: ## Deploy full stack with minikube-optimized settings
 		--wait --timeout 15m
 
 deploy-k3s-virsh: ## Deploy full stack on k3s-virsh cluster
-	@helm repo add yugabytedb https://charts.yugabyte.com 2>/dev/null || true
-	@helm repo update yugabytedb
-	@helm dependency build $(CHART_DIR)
 	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \

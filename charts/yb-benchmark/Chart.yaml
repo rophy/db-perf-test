@@ -5,8 +5,3 @@ type: application
 version: 0.1.0
 appVersion: "1.0.0"
 
-dependencies:
-  - name: yugabyte
-    version: "2.23.1"
-    repository: https://charts.yugabyte.com
-    condition: yugabyte.enabled
