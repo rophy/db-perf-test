@@ -25,9 +25,20 @@ jobs:
       - name: Checkout master
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install vendor JS libs
+        run: make vendor
+
       - name: Build pages directory
         run: |
           mkdir -p _site
+
+          # Copy vendor JS libs (shared across all reports)
+          cp -r reports/vendor _site/reports/vendor
 
           # Copy all report.html files preserving folder structure
           for dir in reports/*/; do

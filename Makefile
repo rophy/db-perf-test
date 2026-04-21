@@ -1,6 +1,6 @@
 .PHONY: help deploy-aws deploy-minikube deploy-k3s-virsh clean status ysql
 .PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-trigger
-.PHONY: report
+.PHONY: report vendor
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
 .PHONY: setup-k3s-virsh teardown-k3s-virsh setup-slow-disk setup-slow-throughput adjust-disk-delay
@@ -89,8 +89,27 @@ sysbench-shell: ## Open shell in sysbench container
 sysbench-logs: ## Show sysbench container logs
 	$(KUBECTL) logs -f $(SYSBENCH_POD)
 
+VENDOR_DIR := reports/vendor
+VENDOR_FILES := \
+	$(VENDOR_DIR)/chart.umd.js \
+	$(VENDOR_DIR)/chartjs-adapter-date-fns.bundle.min.js \
+	$(VENDOR_DIR)/chartjs-plugin-zoom.min.js \
+	$(VENDOR_DIR)/hammer.min.js \
+	$(VENDOR_DIR)/chartjs-plugin-annotation.min.js
+
+vendor: $(VENDOR_FILES) ## Install JS vendor libs for reports
+
+$(VENDOR_FILES): package.json
+	npm install --ignore-scripts
+	mkdir -p $(VENDOR_DIR)
+	cp node_modules/chart.js/dist/chart.umd.js $(VENDOR_DIR)/
+	cp node_modules/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js $(VENDOR_DIR)/
+	cp node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js $(VENDOR_DIR)/
+	cp node_modules/hammerjs/hammer.min.js $(VENDOR_DIR)/
+	cp node_modules/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js $(VENDOR_DIR)/
+
 # Report generation
-report: ## Generate performance report from last benchmark run
+report: vendor ## Generate performance report from last benchmark run
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) ./scripts/report-generator/report.sh
 

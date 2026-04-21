@@ -44,3 +44,9 @@ metrics_dump.json.gz
 
 # Local environment overrides
 .env
+
+# Node.js
+node_modules/
+
+# Vendor JS libs (built from npm, not checked in)
+reports/vendor/
