@@ -308,6 +308,27 @@ class ReportGenerator:
         self.by_node = {}
         self.pod_to_node = {}
         self.cluster_spec = {}
+        self._node_instance_filter = ""
+
+    def _derive_node_instances(self):
+        """Extract node hostnames from container metrics and build an instance filter.
+
+        Must be called after collect_container_metrics(). Scans the CPU series
+        (which are namespace-filtered) for distinct instance values — these are
+        the nodes hosting YB pods.
+        """
+        cpu_data = self.metrics_data.get("cpu", {})
+        instances = sorted({
+            s["instance"] for s in cpu_data.get("series", [])
+            if s.get("instance")
+        })
+        if instances:
+            regex = "|".join(instances)
+            self._node_instance_filter = f'instance=~"{regex}"'
+            print(f"  Node instance filter: {len(instances)} nodes ({', '.join(instances)})")
+        else:
+            self._node_instance_filter = ""
+            print("  Warning: no node instances found from container metrics", file=sys.stderr)
 
     def validate_connectivity(self):
         """Validate kubectl and prometheus connectivity before proceeding."""
@@ -462,28 +483,35 @@ class ReportGenerator:
         self.metrics_data["disk_write_throughput"] = self._query_and_aggregate(disk_write_throughput_query, "Disk Write (MB/s)", step=self._CADVISOR_STEP)
 
     def collect_node_metrics(self):
-        """Collect node-level CPU/memory/network/disk from node_exporter."""
+        """Collect node-level CPU/memory/network/disk from node_exporter.
+
+        Filtered to only nodes hosting pods in the YB namespace (via
+        _node_instance_filter derived from container metrics).
+        """
+        nf = self._node_instance_filter
+        nf_comma = f",{nf}" if nf else ""
+
         # Node CPU in cores-used, per instance.
         #   count-by-instance of idle rows  = total CPUs on that node
         #   sum-by-instance of irate(idle)  = idle cores
         #   difference                      = cores in use
         # Reported in cores so it overlays 1:1 with container CPU (also cores).
         node_cpu_query = (
-            '(count by (instance) (node_cpu_seconds_total{mode="idle"})) '
-            '- sum by (instance) (irate(node_cpu_seconds_total{mode="idle"}[15s]))'
+            f'(count by (instance) (node_cpu_seconds_total{{mode="idle"{nf_comma}}})) '
+            f'- sum by (instance) (irate(node_cpu_seconds_total{{mode="idle"{nf_comma}}}[15s]))'
         )
         self.metrics_data["node_cpu"] = self._query_and_aggregate_by_instance(
             node_cpu_query, "Node CPU Total (cores)", step=self._NODE_STEP)
 
         # CPU breakdown by mode (kept as percent — informational detail charts).
         for mode in ["user", "system", "iowait", "steal", "softirq"]:
-            query = f'avg by (instance) (irate(node_cpu_seconds_total{{mode="{mode}"}}[15s])) * 100'
+            query = f'avg by (instance) (irate(node_cpu_seconds_total{{mode="{mode}"{nf_comma}}}[15s])) * 100'
             self.metrics_data[f"node_cpu_{mode}"] = self._query_and_aggregate_by_instance(
                 query, f"Node CPU {mode} (%)", step=self._NODE_STEP)
 
         # Node memory used (MB) = MemTotal - MemAvailable.
         node_mem_query = (
-            '(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024'
+            f'(node_memory_MemTotal_bytes{{{nf}}} - node_memory_MemAvailable_bytes{{{nf}}}) / 1024 / 1024'
         )
         self.metrics_data["node_memory"] = self._query_and_aggregate_by_instance(
             node_mem_query, "Node Memory Used (MB)", step=self._NODE_STEP)
@@ -498,18 +526,18 @@ class ReportGenerator:
         # meaningful ceilings for "how loaded is the node's network path".
         # Underreports in the rare case of balanced multi-NIC traffic.
         self.metrics_data["node_network_rx"] = self._query_and_aggregate_by_instance(
-            'max by (instance) (irate(node_network_receive_bytes_total{device!="lo"}[15s])) / 1024 / 1024',
+            f'max by (instance) (irate(node_network_receive_bytes_total{{device!="lo"{nf_comma}}}[15s])) / 1024 / 1024',
             "Node Network RX (MB/s)", step=self._NODE_STEP,
         )
         self.metrics_data["node_network_tx"] = self._query_and_aggregate_by_instance(
-            'max by (instance) (irate(node_network_transmit_bytes_total{device!="lo"}[15s])) / 1024 / 1024',
+            f'max by (instance) (irate(node_network_transmit_bytes_total{{device!="lo"{nf_comma}}}[15s])) / 1024 / 1024',
             "Node Network TX (MB/s)", step=self._NODE_STEP,
         )
 
         # Node disk I/O summed across devices. Exclude loop/dm devices to focus
         # on physical disks; wrapped in sum-by-instance so a node with multiple
         # devices still returns one series per instance.
-        disk_filter = 'device!~"loop.*|dm-.*"'
+        disk_filter = f'device!~"loop.*|dm-.*"{nf_comma}'
         self.metrics_data["node_disk_read_iops"] = self._query_and_aggregate_by_instance(
             f'sum by (instance) (irate(node_disk_reads_completed_total{{{disk_filter}}}[15s]))',
             "Node Disk Read IOPS", step=self._NODE_STEP,
@@ -586,12 +614,15 @@ class ReportGenerator:
         node_window = "15s"
         cadvisor_window = "30s"
 
+        nf = self._node_instance_filter
+        nf_comma = f",{nf}" if nf else ""
+
         queries = {
-            # DB-node VM CPU in cores-used, averaged across role=db nodes.
+            # DB-node VM CPU in cores-used, averaged across nodes hosting YB pods.
             "cpu_cores": (
                 'avg('
-                'count by (instance) (node_cpu_seconds_total{mode="idle",role="db"}) '
-                f'- sum by (instance) (irate(node_cpu_seconds_total{{mode="idle",role="db"}}[{node_window}])))'
+                f'count by (instance) (node_cpu_seconds_total{{mode="idle"{nf_comma}}}) '
+                f'- sum by (instance) (irate(node_cpu_seconds_total{{mode="idle"{nf_comma}}}[{node_window}])))'
             ),
             # Total tserver-container memory in MB (sum of per-container rows).
             "mem_mb": (
@@ -930,6 +961,7 @@ class ReportGenerator:
 
         Same approach as collect_yb_metrics_dump: counters as irate() rates,
         gauges as raw values, aggregated with sum by (instance).
+        Filtered to only nodes hosting YB pods (via _node_instance_filter).
         Output is normalized to use exported_instance key so the Metrics
         Explorer JS works without changes.
         """
@@ -956,6 +988,9 @@ class ReportGenerator:
             else:
                 gauges.append(n)
 
+        nf = self._node_instance_filter
+        nf_comma = f",{nf}" if nf else ""
+
         print(f"  {len(counters)} counters + {len(gauges)} gauges "
               f"({len(names)} names, {len(type_map)} metadata entries)")
 
@@ -966,7 +1001,7 @@ class ReportGenerator:
         def _query_counter(name: str) -> list[dict]:
             query = (
                 f'sum by (instance)'
-                f'(irate({name}{{job="node-exporter"}}[{self._NODE_IRATE_WINDOW}]))'
+                f'(irate({name}{{job="node-exporter"{nf_comma}}}[{self._NODE_IRATE_WINDOW}]))'
             )
             results = self.prometheus.query_range_raw(
                 query, self.config.start_time, self.config.end_time,
@@ -992,7 +1027,7 @@ class ReportGenerator:
             regex = "|".join(batch)
             query = (
                 f'sum by (__name__, instance)'
-                f'({{__name__=~"{regex}",job="node-exporter"}})'
+                f'({{__name__=~"{regex}",job="node-exporter"{nf_comma}}})'
             )
             results = self.prometheus.query_range_raw(
                 query, self.config.start_time, self.config.end_time,
@@ -1035,6 +1070,9 @@ class ReportGenerator:
         # Collect metrics
         print("Collecting container metrics...")
         self.collect_container_metrics()
+
+        print("Deriving node instance filter from container metrics...")
+        self._derive_node_instances()
 
         print("Collecting node metrics...")
         self.collect_node_metrics()
