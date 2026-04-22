@@ -96,7 +96,7 @@ K6_SCRIPT ?= test.js
 
 # k6 operations
 k6-run: ## Run k6 test script in cluster (K6_SCRIPT=test.js)
-	$(KUBECTL) exec $(K6_POD) -- k6 run /scripts/$(K6_SCRIPT)
+	$(KUBECTL) exec $(K6_POD) -- k6 run --out experimental-prometheus-rw /scripts/$(K6_SCRIPT)
 
 k6-shell: ## Open shell in k6 container
 	$(KUBECTL) exec -it $(K6_POD) -- /bin/sh

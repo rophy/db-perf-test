@@ -35,6 +35,22 @@ spec:
           value: {{ .Values.k6.db.password | quote }}
         - name: PG_DB
           value: {{ .Values.k6.db.name | quote }}
+        - name: K6_TABLES
+          value: {{ .Values.k6.tables | quote }}
+        - name: K6_TABLE_SIZE
+          value: {{ .Values.k6.tableSize | quote }}
+        - name: K6_CREATE_SECONDARY
+          value: {{ .Values.k6.createSecondary | quote }}
+        - name: K6_INSTALL_TRIGGER
+          value: {{ .Values.k6.installTrigger | quote }}
+        - name: BENCH_VUS
+          value: {{ .Values.k6.vus | quote }}
+        - name: BENCH_WARMUP
+          value: {{ .Values.k6.warmupTime | quote }}
+        - name: BENCH_DURATION
+          value: {{ .Values.k6.duration | quote }}
+        - name: K6_PROMETHEUS_RW_SERVER_URL
+          value: "http://{{ include "yb-benchmark.fullname" . }}-prometheus:9090/api/v1/write"
         resources:
           {{- toYaml .Values.k6.resources | nindent 10 }}
         volumeMounts:

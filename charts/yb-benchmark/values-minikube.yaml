@@ -88,6 +88,13 @@ k6:
   replicas: 1
   nodeSelector:
     role: master
+  tables: 10
+  tableSize: 100000
+  createSecondary: true
+  installTrigger: true
+  vus: 4
+  warmupTime: 30
+  duration: "120s"
   db:
     host: yb-tserver-service
     port: "5433"

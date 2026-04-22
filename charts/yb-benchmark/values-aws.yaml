@@ -99,6 +99,13 @@ k6:
             values:
             - k6
         topologyKey: kubernetes.io/hostname
+  tables: 24
+  tableSize: 100000
+  createSecondary: true
+  installTrigger: true
+  vus: 4
+  warmupTime: 90
+  duration: "300s"
   db:
     host: yb-tserver-service
     port: "5433"

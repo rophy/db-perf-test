@@ -150,6 +150,7 @@ spec:
         - "--storage.tsdb.path=/prometheus"
         - "--storage.tsdb.retention.time={{ .Values.prometheus.retention }}"
         - "--web.enable-lifecycle"
+        - "--web.enable-remote-write-receiver"
         ports:
         - containerPort: 9090
         resources:

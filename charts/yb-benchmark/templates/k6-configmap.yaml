@@ -10,28 +10,56 @@ data:
   test.js: |
     import sql from "k6/x/sql";
     import driver from "k6/x/sql/driver/postgres";
-    import { check } from "k6";
     import { Counter, Trend } from "k6/metrics";
 
     const insertCount = new Counter("rows_inserted");
-    const queryDuration = new Trend("query_duration_ms", true);
+    const insertDuration = new Trend("insert_duration_ms", true);
 
     const PG_HOST = __ENV.PG_HOST || "localhost";
     const PG_PORT = __ENV.PG_PORT || "5433";
     const PG_USER = __ENV.PG_USER || "yugabyte";
     const PG_PASS = __ENV.PG_PASS || "yugabyte";
     const PG_DB   = __ENV.PG_DB   || "yugabyte";
+    const TABLES  = parseInt(__ENV.K6_TABLES || "10");
+    const TABLE_SIZE = parseInt(__ENV.K6_TABLE_SIZE || "100000");
+    const CREATE_SECONDARY = (__ENV.K6_CREATE_SECONDARY || "true") === "true";
+    const INSTALL_TRIGGER = (__ENV.K6_INSTALL_TRIGGER || "true") === "true";
+    const WARMUP_SECS = parseInt(__ENV.BENCH_WARMUP || "0");
+    const DURATION_SECS = parseInt((__ENV.BENCH_DURATION || "30s").replace("s", ""));
+    const TOTAL_DURATION = `${WARMUP_SECS + DURATION_SECS}s`;
 
     const connectionString = `postgres://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable`;
 
     const db = sql.open(driver, connectionString);
 
+    function randInt(max) {
+      return Math.floor(Math.random() * max);
+    }
+
+    // sysbench c column: 120-char string of 10 segments separated by '-'
+    function getCValue() {
+      const parts = [];
+      for (let i = 0; i < 10; i++) {
+        parts.push(String(randInt(100000000000)).padStart(11, "0"));
+      }
+      return parts.join("-");
+    }
+
+    // sysbench pad column: 60-char string of 5 segments separated by '-'
+    function getPadValue() {
+      const parts = [];
+      for (let i = 0; i < 5; i++) {
+        parts.push(String(randInt(100000000000)).padStart(11, "0"));
+      }
+      return parts.join("-");
+    }
+
     export const options = {
       scenarios: {
         writer: {
           executor: "constant-vus",
-          vus: parseInt(__ENV.K6_VUS || "4"),
-          duration: __ENV.K6_DURATION || "30s",
+          vus: parseInt(__ENV.BENCH_VUS || "4"),
+          duration: TOTAL_DURATION,
         },
       },
       thresholds: {
@@ -40,48 +68,77 @@ data:
     };
 
     export function setup() {
-      db.exec(`
-        DROP TABLE IF EXISTS k6_events;
-        CREATE TABLE IF NOT EXISTS k6_events (
-          id SERIAL PRIMARY KEY,
-          vu_id INT NOT NULL,
-          event_type TEXT NOT NULL,
-          payload TEXT,
-          created_at TIMESTAMP DEFAULT NOW()
-        );
-      `);
-      console.log("Schema created: k6_events");
+      for (let i = 1; i <= TABLES; i++) {
+        const tbl = `sbtest${i}`;
+        db.exec(`DROP TABLE IF EXISTS ${tbl}`);
+        db.exec(`
+          CREATE TABLE ${tbl} (
+            id SERIAL PRIMARY KEY,
+            k INTEGER DEFAULT 0 NOT NULL,
+            c CHAR(120) DEFAULT '' NOT NULL,
+            pad CHAR(60) DEFAULT '' NOT NULL
+          )
+        `);
+        if (CREATE_SECONDARY) {
+          db.exec(`CREATE INDEX k_${i} ON ${tbl}(k)`);
+        }
+        console.log(`Created table ${tbl}`);
+      }
+
+      if (INSTALL_TRIGGER) {
+        db.exec(`
+          CREATE OR REPLACE FUNCTION cleanup_duplicate_k()
+          RETURNS TRIGGER AS $t$
+          DECLARE
+              old_id INTEGER;
+          BEGIN
+              EXECUTE format('SELECT id FROM %I WHERE k = $1 AND id < $2 LIMIT 1', TG_TABLE_NAME)
+              INTO old_id
+              USING NEW.k, NEW.id;
+              IF old_id IS NOT NULL THEN
+                  EXECUTE format('DELETE FROM %I WHERE id = $1', TG_TABLE_NAME)
+                  USING old_id;
+              END IF;
+              RETURN NEW;
+          END;
+          $t$ LANGUAGE plpgsql
+        `);
+        for (let i = 1; i <= TABLES; i++) {
+          const tbl = `sbtest${i}`;
+          db.exec(`
+            CREATE OR REPLACE TRIGGER trg_cleanup_${tbl}
+            AFTER INSERT OR UPDATE ON ${tbl}
+            FOR EACH ROW
+            EXECUTE FUNCTION cleanup_duplicate_k()
+          `);
+          console.log(`Trigger installed on ${tbl}`);
+        }
+      }
+
+      console.log(`Setup complete: ${TABLES} tables, secondary=${CREATE_SECONDARY}, trigger=${INSTALL_TRIGGER}`);
     }
 
     export default function () {
-      const vuId = __VU;
-      const iter = __ITER;
+      const tbl = `sbtest${(randInt(TABLES) + 1)}`;
+      const k = randInt(TABLE_SIZE);
+      const c = getCValue();
+      const pad = getPadValue();
 
       const start = Date.now();
       db.exec(
-        "INSERT INTO k6_events (vu_id, event_type, payload) VALUES ($1, $2, $3)",
-        vuId,
-        "click",
-        `{"iteration":${iter},"vu":${vuId}}`
+        `INSERT INTO ${tbl} (k, c, pad) VALUES ($1, $2, $3)`,
+        k, c, pad
       );
-      queryDuration.add(Date.now() - start);
+      insertDuration.add(Date.now() - start);
       insertCount.add(1);
-
-      const start2 = Date.now();
-      const results = db.query(
-        "SELECT count(*) as cnt FROM k6_events WHERE vu_id = $1",
-        vuId
-      );
-      queryDuration.add(Date.now() - start2);
-
-      check(results, {
-        "query returned rows": (r) => r.length > 0,
-      });
     }
 
     export function teardown() {
-      db.exec("DROP TABLE IF EXISTS k6_events");
-      console.log("Cleaned up: k6_events");
+      for (let i = 1; i <= TABLES; i++) {
+        db.exec(`DROP TABLE IF EXISTS sbtest${i}`);
+      }
+      db.exec("DROP FUNCTION IF EXISTS cleanup_duplicate_k() CASCADE");
+      console.log(`Cleaned up ${TABLES} tables`);
       db.close();
     }
 {{- end }}
