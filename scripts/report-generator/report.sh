@@ -15,22 +15,11 @@ OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://${RELEASE_NAME}-prometheus:9090}"
 METRICS_DUMP_BASE_URL="${METRICS_DUMP_BASE_URL:-}"
 
-# Auto-detect workload type from timestamps files
-SYSBENCH_TIMES="${PROJECT_ROOT}/output/sysbench/sysbench_times.txt"
-K6_TIMES="${PROJECT_ROOT}/output/k6/k6_times.txt"
+# Read timestamps from unified output directory
+TIMES_FILE="${PROJECT_ROOT}/output/test_times.txt"
 
-if [[ -f "$K6_TIMES" && -f "$SYSBENCH_TIMES" ]]; then
-    if [[ "$K6_TIMES" -nt "$SYSBENCH_TIMES" ]]; then
-        TIMES_FILE="$K6_TIMES"
-    else
-        TIMES_FILE="$SYSBENCH_TIMES"
-    fi
-elif [[ -f "$K6_TIMES" ]]; then
-    TIMES_FILE="$K6_TIMES"
-elif [[ -f "$SYSBENCH_TIMES" ]]; then
-    TIMES_FILE="$SYSBENCH_TIMES"
-else
-    echo "Error: no timestamp file found."
+if [[ ! -f "$TIMES_FILE" ]]; then
+    echo "Error: timestamp file not found: $TIMES_FILE"
     echo "Run 'make sysbench-run' or 'make k6-run' first."
     exit 1
 fi

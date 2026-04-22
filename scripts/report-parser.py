@@ -32,8 +32,8 @@ def parse_node_spec(report_path):
 
 
 def read_times(report_path):
-    """Return dict of timestamp/config values from sysbench_times.txt."""
-    path = os.path.join(report_path, 'sysbench_times.txt')
+    """Return dict of timestamp/config values from test_times.txt."""
+    path = os.path.join(report_path, 'test_times.txt')
     if not os.path.exists(path):
         return {}
     values = {}
@@ -53,12 +53,8 @@ def read_times(report_path):
 
 def parse_workload_spec(report_path, workload_type="sysbench"):
     """Print workload client pod-to-node mapping."""
-    if workload_type == "k6":
-        spec_path = os.path.join(report_path, 'K6_NODE_SPEC.txt')
-        label = "k6 Clients"
-    else:
-        spec_path = os.path.join(report_path, 'SYSBENCH_NODE_SPEC.txt')
-        label = "Sysbench Clients"
+    label = "k6 Clients" if workload_type == "k6" else "Sysbench Clients"
+    spec_path = os.path.join(report_path, 'CLIENT_NODE_SPEC.txt')
 
     if not os.path.exists(spec_path):
         return

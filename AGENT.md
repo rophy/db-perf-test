@@ -10,8 +10,8 @@
 
 ### Warmup vs Heat (steady-state)
 Every benchmark run has a **warmup** phase followed by a **heat** (steady-state) phase.
-`values-*.yaml` sets `sysbench.warmupTime` (e.g. 90s); `sysbench_times.txt` records
-`RUN_START_TIME`, `WARMUP_END_TIME`, and `RUN_END_TIME` so the split is explicit.
+`values-*.yaml` sets `sysbench.warmupTime` (e.g. 90s); `output/test_times.txt` records
+`WORKLOAD_TYPE`, `RUN_START_TIME`, `WARMUP_END_TIME`, and `RUN_END_TIME` so the split is explicit.
 
 - **NEVER** compare run-averaged numbers across iterations. Averaging warmup in drags
   metrics down in different amounts depending on run length, threads, and cluster size,
@@ -44,7 +44,7 @@ kubectl --context kube-sandbox -n yugabyte-test exec $PROM -- wget -qO- \
 ```
 
 `wget` is what's installed in the prom/prometheus image (no curl). Use the
-epoch timestamps from `output/sysbench/sysbench_times.txt` (or the report
+epoch timestamps from `output/test_times.txt` (or the report
 directory copy) to scope `query_range` to the run window.
 
 ### Running Benchmarks

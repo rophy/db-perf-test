@@ -1135,7 +1135,7 @@ class ReportGenerator:
         else:
             workload_name = "Sysbench"
             latency_percentile = "p95"
-            sysbench_output_path = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_output.txt"
+            sysbench_output_path = Path(self.config.output_dir).parent / "output" / "sysbench_output.txt"
             sysbench_results = parse_sysbench_output(sysbench_output_path)
             sysbench_params = self._get_sysbench_params()
 
@@ -1238,45 +1238,26 @@ class ReportGenerator:
                 s3_key = f"reports/{timestamp}/metrics_dump.json.gz"
                 self._upload_to_s3(dump_file, s3_key)
 
-        # Copy workload output files
+        # Copy workload output files from unified output/ directory
+        workload_dir = Path(self.config.output_dir).parent / "output"
+        for spec_name in ["RUN_NODE_SPEC.txt", "CLIENT_NODE_SPEC.txt", "test_times.txt"]:
+            src = workload_dir / spec_name
+            if src.exists():
+                shutil.copy(src, output_dir / spec_name)
+                print(f"Copied {spec_name}")
         if self.config.workload_type == "k6":
-            workload_dir = Path(self.config.output_dir).parent / "output" / "k6"
             for k6_file in sorted(workload_dir.glob("k6_output_*.txt")):
                 shutil.copy(k6_file, output_dir / k6_file.name)
-                print(f"Copied k6 output: {k6_file.name}")
-            # Copy node specs
-            for spec_name in ["RUN_NODE_SPEC.txt", "K6_NODE_SPEC.txt"]:
-                src = workload_dir / spec_name
-                if src.exists():
-                    shutil.copy(src, output_dir / spec_name)
-                    print(f"Copied {spec_name}")
-            # Copy times (as sysbench_times.txt for backward compat with report-parser)
-            times_src = workload_dir / "k6_times.txt"
-            if times_src.exists():
-                shutil.copy(times_src, output_dir / "sysbench_times.txt")
-                print(f"Copied k6 timestamps to: {output_dir / 'sysbench_times.txt'}")
+                print(f"Copied {k6_file.name}")
             self._save_k6_configmap(output_dir)
         else:
-            sysbench_dir = Path(self.config.output_dir).parent / "output" / "sysbench"
-            sysbench_output = sysbench_dir / "sysbench_output.txt"
+            sysbench_output = workload_dir / "sysbench_output.txt"
             if sysbench_output.exists():
                 shutil.copy(sysbench_output, output_dir / "sysbench_output.txt")
-                print(f"Copied sysbench output to: {output_dir / 'sysbench_output.txt'}")
-            for pod_file in sorted(sysbench_dir.glob("sysbench_output_*.txt")):
+                print(f"Copied sysbench_output.txt")
+            for pod_file in sorted(workload_dir.glob("sysbench_output_*.txt")):
                 shutil.copy(pod_file, output_dir / pod_file.name)
-                print(f"Copied per-pod output: {pod_file.name}")
-            node_spec = sysbench_dir / "RUN_NODE_SPEC.txt"
-            if node_spec.exists():
-                shutil.copy(node_spec, output_dir / "RUN_NODE_SPEC.txt")
-                print(f"Copied node spec to: {output_dir / 'RUN_NODE_SPEC.txt'}")
-            sysbench_spec = sysbench_dir / "SYSBENCH_NODE_SPEC.txt"
-            if sysbench_spec.exists():
-                shutil.copy(sysbench_spec, output_dir / "SYSBENCH_NODE_SPEC.txt")
-                print(f"Copied sysbench node spec to: {output_dir / 'SYSBENCH_NODE_SPEC.txt'}")
-            times_file = sysbench_dir / "sysbench_times.txt"
-            if times_file.exists():
-                shutil.copy(times_file, output_dir / "sysbench_times.txt")
-                print(f"Copied timestamps to: {output_dir / 'sysbench_times.txt'}")
+                print(f"Copied {pod_file.name}")
             self._save_sysbench_configmap(output_dir)
 
         return output_file

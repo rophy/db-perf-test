@@ -13,7 +13,7 @@ NAMESPACE="${NAMESPACE:-yugabyte-test}"
 RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
 K6_SCRIPT="${K6_SCRIPT:-test.js}"
 
-OUTPUT_DIR="${PROJECT_ROOT}/output/k6"
+OUTPUT_DIR="${PROJECT_ROOT}/output"
 mkdir -p "$OUTPUT_DIR"
 
 KUBECTL="kubectl --context ${KUBE_CONTEXT} -n ${NAMESPACE}"
@@ -47,10 +47,10 @@ for pod in $($KUBECTL get pods -l app=yb-tserver -o jsonpath='{.items[*].metadat
 done
 
 # Collect k6 pod-to-node mapping
-echo -e "pod_name\tnode_name" > "${OUTPUT_DIR}/K6_NODE_SPEC.txt"
+echo -e "pod_name\tnode_name" > "${OUTPUT_DIR}/CLIENT_NODE_SPEC.txt"
 for pod in "${PODS[@]}"; do
     node=$($KUBECTL get pod "$pod" -o jsonpath='{.spec.nodeName}')
-    echo -e "${pod}\t${node}" >> "${OUTPUT_DIR}/K6_NODE_SPEC.txt"
+    echo -e "${pod}\t${node}" >> "${OUTPUT_DIR}/CLIENT_NODE_SPEC.txt"
 done
 echo "Node specs saved."
 echo ""
@@ -63,7 +63,7 @@ WARMUP_TIME="${WARMUP_TIME:-0}"
 # Record start time
 START_TIME=$(date +%s)
 WARMUP_END_TIME=$(( START_TIME + WARMUP_TIME ))
-TIMES_FILE="${OUTPUT_DIR}/k6_times.txt"
+TIMES_FILE="${OUTPUT_DIR}/test_times.txt"
 {
     echo "WORKLOAD_TYPE=k6"
     echo "RUN_START_TIME=${START_TIME}"

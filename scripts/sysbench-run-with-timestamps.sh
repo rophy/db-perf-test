@@ -12,7 +12,7 @@ KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
 RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
 
-OUTPUT_DIR="${PROJECT_ROOT}/output/sysbench"
+OUTPUT_DIR="${PROJECT_ROOT}/output"
 mkdir -p "$OUTPUT_DIR"
 
 KUBECTL="kubectl --context ${KUBE_CONTEXT} -n ${NAMESPACE}"
@@ -45,10 +45,10 @@ for pod in $($KUBECTL get pods -l app=yb-tserver -o jsonpath='{.items[*].metadat
 done
 
 # Collect sysbench pod-to-node mapping
-echo -e "pod_name\tnode_name" > "${OUTPUT_DIR}/SYSBENCH_NODE_SPEC.txt"
+echo -e "pod_name\tnode_name" > "${OUTPUT_DIR}/CLIENT_NODE_SPEC.txt"
 for pod in "${PODS[@]}"; do
     node=$($KUBECTL get pod "$pod" -o jsonpath='{.spec.nodeName}')
-    echo -e "${pod}\t${node}" >> "${OUTPUT_DIR}/SYSBENCH_NODE_SPEC.txt"
+    echo -e "${pod}\t${node}" >> "${OUTPUT_DIR}/CLIENT_NODE_SPEC.txt"
 done
 echo "Node specs saved."
 echo ""
@@ -65,8 +65,9 @@ fi
 # Record start time
 START_TIME=$(date +%s)
 WARMUP_END_TIME=$(( START_TIME + WARMUP_TIME ))
-TIMES_FILE="${OUTPUT_DIR}/sysbench_times.txt"
+TIMES_FILE="${OUTPUT_DIR}/test_times.txt"
 {
+    echo "WORKLOAD_TYPE=sysbench"
     echo "RUN_START_TIME=${START_TIME}"
     echo "WARMUP_END_TIME=${WARMUP_END_TIME}"
     echo "NUM_SYSBENCH_PODS=${NUM_PODS}"
