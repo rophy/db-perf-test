@@ -73,6 +73,39 @@ sysbench:
   numRowsInInsert: 10
   threadInitTimeout: 300
 
+# k6 with xk6-sql — custom schema/SQL load testing (disabled by default)
+k6:
+  enabled: false
+  image:
+    repository: ghcr.io/rophy/containers/k6-sql
+    tag: 20260422-cd04e04
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "4"
+      memory: "8Gi"
+    limits:
+      memory: "24Gi"
+  replicas: 1
+  nodeSelector:
+    role: system
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/component
+            operator: In
+            values:
+            - k6
+        topologyKey: kubernetes.io/hostname
+  db:
+    host: yb-tserver-service
+    port: "5433"
+    user: yugabyte
+    password: yugabyte
+    name: yugabyte
+
 prometheus:
   enabled: true
   image:

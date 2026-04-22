@@ -1,5 +1,6 @@
 .PHONY: help deploy clean status ysql
 .PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-trigger
+.PHONY: k6-run k6-shell
 .PHONY: report vendor
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
@@ -89,6 +90,16 @@ sysbench-shell: ## Open shell in sysbench container
 
 sysbench-logs: ## Show sysbench container logs
 	$(KUBECTL) logs -f $(SYSBENCH_POD)
+
+K6_POD := $(BENCH_RELEASE)-k6-0
+K6_SCRIPT ?= test.js
+
+# k6 operations
+k6-run: ## Run k6 test script in cluster (K6_SCRIPT=test.js)
+	$(KUBECTL) exec $(K6_POD) -- k6 run /scripts/$(K6_SCRIPT)
+
+k6-shell: ## Open shell in k6 container
+	$(KUBECTL) exec -it $(K6_POD) -- /bin/sh
 
 VENDOR_DIR := reports/vendor
 VENDOR_FILES := \

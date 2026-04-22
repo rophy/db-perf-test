@@ -1,0 +1,87 @@
+{{- if .Values.k6.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "yb-benchmark.fullname" . }}-k6-scripts
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: k6
+data:
+  test.js: |
+    import sql from "k6/x/sql";
+    import driver from "k6/x/sql/driver/postgres";
+    import { check } from "k6";
+    import { Counter, Trend } from "k6/metrics";
+
+    const insertCount = new Counter("rows_inserted");
+    const queryDuration = new Trend("query_duration_ms", true);
+
+    const PG_HOST = __ENV.PG_HOST || "localhost";
+    const PG_PORT = __ENV.PG_PORT || "5433";
+    const PG_USER = __ENV.PG_USER || "yugabyte";
+    const PG_PASS = __ENV.PG_PASS || "yugabyte";
+    const PG_DB   = __ENV.PG_DB   || "yugabyte";
+
+    const connectionString = `postgres://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable`;
+
+    const db = sql.open(driver, connectionString);
+
+    export const options = {
+      scenarios: {
+        writer: {
+          executor: "constant-vus",
+          vus: parseInt(__ENV.K6_VUS || "4"),
+          duration: __ENV.K6_DURATION || "30s",
+        },
+      },
+      thresholds: {
+        rows_inserted: ["count>0"],
+      },
+    };
+
+    export function setup() {
+      db.exec(`
+        DROP TABLE IF EXISTS k6_events;
+        CREATE TABLE IF NOT EXISTS k6_events (
+          id SERIAL PRIMARY KEY,
+          vu_id INT NOT NULL,
+          event_type TEXT NOT NULL,
+          payload TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      console.log("Schema created: k6_events");
+    }
+
+    export default function () {
+      const vuId = __VU;
+      const iter = __ITER;
+
+      const start = Date.now();
+      db.exec(
+        "INSERT INTO k6_events (vu_id, event_type, payload) VALUES ($1, $2, $3)",
+        vuId,
+        "click",
+        `{"iteration":${iter},"vu":${vuId}}`
+      );
+      queryDuration.add(Date.now() - start);
+      insertCount.add(1);
+
+      const start2 = Date.now();
+      const results = db.query(
+        "SELECT count(*) as cnt FROM k6_events WHERE vu_id = $1",
+        vuId
+      );
+      queryDuration.add(Date.now() - start2);
+
+      check(results, {
+        "query returned rows": (r) => r.length > 0,
+      });
+    }
+
+    export function teardown() {
+      db.exec("DROP TABLE IF EXISTS k6_events");
+      console.log("Cleaned up: k6_events");
+      db.close();
+    }
+{{- end }}

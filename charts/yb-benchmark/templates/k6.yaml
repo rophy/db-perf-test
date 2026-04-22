@@ -1,0 +1,57 @@
+{{- if .Values.k6.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "yb-benchmark.fullname" . }}-k6
+  labels:
+    {{- include "yb-benchmark.labels" . | nindent 4 }}
+    app.kubernetes.io/component: k6
+spec:
+  serviceName: {{ include "yb-benchmark.fullname" . }}-k6
+  replicas: {{ .Values.k6.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "yb-benchmark.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: k6
+  template:
+    metadata:
+      labels:
+        {{- include "yb-benchmark.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: k6
+    spec:
+      containers:
+      - name: k6
+        image: "{{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}"
+        imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+        command: ["sleep", "infinity"]
+        env:
+        - name: PG_HOST
+          value: {{ .Values.k6.db.host | quote }}
+        - name: PG_PORT
+          value: {{ .Values.k6.db.port | quote }}
+        - name: PG_USER
+          value: {{ .Values.k6.db.user | quote }}
+        - name: PG_PASS
+          value: {{ .Values.k6.db.password | quote }}
+        - name: PG_DB
+          value: {{ .Values.k6.db.name | quote }}
+        resources:
+          {{- toYaml .Values.k6.resources | nindent 10 }}
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+      {{- with .Values.k6.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.k6.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: scripts
+        configMap:
+          name: {{ include "yb-benchmark.fullname" . }}-k6-scripts
+          defaultMode: 0755
+{{- end }}
