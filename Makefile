@@ -1,14 +1,30 @@
-.PHONY: help deploy-aws deploy-minikube deploy-k3s-virsh clean status ysql
+.PHONY: help deploy clean status ysql
 .PHONY: sysbench-prepare sysbench-run sysbench-cleanup sysbench-shell sysbench-logs sysbench-trigger
 .PHONY: report vendor
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
 .PHONY: setup-k3s-virsh teardown-k3s-virsh setup-slow-disk setup-slow-throughput adjust-disk-delay
 
-KUBE_CONTEXT ?= minikube
+# Environment and component selection
+ENV ?= k3s-virsh
+COMPONENT ?= all
+
 NAMESPACE ?= yugabyte-test
-RELEASE_NAME ?= yb-bench
-CHART_DIR := charts/yb-benchmark
+
+# Map ENV to kube context
+KUBE_CONTEXT_aws := kube-sandbox
+KUBE_CONTEXT_minikube := minikube
+KUBE_CONTEXT_k3s-virsh := k3s-virsh
+KUBE_CONTEXT := $(KUBE_CONTEXT_$(ENV))
+
+# Two independent Helm releases
+YB_RELEASE := yugabyte
+YB_CHART_DIR := charts/yugabyte
+BENCH_RELEASE := yb-bench
+BENCH_CHART_DIR := charts/yb-benchmark
+
+# Backward compat for scripts that use RELEASE_NAME
+RELEASE_NAME := $(BENCH_RELEASE)
 
 # Slow disk simulation parameters
 DISK_DELAY_MS ?= 0
@@ -16,45 +32,39 @@ DISK_BW_MBPS ?= 0
 DISK_IOPS ?= 0
 
 KUBECTL := kubectl --context $(KUBE_CONTEXT) -n $(NAMESPACE)
-SYSBENCH_POD := $(RELEASE_NAME)-sysbench-0
+SYSBENCH_POD := $(BENCH_RELEASE)-sysbench-0
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Deployment
-deploy-aws: ## Deploy full stack with AWS-optimized settings
-	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
+# Deployment (ENV=k3s-virsh|aws|minikube  COMPONENT=all|yb|bench)
+deploy: ## Deploy components (ENV= COMPONENT=all|yb|bench)
+ifeq ($(COMPONENT),all)
+	$(MAKE) _deploy-yb
+	$(MAKE) _deploy-bench
+else ifeq ($(COMPONENT),yb)
+	$(MAKE) _deploy-yb
+else ifeq ($(COMPONENT),bench)
+	$(MAKE) _deploy-bench
+else
+	$(error Unknown COMPONENT=$(COMPONENT). Use: all, yb, bench)
+endif
+
+_deploy-yb:
+	@helm upgrade --install $(YB_RELEASE) $(YB_CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \
 		--create-namespace \
-		--set fullnameOverride=$(RELEASE_NAME) \
-		-f $(CHART_DIR)/values-aws.yaml \
+		-f $(YB_CHART_DIR)/values-$(ENV).yaml \
 		--wait --timeout 15m
 
-deploy-minikube: ## Deploy full stack with minikube-optimized settings
-	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
+_deploy-bench:
+	@helm upgrade --install $(BENCH_RELEASE) $(BENCH_CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \
 		--create-namespace \
-		--set fullnameOverride=$(RELEASE_NAME) \
-		-f $(CHART_DIR)/values-minikube.yaml \
-		--wait --timeout 15m
-
-deploy-k3s-virsh: ## Deploy full stack on k3s-virsh cluster
-	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
-		--kube-context $(KUBE_CONTEXT) \
-		--namespace $(NAMESPACE) \
-		--create-namespace \
-		--set fullnameOverride=$(RELEASE_NAME) \
-		-f $(CHART_DIR)/values-k3s-virsh.yaml \
-		--wait --timeout 15m
-
-deploy-benchmarks: ## Deploy benchmarks only (use existing YugabyteDB)
-	@helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
-		--kube-context $(KUBE_CONTEXT) \
-		--namespace $(NAMESPACE) \
-		--set yugabyte.enabled=false \
-		--set fullnameOverride=$(RELEASE_NAME) \
+		--set fullnameOverride=$(BENCH_RELEASE) \
+		-f $(BENCH_CHART_DIR)/values-$(ENV).yaml \
 		--wait --timeout 5m
 
 # Sysbench operations - uses scripts from ConfigMap (parameters in values.yaml)
@@ -151,10 +161,26 @@ setup-slow-throughput: ## Throttle VM disk throughput (DISK_BW_MBPS=10 DISK_IOPS
 adjust-disk-delay: ## Change dm-delay live without destroying data (DISK_DELAY_MS=5)
 	@DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/adjust-disk-delay.sh
 
-# Cleanup
-clean: ## Delete all resources
-	@echo "Uninstalling $(RELEASE_NAME)..."
-	@helm --kube-context $(KUBE_CONTEXT) uninstall $(RELEASE_NAME) -n $(NAMESPACE) 2>/dev/null || true
+# Cleanup (ENV= COMPONENT=all|yb|bench)
+clean: ## Clean components (ENV= COMPONENT=all|yb|bench)
+ifeq ($(COMPONENT),all)
+	$(MAKE) _clean-bench
+	$(MAKE) _clean-yb
+else ifeq ($(COMPONENT),yb)
+	$(MAKE) _clean-yb
+else ifeq ($(COMPONENT),bench)
+	$(MAKE) _clean-bench
+else
+	$(error Unknown COMPONENT=$(COMPONENT). Use: all, yb, bench)
+endif
+
+_clean-bench:
+	@echo "Uninstalling $(BENCH_RELEASE)..."
+	@helm --kube-context $(KUBE_CONTEXT) uninstall $(BENCH_RELEASE) -n $(NAMESPACE) 2>/dev/null || true
+
+_clean-yb:
+	@echo "Uninstalling $(YB_RELEASE)..."
+	@helm --kube-context $(KUBE_CONTEXT) uninstall $(YB_RELEASE) -n $(NAMESPACE) 2>/dev/null || true
 	@echo "Deleting PVCs..."
 	@$(KUBECTL) delete pvc -l app=yb-tserver 2>/dev/null || true
 	@$(KUBECTL) delete pvc -l app=yb-master 2>/dev/null || true

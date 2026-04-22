@@ -86,7 +86,6 @@ data:
             replacement: ${1}:9100
       {{- end }}
 
-      {{- if .Values.yugabyte.enabled }}
       - job_name: 'yb-tserver'
         metrics_path: /prometheus-metrics
         kubernetes_sd_configs:
@@ -120,7 +119,6 @@ data:
             replacement: ${1}:7000
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: instance
-      {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment

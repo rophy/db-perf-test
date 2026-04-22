@@ -1,4 +1,3 @@
-{{- if .Values.yugabyte.enabled }}
 # ClusterIP service for connecting to YugabyteDB tservers
 # This provides a stable endpoint for sysbench to connect to
 apiVersion: v1
@@ -16,4 +15,3 @@ spec:
       targetPort: 5433
   selector:
     app: yb-tserver
-{{- end }}
