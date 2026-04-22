@@ -78,7 +78,7 @@ k6:
   enabled: false
   image:
     repository: ghcr.io/rophy/containers/k6-sql
-    tag: 20260422-cd04e04
+    tag: 20260422-69b5ee6
     pullPolicy: IfNotPresent
   resources:
     requests:
