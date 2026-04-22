@@ -28,7 +28,9 @@ data:
     const DURATION_SECS = parseInt((__ENV.BENCH_DURATION || "30s").replace("s", ""));
     const TOTAL_DURATION = `${WARMUP_SECS + DURATION_SECS}s`;
 
-    const connectionString = `postgres://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable`;
+    const SERIAL_CACHE_SIZE = parseInt(__ENV.K6_SERIAL_CACHE_SIZE || "1000");
+
+    const connectionString = `postgres://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable&binary_parameters=yes`;
 
     const db = sql.open(driver, connectionString);
 
@@ -81,6 +83,9 @@ data:
         `);
         if (CREATE_SECONDARY) {
           db.exec(`CREATE INDEX k_${i} ON ${tbl}(k)`);
+        }
+        if (SERIAL_CACHE_SIZE > 1) {
+          db.exec(`ALTER SEQUENCE ${tbl}_id_seq CACHE ${SERIAL_CACHE_SIZE}`);
         }
         console.log(`Created table ${tbl}`);
       }

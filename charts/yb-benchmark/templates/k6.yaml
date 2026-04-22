@@ -43,6 +43,8 @@ spec:
           value: {{ .Values.k6.createSecondary | quote }}
         - name: K6_INSTALL_TRIGGER
           value: {{ .Values.k6.installTrigger | quote }}
+        - name: K6_SERIAL_CACHE_SIZE
+          value: {{ .Values.k6.serialCacheSize | default 1000 | quote }}
         - name: BENCH_VUS
           value: {{ .Values.k6.vus | quote }}
         - name: BENCH_WARMUP

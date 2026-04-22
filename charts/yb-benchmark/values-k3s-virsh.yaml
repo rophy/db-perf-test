@@ -92,6 +92,7 @@ k6:
   tableSize: 100000
   createSecondary: true
   installTrigger: true
+  serialCacheSize: 1000
   vus: 4
   warmupTime: 30
   duration: "120s"
