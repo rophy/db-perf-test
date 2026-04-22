@@ -1,3 +1,5 @@
+**IMPORTANT**: When user asks to update CLAUDE.md, update AGENT.md instead.
+
 **IMPORTANT**: The host machine may run multiple projects with different Kubernetes clusters simultaneously. To prevent conflicts:
 
 ### Analysis & Debugging
@@ -85,7 +87,7 @@ Before committing to an interpretation:
    "unknown — these signals conflict" rather than picking the most plausible-sounding one.
 
 ### Long-Running Make Targets
-- When running `make deploy-*`, `make sysbench-*`, or other long-running targets:
+- When running `make deploy`, `make sysbench-*`, or other long-running targets:
   - **ALWAYS** run in background using `run_in_background: true`
   - **CONTINUOUSLY** monitor status with `make status` and pod logs to confirm tasks are not stuck
   - Check for errors in pod events and logs if tasks appear stalled

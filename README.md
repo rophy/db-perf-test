@@ -17,7 +17,7 @@ Benchmark infrastructure for evaluating YugabyteDB performance using sysbench OL
 
 **Components:**
 - **Sysbench** - Database benchmark tool using YugabyteDB's fork with YB-specific optimizations
-- **YugabyteDB** - Distributed PostgreSQL-compatible database (deployed as Helm subchart)
+- **YugabyteDB** - Distributed PostgreSQL-compatible database (separate Helm chart)
 - **Prometheus** - Metrics collection for performance reports
 
 ## Environments
@@ -55,7 +55,7 @@ Topology: 1 control node (4 CPU / 8 GB) + 3 worker nodes (4 CPU / 8 GB), Ubuntu 
 
 ```bash
 ./scripts/setup-minikube.sh
-make deploy-minikube
+make deploy ENV=minikube
 make sysbench-cleanup && make sysbench-prepare && make sysbench-trigger
 make sysbench-run
 make report
@@ -64,11 +64,9 @@ make report
 ### AWS
 
 ```bash
-make deploy-aws KUBE_CONTEXT=kube-sandbox
-make sysbench-cleanup KUBE_CONTEXT=kube-sandbox
-make sysbench-prepare KUBE_CONTEXT=kube-sandbox
-make sysbench-trigger KUBE_CONTEXT=kube-sandbox
-make sysbench-run KUBE_CONTEXT=kube-sandbox
+make deploy ENV=aws
+make sysbench-cleanup && make sysbench-prepare && make sysbench-trigger
+make sysbench-run
 ```
 
 ### k3s-virsh (Performance Tuning Lab)
@@ -80,14 +78,12 @@ make sysbench-run KUBE_CONTEXT=kube-sandbox
 # Setup storage (with optional disk latency)
 DISK_DELAY_MS=50 ./scripts/setup-slow-disk.sh
 
-# Deploy YugabyteDB
-make deploy-k3s-virsh KUBE_CONTEXT=k3s-virsh
+# Deploy YugabyteDB + benchmarks
+make deploy ENV=k3s-virsh
 
 # Run benchmark
-make sysbench-cleanup KUBE_CONTEXT=k3s-virsh
-make sysbench-prepare KUBE_CONTEXT=k3s-virsh
-make sysbench-trigger KUBE_CONTEXT=k3s-virsh
-make sysbench-run KUBE_CONTEXT=k3s-virsh
+make sysbench-cleanup && make sysbench-prepare && make sysbench-trigger
+make sysbench-run
 
 # Optional: throttle disk throughput on running cluster (non-destructive)
 DISK_BW_MBPS=10 ./scripts/setup-slow-throughput.sh
@@ -96,7 +92,7 @@ DISK_BW_MBPS=10 ./scripts/setup-slow-throughput.sh
 DISK_DELAY_MS=5 ./scripts/adjust-disk-delay.sh
 
 # Cleanup
-make clean KUBE_CONTEXT=k3s-virsh
+make clean ENV=k3s-virsh
 ./scripts/teardown-k3s-virsh.sh
 ```
 
@@ -107,15 +103,19 @@ Reports are saved to `reports/<timestamp>/report.html`.
 ```
 .
 ├── charts/
-│   └── yb-benchmark/              # Helm chart
+│   ├── yugabyte/                  # Vendored YugabyteDB chart (v2.23.1)
+│   │   ├── values-aws.yaml
+│   │   ├── values-minikube.yaml
+│   │   └── values-k3s-virsh.yaml
+│   └── yb-benchmark/              # Benchmark stack (sysbench + prometheus + node-exporter)
 │       ├── Chart.yaml
-│       ├── charts/yugabyte/       # Vendored YugabyteDB subchart (v2.23.1)
-│       ├── values-aws.yaml        # AWS production settings
-│       ├── values-minikube.yaml   # Minikube dev settings
-│       ├── values-k3s-virsh.yaml  # k3s-virsh tuning lab settings
+│       ├── values-aws.yaml
+│       ├── values-minikube.yaml
+│       ├── values-k3s-virsh.yaml
 │       └── templates/
 │           ├── sysbench.yaml           # Sysbench StatefulSet
 │           ├── sysbench-configmap.yaml # Sysbench scripts (prepare/run/cleanup)
+│           ├── tserver-service.yaml    # ClusterIP service for sysbench→tserver
 │           └── prometheus.yaml         # Prometheus + node-exporter + cAdvisor
 ├── scripts/
 │   ├── setup-minikube.sh          # Minikube cluster setup
@@ -140,11 +140,8 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 | Target | Description |
 |--------|-------------|
-| `make deploy-minikube` | Deploy with minikube-optimized settings |
-| `make deploy-aws` | Deploy with AWS-optimized settings |
-| `make deploy-k3s-virsh` | Deploy on k3s-virsh tuning lab |
-| `make deploy-benchmarks` | Deploy benchmarks only (use existing YugabyteDB) |
-| `make clean` | Delete all resources |
+| `make deploy` | Deploy all components (`ENV=k3s-virsh\|aws\|minikube`, `COMPONENT=all\|yb\|bench`) |
+| `make clean` | Delete components (same `ENV` / `COMPONENT` options) |
 
 ### Sysbench Operations
 
@@ -227,24 +224,21 @@ The report includes:
 
 Reports are published to GitHub Pages at `https://rophy.github.io/db-perf-test/`.
 
-## Helm Chart
+## Helm Charts
 
-The chart can be used standalone:
+Two independent Helm releases:
 
 ```bash
-# AWS production
-helm install yb-bench ./charts/yb-benchmark -n yugabyte-test --create-namespace \
-  -f ./charts/yb-benchmark/values-aws.yaml
+# Deploy YugabyteDB
+helm install yugabyte ./charts/yugabyte -n yugabyte-test --create-namespace \
+  -f ./charts/yugabyte/values-aws.yaml
 
-# Minikube development
-helm install yb-bench ./charts/yb-benchmark -n yugabyte-test --create-namespace \
-  -f ./charts/yb-benchmark/values-minikube.yaml
-
-# Benchmarks only (existing YugabyteDB)
+# Deploy benchmark stack (sysbench + prometheus + node-exporter)
 helm install yb-bench ./charts/yb-benchmark -n yugabyte-test \
-  -f ./charts/yb-benchmark/values-minikube.yaml \
-  --set yugabyte.enabled=false
+  -f ./charts/yb-benchmark/values-aws.yaml
 ```
+
+The Makefile wraps these with `make deploy ENV=aws COMPONENT=yb|bench|all`.
 
 ## Troubleshooting
 
