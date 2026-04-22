@@ -141,6 +141,24 @@ class PrometheusClient:
             pass
         return []
 
+    def targets_metadata(self, match_target: str, limit: int = 5000) -> dict[str, str]:
+        """Fetch metric type annotations via /api/v1/targets/metadata."""
+        qs = f"match_target={quote(match_target)}&limit={limit}"
+        url = f"{self.base_url}/api/v1/targets/metadata?{qs}"
+        response = self.executor.exec_curl(url)
+        if not response:
+            return {}
+        try:
+            data = json.loads(response)
+            if data.get("status") != "success":
+                return {}
+            types: dict[str, str] = {}
+            for m in data.get("data", []):
+                types[m["metric"]] = m["type"]
+            return types
+        except (json.JSONDecodeError, KeyError):
+            return {}
+
     def query_range_raw(self, query: str, start: float, end: float, step: int) -> list[dict]:
         """Execute a range query and return raw result dicts (metric + values)."""
         encoded_query = quote(query)
@@ -903,6 +921,97 @@ class ReportGenerator:
 
         return all_series
 
+    _NODE_DUMP_STEP = 5
+    _NODE_IRATE_WINDOW = "15s"
+    _NODE_BATCH_SIZE = 50
+
+    def collect_node_metrics_dump(self) -> list[dict]:
+        """Dump all node_exporter metrics, pre-aggregated per instance.
+
+        Same approach as collect_yb_metrics_dump: counters as irate() rates,
+        gauges as raw values, aggregated with sum by (instance).
+        Output is normalized to use exported_instance key so the Metrics
+        Explorer JS works without changes.
+        """
+        type_map = self.prometheus.targets_metadata('{job="node-exporter"}')
+        if not type_map:
+            print("Warning: no node-exporter metadata found", file=sys.stderr)
+            return []
+
+        names = self.prometheus.label_values(
+            "__name__", '{job="node-exporter"}'
+        )
+        if not names:
+            print("Warning: no node-exporter metric names found", file=sys.stderr)
+            return []
+
+        names = [n for n in names if not n.endswith("_bucket")]
+
+        counters = []
+        gauges = []
+        for n in names:
+            t = type_map.get(n, "")
+            if t == "counter" or n.endswith("_total"):
+                counters.append(n)
+            else:
+                gauges.append(n)
+
+        print(f"  {len(counters)} counters + {len(gauges)} gauges "
+              f"({len(names)} names, {len(type_map)} metadata entries)")
+
+        all_series: list[dict] = []
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _query_counter(name: str) -> list[dict]:
+            query = (
+                f'sum by (instance)'
+                f'(irate({name}{{job="node-exporter"}}[{self._NODE_IRATE_WINDOW}]))'
+            )
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time,
+                self._NODE_DUMP_STEP,
+            )
+            for r in results:
+                r.setdefault("metric", {})["__name__"] = name
+            return results
+
+        print("  Counters (irate, sum by instance):")
+        done_count = 0
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            futures = {pool.submit(_query_counter, n): n for n in counters}
+            for future in as_completed(futures):
+                all_series.extend(future.result())
+                done_count += 1
+                if done_count % 50 == 0 or done_count == len(counters):
+                    print(f"    {done_count}/{len(counters)}, {len(all_series)} series total")
+
+        print("  Gauges (raw, sum by instance):")
+        for i in range(0, len(gauges), self._NODE_BATCH_SIZE):
+            batch = gauges[i:i + self._NODE_BATCH_SIZE]
+            regex = "|".join(batch)
+            query = (
+                f'sum by (__name__, instance)'
+                f'({{__name__=~"{regex}",job="node-exporter"}})'
+            )
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time,
+                self._NODE_DUMP_STEP,
+            )
+            all_series.extend(results)
+            done = min(i + self._NODE_BATCH_SIZE, len(gauges))
+            if (i // self._NODE_BATCH_SIZE) % 5 == 0 or done == len(gauges):
+                print(f"    {done}/{len(gauges)}, {len(all_series)} series total")
+
+        # Normalize: rename "instance" to "exported_instance" so the
+        # Metrics Explorer JS handles node and YB metrics uniformly.
+        for s in all_series:
+            m = s.get("metric", {})
+            if "instance" in m and "exported_instance" not in m:
+                m["exported_instance"] = m.pop("instance")
+
+        return all_series
+
     @staticmethod
     def build_metrics_index(dump: list[dict]) -> list[dict]:
         """Build a summary index of metric names for the explorer picker."""
@@ -933,9 +1042,11 @@ class ReportGenerator:
         print("Collecting custom metrics...")
         self.collect_custom_metrics()
 
-        # Dump all YB metrics for the Metrics Explorer tab.
+        # Dump all YB + node metrics for the Metrics Explorer tab.
         print("Collecting YB metrics dump...")
         self.yb_dump = self.collect_yb_metrics_dump()
+        print("Collecting node-exporter metrics dump...")
+        self.yb_dump.extend(self.collect_node_metrics_dump())
         self.yb_metrics_index = self.build_metrics_index(self.yb_dump)
 
         # Reshape flat series into by_pod / by_node views for the tabbed template.
