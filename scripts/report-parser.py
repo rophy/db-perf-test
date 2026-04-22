@@ -43,16 +43,23 @@ def read_times(report_path):
             if '=' not in line:
                 continue
             k, v = line.split('=', 1)
+            v = v.strip()
             try:
-                values[k.strip()] = int(v.strip())
+                values[k.strip()] = int(v)
             except ValueError:
-                pass
+                values[k.strip()] = v
     return values
 
 
-def parse_sysbench_spec(report_path):
-    """Print sysbench pod-to-node mapping from SYSBENCH_NODE_SPEC.txt."""
-    spec_path = os.path.join(report_path, 'SYSBENCH_NODE_SPEC.txt')
+def parse_workload_spec(report_path, workload_type="sysbench"):
+    """Print workload client pod-to-node mapping."""
+    if workload_type == "k6":
+        spec_path = os.path.join(report_path, 'K6_NODE_SPEC.txt')
+        label = "k6 Clients"
+    else:
+        spec_path = os.path.join(report_path, 'SYSBENCH_NODE_SPEC.txt')
+        label = "Sysbench Clients"
+
     if not os.path.exists(spec_path):
         return
 
@@ -63,7 +70,7 @@ def parse_sysbench_spec(report_path):
         return
 
     data_lines = lines[1:]
-    print(f"\n=== Sysbench Clients ===")
+    print(f"\n=== {label} ===")
     print(f"Pods: {len(data_lines)}")
     for line in data_lines:
         parts = line.split('\t')
@@ -116,20 +123,21 @@ def read_per_pod_intervals(report_path):
     return pods
 
 
-def print_interval_table(intervals, warmup_len, per_pod=None):
+def print_interval_table(intervals, warmup_len, per_pod=None, workload_name="Sysbench"):
     """Print per-interval table. warmup_len is seconds; None disables Phase column.
     per_pod is a list of per-pod interval dicts (from read_per_pod_intervals)."""
-    print("\n=== Sysbench Per-Interval Metrics ===")
+    print(f"\n=== {workload_name} Per-Interval Metrics ===")
     if not intervals:
         print("(no interval data found)")
         return
 
     multi = per_pod and len(per_pod) > 1
+    lat_label = 'p95(ms)'
 
     if multi:
-        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {'p95(ms)':>20}  {'err/s':>13}  {'CPU/nd(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>20}  {lat_label:>20}  {'err/s':>13}  {'CPU/nd(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     else:
-        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {'p95(ms)':>8}  {'err/s':>6}  {'CPU/nd(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
+        header = f"{'T(s)':>4}  {'Phase':<6}  {'TPS':>8}  {lat_label:>8}  {'err/s':>6}  {'CPU/nd(cr)':>7}  {'Mem(MB)':>8}  {'Net(MB/s)':>9}  {'WrIOPS':>7}  {'CliCPU':>6}"
     print(header)
     print('-' * len(header))
     for iv in intervals:
@@ -212,12 +220,16 @@ def main():
     warmup_end = times.get('WARMUP_END_TIME')
     warmup_len = (warmup_end - run_start) if (run_start and warmup_end) else None
 
+    workload_type = times.get('WORKLOAD_TYPE', 'sysbench')
+    workload_name = 'k6' if workload_type == 'k6' else 'Sysbench'
+
     parse_node_spec(report_path)
-    parse_sysbench_spec(report_path)
+    parse_workload_spec(report_path, workload_type)
     intervals = read_intervals(report_path)
-    per_pod = read_per_pod_intervals(report_path)
-    print_interval_table(intervals, warmup_len, per_pod)
-    parse_sysbench_totals(report_path)
+    per_pod = read_per_pod_intervals(report_path) if workload_type != 'k6' else []
+    print_interval_table(intervals, warmup_len, per_pod, workload_name)
+    if workload_type != 'k6':
+        parse_sysbench_totals(report_path)
 
 
 if __name__ == '__main__':

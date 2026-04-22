@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Report generation script for Sysbench stress tests
-# Reads timestamps from output files and generates HTML report from Prometheus metrics
+# Report generation script for benchmark stress tests (sysbench or k6)
+# Auto-detects workload type from timestamps file and generates HTML report
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -15,14 +15,29 @@ OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-http://${RELEASE_NAME}-prometheus:9090}"
 METRICS_DUMP_BASE_URL="${METRICS_DUMP_BASE_URL:-}"
 
-# Read timestamps from sysbench_times.txt (key=value lines)
-TIMES_FILE="${PROJECT_ROOT}/output/sysbench/sysbench_times.txt"
+# Auto-detect workload type from timestamps files
+SYSBENCH_TIMES="${PROJECT_ROOT}/output/sysbench/sysbench_times.txt"
+K6_TIMES="${PROJECT_ROOT}/output/k6/k6_times.txt"
 
-if [[ ! -f "$TIMES_FILE" ]]; then
-    echo "Error: timestamp file not found: $TIMES_FILE"
-    echo "Run 'make sysbench-run' first to generate timestamps."
+if [[ -f "$K6_TIMES" && -f "$SYSBENCH_TIMES" ]]; then
+    if [[ "$K6_TIMES" -nt "$SYSBENCH_TIMES" ]]; then
+        TIMES_FILE="$K6_TIMES"
+    else
+        TIMES_FILE="$SYSBENCH_TIMES"
+    fi
+elif [[ -f "$K6_TIMES" ]]; then
+    TIMES_FILE="$K6_TIMES"
+elif [[ -f "$SYSBENCH_TIMES" ]]; then
+    TIMES_FILE="$SYSBENCH_TIMES"
+else
+    echo "Error: no timestamp file found."
+    echo "Run 'make sysbench-run' or 'make k6-run' first."
     exit 1
 fi
+
+# Read workload type (defaults to sysbench for backward compat)
+WORKLOAD_TYPE=$(grep -E '^WORKLOAD_TYPE=' "$TIMES_FILE" 2>/dev/null | cut -d= -f2)
+WORKLOAD_TYPE="${WORKLOAD_TYPE:-sysbench}"
 
 START_TIME=$(grep -E '^RUN_START_TIME=' "$TIMES_FILE" | cut -d= -f2)
 WARMUP_END_TIME=$(grep -E '^WARMUP_END_TIME=' "$TIMES_FILE" | cut -d= -f2)
@@ -34,7 +49,16 @@ if [[ -z "$START_TIME" || -z "$END_TIME" ]]; then
     exit 1
 fi
 
-echo "=== Sysbench Report Generator ==="
+# Set title and pod patterns based on workload type
+if [[ "$WORKLOAD_TYPE" == "k6" ]]; then
+    REPORT_TITLE="k6 Stress Test Report"
+    POD_PATTERNS=("yb-tserver.*" "yb-master.*" "k6.*")
+else
+    REPORT_TITLE="Sysbench Stress Test Report"
+    POD_PATTERNS=("yb-tserver.*" "yb-master.*" "sysbench.*")
+fi
+
+echo "=== ${WORKLOAD_TYPE} Report Generator ==="
 echo "Start time:  $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
 if [[ -n "$WARMUP_END_TIME" ]]; then
     echo "Warmup ends: $(date -d @${WARMUP_END_TIME} '+%Y-%m-%d %H:%M:%S')"
@@ -53,8 +77,9 @@ PYTHON_ARGS=(
     --release-name "$RELEASE_NAME"
     --prometheus-url "$PROMETHEUS_URL"
     --output-dir "$OUTPUT_DIR"
-    --title "Sysbench Stress Test Report"
-    --pods "yb-tserver.*" "yb-master.*" "sysbench.*"
+    --title "$REPORT_TITLE"
+    --pods "${POD_PATTERNS[@]}"
+    --workload-type "$WORKLOAD_TYPE"
     --metrics-dump-base-url "$METRICS_DUMP_BASE_URL"
 )
 if [[ -n "$WARMUP_END_TIME" ]]; then

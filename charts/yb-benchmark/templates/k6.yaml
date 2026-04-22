@@ -51,6 +51,8 @@ spec:
           value: {{ .Values.k6.duration | quote }}
         - name: K6_PROMETHEUS_RW_SERVER_URL
           value: "http://{{ include "yb-benchmark.fullname" . }}-prometheus:9090/api/v1/write"
+        - name: K6_PROMETHEUS_RW_TREND_STATS
+          value: "p(95),p(99),min,max,avg"
         resources:
           {{- toYaml .Values.k6.resources | nindent 10 }}
         volumeMounts:

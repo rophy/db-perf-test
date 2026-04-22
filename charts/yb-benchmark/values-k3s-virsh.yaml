@@ -73,15 +73,15 @@ prometheus:
 
 # k6 with xk6-sql — custom schema/SQL load testing (disabled by default)
 k6:
-  enabled: false
+  enabled: true
   image:
     repository: ghcr.io/rophy/containers/k6-sql
     tag: 20260422-cd04e04
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "128Mi"
     limits:
       cpu: "2"
       memory: "1Gi"

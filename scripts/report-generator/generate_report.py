@@ -67,6 +67,7 @@ class ReportConfig:
     title: str = "Sysbench Stress Test Report"
     output_dir: str = "reports"
     metrics_dump_base_url: str = ""
+    workload_type: str = "sysbench"
 
     @property
     def duration_seconds(self) -> float:
@@ -660,8 +661,11 @@ class ReportGenerator:
                 f'sum(irate(container_fs_writes_total{{namespace="{ns}",'
                 f'pod=~"{tserver_regex}",{tserver_container}}}[{cadvisor_window}]))'
             ),
-            # Sysbench (client) pod CPU in cores consumed, summed across replicas.
+            # Client pod CPU in cores consumed, summed across replicas.
             "client_cpu_cores": (
+                f'sum(irate(container_cpu_usage_seconds_total{{namespace="{ns}",'
+                f'pod=~".*k6.*",container="k6"}}[{cadvisor_window}]))'
+                if self.config.workload_type == "k6" else
                 f'sum(irate(container_cpu_usage_seconds_total{{namespace="{ns}",'
                 f'pod=~".*sysbench.*",container="sysbench"}}[{cadvisor_window}]))'
             ),
@@ -1121,34 +1125,43 @@ class ReportGenerator:
         end_dt = datetime.fromtimestamp(self.config.end_time)
         duration_min = self.config.duration_seconds / 60
 
-        # Parse sysbench output and configmap if available
-        sysbench_output_path = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_output.txt"
-        sysbench_results = parse_sysbench_output(sysbench_output_path)
+        # Parse workload results based on type
+        if self.config.workload_type == "k6":
+            workload_name = "k6"
+            latency_percentile = "p95"
+            print("Collecting k6 results from Prometheus...")
+            sysbench_results = self.collect_k6_results_from_prometheus(step=10)
+            sysbench_params = self._get_k6_params()
+        else:
+            workload_name = "Sysbench"
+            latency_percentile = "p95"
+            sysbench_output_path = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_output.txt"
+            sysbench_results = parse_sysbench_output(sysbench_output_path)
+            sysbench_params = self._get_sysbench_params()
 
-        # Get sysbench params from live configmap
-        sysbench_params = self._get_sysbench_params()
-
-        # Enrich sysbench intervals with per-interval Prometheus samples (CPU/mem/net/disk).
+        # Enrich intervals with per-interval Prometheus samples (CPU/mem/net/disk).
         if sysbench_results and sysbench_results.get("intervals"):
             interval_step = 10
-            if sysbench_params and sysbench_params.get("report-interval"):
-                try:
-                    interval_step = int(sysbench_params["report-interval"])
-                except ValueError:
-                    pass
-            elif len(sysbench_results["intervals"]) >= 2:
-                # Fall back to the spacing sysbench actually reported
-                t0 = sysbench_results["intervals"][0]["time"]
-                t1 = sysbench_results["intervals"][1]["time"]
-                if t1 > t0:
-                    interval_step = t1 - t0
-            print(f"Enriching {len(sysbench_results['intervals'])} sysbench intervals with Prometheus metrics (step={interval_step}s)...")
+            if self.config.workload_type == "sysbench":
+                if sysbench_params and sysbench_params.get("report-interval"):
+                    try:
+                        interval_step = int(sysbench_params["report-interval"])
+                    except ValueError:
+                        pass
+                elif len(sysbench_results["intervals"]) >= 2:
+                    t0 = sysbench_results["intervals"][0]["time"]
+                    t1 = sysbench_results["intervals"][1]["time"]
+                    if t1 > t0:
+                        interval_step = t1 - t0
+            print(f"Enriching {len(sysbench_results['intervals'])} {workload_name} intervals with Prometheus metrics (step={interval_step}s)...")
             sysbench_results["intervals"] = self.enrich_intervals_with_metrics(
                 sysbench_results["intervals"], interval_step
             )
 
         report_data = {
             "title": self.config.title,
+            "workload_name": workload_name,
+            "latency_percentile": latency_percentile,
             "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
             "end_time": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
             "duration": f"{duration_min:.1f} minutes",
@@ -1225,36 +1238,162 @@ class ReportGenerator:
                 s3_key = f"reports/{timestamp}/metrics_dump.json.gz"
                 self._upload_to_s3(dump_file, s3_key)
 
-        # Copy sysbench output file(s)
-        sysbench_dir = Path(self.config.output_dir).parent / "output" / "sysbench"
-        sysbench_output = sysbench_dir / "sysbench_output.txt"
-        if sysbench_output.exists():
-            shutil.copy(sysbench_output, output_dir / "sysbench_output.txt")
-            print(f"Copied sysbench output to: {output_dir / 'sysbench_output.txt'}")
-        for pod_file in sorted(sysbench_dir.glob("sysbench_output_*.txt")):
-            shutil.copy(pod_file, output_dir / pod_file.name)
-            print(f"Copied per-pod output: {pod_file.name}")
-
-        # Copy node spec files if they exist
-        node_spec = Path(self.config.output_dir).parent / "output" / "sysbench" / "RUN_NODE_SPEC.txt"
-        if node_spec.exists():
-            shutil.copy(node_spec, output_dir / "RUN_NODE_SPEC.txt")
-            print(f"Copied node spec to: {output_dir / 'RUN_NODE_SPEC.txt'}")
-        sysbench_spec = Path(self.config.output_dir).parent / "output" / "sysbench" / "SYSBENCH_NODE_SPEC.txt"
-        if sysbench_spec.exists():
-            shutil.copy(sysbench_spec, output_dir / "SYSBENCH_NODE_SPEC.txt")
-            print(f"Copied sysbench node spec to: {output_dir / 'SYSBENCH_NODE_SPEC.txt'}")
-
-        # Copy sysbench_times.txt so report-parser.py can read WARMUP_END_TIME
-        times_file = Path(self.config.output_dir).parent / "output" / "sysbench" / "sysbench_times.txt"
-        if times_file.exists():
-            shutil.copy(times_file, output_dir / "sysbench_times.txt")
-            print(f"Copied timestamps to: {output_dir / 'sysbench_times.txt'}")
-
-        # Save sysbench configmap (contains rendered parameters)
-        self._save_sysbench_configmap(output_dir)
+        # Copy workload output files
+        if self.config.workload_type == "k6":
+            workload_dir = Path(self.config.output_dir).parent / "output" / "k6"
+            for k6_file in sorted(workload_dir.glob("k6_output_*.txt")):
+                shutil.copy(k6_file, output_dir / k6_file.name)
+                print(f"Copied k6 output: {k6_file.name}")
+            # Copy node specs
+            for spec_name in ["RUN_NODE_SPEC.txt", "K6_NODE_SPEC.txt"]:
+                src = workload_dir / spec_name
+                if src.exists():
+                    shutil.copy(src, output_dir / spec_name)
+                    print(f"Copied {spec_name}")
+            # Copy times (as sysbench_times.txt for backward compat with report-parser)
+            times_src = workload_dir / "k6_times.txt"
+            if times_src.exists():
+                shutil.copy(times_src, output_dir / "sysbench_times.txt")
+                print(f"Copied k6 timestamps to: {output_dir / 'sysbench_times.txt'}")
+            self._save_k6_configmap(output_dir)
+        else:
+            sysbench_dir = Path(self.config.output_dir).parent / "output" / "sysbench"
+            sysbench_output = sysbench_dir / "sysbench_output.txt"
+            if sysbench_output.exists():
+                shutil.copy(sysbench_output, output_dir / "sysbench_output.txt")
+                print(f"Copied sysbench output to: {output_dir / 'sysbench_output.txt'}")
+            for pod_file in sorted(sysbench_dir.glob("sysbench_output_*.txt")):
+                shutil.copy(pod_file, output_dir / pod_file.name)
+                print(f"Copied per-pod output: {pod_file.name}")
+            node_spec = sysbench_dir / "RUN_NODE_SPEC.txt"
+            if node_spec.exists():
+                shutil.copy(node_spec, output_dir / "RUN_NODE_SPEC.txt")
+                print(f"Copied node spec to: {output_dir / 'RUN_NODE_SPEC.txt'}")
+            sysbench_spec = sysbench_dir / "SYSBENCH_NODE_SPEC.txt"
+            if sysbench_spec.exists():
+                shutil.copy(sysbench_spec, output_dir / "SYSBENCH_NODE_SPEC.txt")
+                print(f"Copied sysbench node spec to: {output_dir / 'SYSBENCH_NODE_SPEC.txt'}")
+            times_file = sysbench_dir / "sysbench_times.txt"
+            if times_file.exists():
+                shutil.copy(times_file, output_dir / "sysbench_times.txt")
+                print(f"Copied timestamps to: {output_dir / 'sysbench_times.txt'}")
+            self._save_sysbench_configmap(output_dir)
 
         return output_file
+
+    def collect_k6_results_from_prometheus(self, step: int = 10) -> Optional[dict]:
+        """Build benchmark results dict from k6 Prometheus metrics.
+
+        Returns the same structure as parse_sysbench_output() so the template
+        can use the same variables.
+        """
+        start = self.config.start_time
+        end = self.config.end_time
+
+        # TPS from k6 iterations counter
+        tps_series = self.prometheus.query_range(
+            'sum(irate(k6_iterations_total[30s]))',
+            start, end, step
+        )
+
+        # Insert latency p95 — requires K6_PROMETHEUS_RW_TREND_STATS=p(95),...
+        lat_series = self.prometheus.query_range(
+            'k6_iteration_duration_p95',
+            start, end, step
+        )
+
+        if not tps_series:
+            print("Warning: no k6_iterations_total data in Prometheus", file=sys.stderr)
+            return None
+
+        s = tps_series[0]
+        intervals = []
+        for ts, tps_val in zip(s.timestamps, s.values):
+            t_offset = int(ts - start)
+            lat_val = 0.0
+            if lat_series and lat_series[0].values:
+                lat_s = lat_series[0]
+                closest_idx = min(range(len(lat_s.timestamps)),
+                                  key=lambda i: abs(lat_s.timestamps[i] - ts))
+                if abs(lat_s.timestamps[closest_idx] - ts) <= step:
+                    # k6 iteration_duration is in seconds; convert to ms
+                    lat_val = lat_s.values[closest_idx] * 1000.0
+
+            intervals.append({
+                "time": t_offset,
+                "tps": tps_val,
+                "lat_95": lat_val,
+                "err_s": 0.0,
+            })
+
+        # Summary stats
+        result = {"intervals": intervals}
+
+        # Total iterations
+        total_series = self.prometheus.query_range(
+            'sum(k6_iterations_total)', end - 1, end, step
+        )
+        if total_series and total_series[0].values:
+            result["transactions"] = int(total_series[0].values[-1])
+
+        non_zero_tps = [iv["tps"] for iv in intervals if iv["tps"] > 0]
+        if non_zero_tps:
+            result["tps"] = sum(non_zero_tps) / len(non_zero_tps)
+
+        non_zero_lat = [iv["lat_95"] for iv in intervals if iv["lat_95"] > 0]
+        if non_zero_lat:
+            result["lat_avg"] = sum(non_zero_lat) / len(non_zero_lat)
+            result["lat_min"] = min(non_zero_lat)
+            result["lat_max"] = max(non_zero_lat)
+            result["lat_p95"] = sorted(non_zero_lat)[int(len(non_zero_lat) * 0.95)]
+
+        result["elapsed"] = end - start
+        return result
+
+    def _get_k6_params(self) -> Optional[dict]:
+        """Get k6 parameters from the k6 pod's env vars."""
+        cmd = [
+            "kubectl", "--context", self.config.kube_context,
+            "-n", self.config.namespace,
+            "get", "pod", "-l", "app.kubernetes.io/component=k6",
+            "-o", "jsonpath={.items[0].spec.containers[0].env}"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0 and result.stdout.strip():
+                envs = json.loads(result.stdout)
+                params = {}
+                sensitive = {"PG_PASS", "PG_USER", "PG_HOST", "PG_PORT",
+                             "K6_PROMETHEUS_RW_SERVER_URL"}
+                for e in envs:
+                    name = e.get("name", "")
+                    if name not in sensitive:
+                        params[name] = e.get("value", "")
+                return params if params else None
+        except Exception:
+            pass
+        return None
+
+    def _save_k6_configmap(self, output_dir: Path):
+        """Save the k6 scripts configmap for reference."""
+        configmap_name = f"{self.config.release_name}-k6-scripts"
+        cmd = [
+            "kubectl", "--context", self.config.kube_context,
+            "-n", self.config.namespace,
+            "get", "configmap", configmap_name,
+            "-o", "yaml"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                configmap_file = output_dir / "k6-configmap.yaml"
+                with open(configmap_file, "w") as f:
+                    f.write(result.stdout)
+                print(f"Saved k6 configmap to: {configmap_file}")
+            else:
+                print(f"Warning: Could not get k6 configmap: {result.stderr}", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: Failed to save k6 configmap: {e}", file=sys.stderr)
 
     def _get_sysbench_params(self) -> Optional[dict]:
         """Get sysbench parameters from the live configmap."""
@@ -1442,6 +1581,8 @@ def main():
     parser.add_argument("--output-dir", default="reports", help="Output directory")
     parser.add_argument("--metrics-dump-base-url", default="",
                         help="S3 website base URL for metrics dump (e.g. http://bucket.s3-website.region.amazonaws.com)")
+    parser.add_argument("--workload-type", default="sysbench", choices=["sysbench", "k6"],
+                        help="Workload type (sysbench or k6)")
 
     args = parser.parse_args()
 
@@ -1460,6 +1601,7 @@ def main():
         title=args.title,
         output_dir=args.output_dir,
         metrics_dump_base_url=args.metrics_dump_base_url,
+        workload_type=args.workload_type,
     )
 
     generator = ReportGenerator(config)

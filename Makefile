@@ -95,8 +95,9 @@ K6_POD := $(BENCH_RELEASE)-k6-0
 K6_SCRIPT ?= test.js
 
 # k6 operations
-k6-run: ## Run k6 test script in cluster (K6_SCRIPT=test.js)
-	$(KUBECTL) exec $(K6_POD) -- k6 run --out experimental-prometheus-rw /scripts/$(K6_SCRIPT)
+k6-run: ## Run k6 benchmark with timestamps
+	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) K6_SCRIPT=$(K6_SCRIPT) \
+		./scripts/k6-run-with-timestamps.sh
 
 k6-shell: ## Open shell in k6 container
 	$(KUBECTL) exec -it $(K6_POD) -- /bin/sh
