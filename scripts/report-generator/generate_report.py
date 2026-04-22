@@ -1068,6 +1068,45 @@ class ReportGenerator:
 
         return all_series
 
+    def collect_k6_metrics_dump(self) -> list[dict]:
+        """Dump all k6 metrics pushed via Prometheus remote write.
+
+        Counters (_total suffix) as irate() rates, everything else as raw values.
+        k6 pushes every 5s by default, so we use step=5.
+        """
+        names = self.prometheus.label_values(
+            "__name__", '{__name__=~"k6_.*"}'
+        )
+        if not names:
+            print("  No k6 metrics found, skipping")
+            return []
+
+        counters = [n for n in names if n.endswith("_total")]
+        gauges = [n for n in names if not n.endswith("_total")]
+
+        print(f"  {len(counters)} counters + {len(gauges)} gauges ({len(names)} names)")
+
+        all_series: list[dict] = []
+        step = 5
+
+        for name in counters:
+            query = f'irate({name}[30s])'
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time, step,
+            )
+            for r in results:
+                r.setdefault("metric", {})["__name__"] = name
+            all_series.extend(results)
+
+        for name in gauges:
+            results = self.prometheus.query_range_raw(
+                name, self.config.start_time, self.config.end_time, step,
+            )
+            all_series.extend(results)
+
+        print(f"  {len(all_series)} series total")
+        return all_series
+
     @staticmethod
     def build_metrics_index(dump: list[dict]) -> list[dict]:
         """Build a summary index of metric names for the explorer picker."""
@@ -1101,11 +1140,14 @@ class ReportGenerator:
         print("Collecting custom metrics...")
         self.collect_custom_metrics()
 
-        # Dump all YB + node metrics for the Metrics Explorer tab.
+        # Dump all YB + node + k6 metrics for the Metrics Explorer tab.
         print("Collecting YB metrics dump...")
         self.yb_dump = self.collect_yb_metrics_dump()
         print("Collecting node-exporter metrics dump...")
         self.yb_dump.extend(self.collect_node_metrics_dump())
+        if self.config.workload_type == "k6":
+            print("Collecting k6 metrics dump...")
+            self.yb_dump.extend(self.collect_k6_metrics_dump())
         self.yb_metrics_index = self.build_metrics_index(self.yb_dump)
 
         # Reshape flat series into by_pod / by_node views for the tabbed template.
