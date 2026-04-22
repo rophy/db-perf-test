@@ -309,26 +309,43 @@ class ReportGenerator:
         self.pod_to_node = {}
         self.cluster_spec = {}
         self._node_instance_filter = ""
+        self._tserver_instance_filter = ""
 
     def _derive_node_instances(self):
-        """Extract node hostnames from container metrics and build an instance filter.
+        """Extract node hostnames from container metrics and build instance filters.
 
         Must be called after collect_container_metrics(). Scans the CPU series
-        (which are namespace-filtered) for distinct instance values — these are
-        the nodes hosting YB pods.
+        (which are namespace-filtered) for distinct instance values.
+
+        Builds two filters:
+        - _node_instance_filter: all nodes hosting any pod in the namespace
+        - _tserver_instance_filter: only nodes hosting yb-tserver pods
         """
         cpu_data = self.metrics_data.get("cpu", {})
-        instances = sorted({
-            s["instance"] for s in cpu_data.get("series", [])
-            if s.get("instance")
-        })
-        if instances:
-            regex = "|".join(instances)
-            self._node_instance_filter = f'instance=~"{regex}"'
-            print(f"  Node instance filter: {len(instances)} nodes ({', '.join(instances)})")
-        else:
-            self._node_instance_filter = ""
-            print("  Warning: no node instances found from container metrics", file=sys.stderr)
+        all_instances = set()
+        tserver_instances = set()
+        for s in cpu_data.get("series", []):
+            inst = s.get("instance")
+            if not inst:
+                continue
+            all_instances.add(inst)
+            pod = s.get("name", "")
+            if pod.startswith("yb-tserver"):
+                tserver_instances.add(inst)
+
+        for label, instances in [("all", all_instances), ("tserver", tserver_instances)]:
+            insts = sorted(instances)
+            if insts:
+                regex = "|".join(insts)
+                filt = f'instance=~"{regex}"'
+                print(f"  {label} instance filter: {len(insts)} nodes ({', '.join(insts)})")
+            else:
+                filt = ""
+                print(f"  Warning: no {label} instances found from container metrics", file=sys.stderr)
+            if label == "all":
+                self._node_instance_filter = filt
+            else:
+                self._tserver_instance_filter = filt
 
     def validate_connectivity(self):
         """Validate kubectl and prometheus connectivity before proceeding."""
@@ -614,15 +631,15 @@ class ReportGenerator:
         node_window = "15s"
         cadvisor_window = "30s"
 
-        nf = self._node_instance_filter
-        nf_comma = f",{nf}" if nf else ""
+        tf = self._tserver_instance_filter
+        tf_comma = f",{tf}" if tf else ""
 
         queries = {
-            # DB-node VM CPU in cores-used, averaged across nodes hosting YB pods.
+            # DB-node VM CPU in cores-used, averaged across tserver nodes only.
             "cpu_cores": (
                 'avg('
-                f'count by (instance) (node_cpu_seconds_total{{mode="idle"{nf_comma}}}) '
-                f'- sum by (instance) (irate(node_cpu_seconds_total{{mode="idle"{nf_comma}}}[{node_window}])))'
+                f'count by (instance) (node_cpu_seconds_total{{mode="idle"{tf_comma}}}) '
+                f'- sum by (instance) (irate(node_cpu_seconds_total{{mode="idle"{tf_comma}}}[{node_window}])))'
             ),
             # Total tserver-container memory in MB (sum of per-container rows).
             "mem_mb": (
