@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
-NAMESPACE="${NAMESPACE:-yugabyte-test}"
+KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
 KUBECTL="kubectl --context $KUBE_CONTEXT -n $NAMESPACE"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

@@ -1,12 +1,12 @@
 # YugabyteDB Benchmark Infrastructure
 
-Benchmark infrastructure for evaluating YugabyteDB performance using sysbench OLTP workloads.
+Benchmark infrastructure for evaluating YugabyteDB performance using sysbench and k6 workloads.
 
 ## Architecture
 
 ```
 ┌─────────────────┐                ┌──────────────────┐
-│    Sysbench     │───────────────▶│   YugabyteDB     │
+│  Sysbench / k6  │───────────────▶│   YugabyteDB     │
 │   (OLTP)        │   PostgreSQL   │   (YSQL:5433)    │
 └─────────────────┘                └──────────────────┘
                                           │
@@ -17,15 +17,17 @@ Benchmark infrastructure for evaluating YugabyteDB performance using sysbench OL
 
 **Components:**
 - **Sysbench** - Database benchmark tool using YugabyteDB's fork with YB-specific optimizations
+- **k6** - Custom SQL load testing with xk6-sql (pgx driver, cluster-aware connections)
 - **YugabyteDB** - Distributed PostgreSQL-compatible database (separate Helm chart)
 - **Prometheus** - Metrics collection for performance reports
 
 ## Environments
 
-Three deployment environments are supported:
+Four deployment environments are supported:
 
 | Environment | Infra | Use Case |
 |---|---|---|
+| **kind** | kind (Docker) | Quick e2e testing, CI |
 | **minikube** | minikube (KVM2) | Local development, quick benchmarks |
 | **AWS** | k3s on c7i.8xlarge (via kube-sandbox terraform) | Production-scale benchmarks |
 | **k3s-virsh** | libvirt VMs + k3s | Performance tuning lab with I/O simulation |
@@ -44,12 +46,32 @@ Topology: 1 control node (4 CPU / 8 GB) + 3 worker nodes (4 CPU / 8 GB), Ubuntu 
 
 - kubectl
 - Helm 3.x
-- Kubernetes cluster (minikube, k3s-virsh, or AWS via kube-sandbox)
+- Kubernetes cluster (kind, minikube, k3s-virsh, or AWS via kube-sandbox)
 - Python 3 with Jinja2 (`pip install Jinja2`) for report generation
 - Node.js + npm for report JS vendor libs (`make vendor`)
 - For k3s-virsh: libvirt, virt-install, qemu-img, genisoimage
 
+## Environment Variables
+
+All commands require `KUBE_CONTEXT` and `NAMESPACE` to be set. The Makefile sets these automatically based on `ENV`:
+
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `NAMESPACE` | Makefile default (`yugabyte-test`) | Single source of truth for namespace |
+| `KUBE_CONTEXT` | Derived from `ENV` | `kind-kind`, `minikube`, `kube-sandbox`, or `k3s-virsh` |
+
+Scripts outside the Makefile (e.g. `report.sh`, `ft-run.sh`) require these as explicit environment variables and will fail if not set.
+
 ## Quick Start
+
+### kind (fastest)
+
+```bash
+kind create cluster
+make deploy ENV=kind
+make k6-run
+PATH=".venv/bin:$PATH" make report ENV=kind
+```
 
 ### Minikube
 
@@ -58,7 +80,7 @@ Topology: 1 control node (4 CPU / 8 GB) + 3 worker nodes (4 CPU / 8 GB), Ubuntu 
 make deploy ENV=minikube
 make sysbench-cleanup && make sysbench-prepare && make sysbench-trigger
 make sysbench-run
-make report
+PATH=".venv/bin:$PATH" make report ENV=minikube
 ```
 
 ### AWS
@@ -106,16 +128,19 @@ Reports are saved to `reports/<timestamp>/report.html`.
 │   ├── yugabyte/                  # Vendored YugabyteDB chart (v2.23.1)
 │   │   ├── values-aws.yaml
 │   │   ├── values-minikube.yaml
-│   │   └── values-k3s-virsh.yaml
-│   └── yb-benchmark/              # Benchmark stack (sysbench + prometheus + node-exporter)
+│   │   ├── values-k3s-virsh.yaml
+│   │   └── values-kind.yaml
+│   └── yb-benchmark/              # Benchmark stack (sysbench + k6 + prometheus + node-exporter)
 │       ├── Chart.yaml
 │       ├── values-aws.yaml
 │       ├── values-minikube.yaml
 │       ├── values-k3s-virsh.yaml
+│       ├── values-kind.yaml
 │       └── templates/
 │           ├── sysbench.yaml           # Sysbench StatefulSet
 │           ├── sysbench-configmap.yaml # Sysbench scripts (prepare/run/cleanup)
-│           ├── tserver-service.yaml    # ClusterIP service for sysbench→tserver
+│           ├── k6-*.yaml              # k6 StatefulSet + ConfigMap
+│           ├── tserver-service.yaml    # ClusterIP service for clients→tserver
 │           └── prometheus.yaml         # Prometheus + node-exporter + cAdvisor
 ├── scripts/
 │   ├── setup-minikube.sh          # Minikube cluster setup
@@ -140,7 +165,7 @@ Reports are saved to `reports/<timestamp>/report.html`.
 
 | Target | Description |
 |--------|-------------|
-| `make deploy` | Deploy all components (`ENV=k3s-virsh\|aws\|minikube`, `COMPONENT=all\|yb\|bench`) |
+| `make deploy` | Deploy all components (`ENV=kind\|minikube\|aws\|k3s-virsh`, `COMPONENT=all\|yb\|bench`) |
 | `make clean` | Delete components (same `ENV` / `COMPONENT` options) |
 
 ### Sysbench Operations
@@ -152,8 +177,20 @@ Reports are saved to `reports/<timestamp>/report.html`.
 | `make sysbench-run` | Run benchmark (params from values file) |
 | `make sysbench-cleanup` | Drop benchmark tables |
 | `make sysbench-shell` | Open shell in sysbench container |
+
+### k6 Operations
+
+| Target | Description |
+|--------|-------------|
+| `make k6-run` | Run k6 benchmark with timestamps (`K6_SCRIPT=test.js\|test-pgx.js`) |
+| `make k6-shell` | Open shell in k6 container |
+
+### Reports
+
+| Target | Description |
+|--------|-------------|
 | `make vendor` | Install JS vendor libs for reports (npm) |
-| `make report` | Generate HTML performance report |
+| `make report` | Generate HTML performance report (works for both sysbench and k6) |
 
 ### Utilities
 
@@ -212,7 +249,7 @@ These flags are configured in `sysbench.*` per YugabyteDB docs:
 
 ## Performance Reports
 
-After `make sysbench-run`, generate a report with `make report`.
+After `make sysbench-run` or `make k6-run`, generate a report with `make report`.
 
 The report includes:
 - Per-interval TPS, latency, CPU/node, memory, network, disk IOPS
@@ -230,15 +267,17 @@ Two independent Helm releases:
 
 ```bash
 # Deploy YugabyteDB
-helm install yugabyte ./charts/yugabyte -n yugabyte-test --create-namespace \
+helm install yugabyte ./charts/yugabyte -n $NAMESPACE --create-namespace \
   -f ./charts/yugabyte/values-aws.yaml
 
-# Deploy benchmark stack (sysbench + prometheus + node-exporter)
-helm install yb-bench ./charts/yb-benchmark -n yugabyte-test \
+# Deploy benchmark stack (sysbench + k6 + prometheus + node-exporter)
+helm install yb-benchmark ./charts/yb-benchmark -n $NAMESPACE \
   -f ./charts/yb-benchmark/values-aws.yaml
 ```
 
 The Makefile wraps these with `make deploy ENV=aws COMPONENT=yb|bench|all`.
+
+All Docker images use fully-qualified registry paths (`docker.io/...`) for compatibility with corporate registries and mirror policies.
 
 ## Troubleshooting
 
@@ -247,12 +286,12 @@ The Makefile wraps these with `make deploy ENV=aws COMPONENT=yb|bench|all`.
 Check that YugabyteDB is running:
 ```bash
 make status
-kubectl --context minikube get pods -n yugabyte-test
+kubectl --context $KUBE_CONTEXT -n $NAMESPACE get pods
 ```
 
 ### View logs
 
 ```bash
 make sysbench-logs
-kubectl --context minikube logs -n yugabyte-test yb-tserver-0
+kubectl --context $KUBE_CONTEXT -n $NAMESPACE logs yb-tserver-0
 ```

@@ -8,8 +8,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
-NAMESPACE="${NAMESPACE:-yugabyte-test}"
+KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
 RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
 
 OUTPUT_DIR="${PROJECT_ROOT}/output"

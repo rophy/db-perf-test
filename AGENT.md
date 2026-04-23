@@ -33,13 +33,12 @@ Every benchmark run has a **warmup** phase followed by a **heat** (steady-state)
 - **ALWAYS** use explicit `--context` flag: `kubectl --context minikube ...`
 
 ### Querying Prometheus
-The Prometheus instance is in-cluster (label `app.kubernetes.io/component=prometheus`)
-in namespace `yugabyte-test`. Do NOT port-forward — `kubectl exec` into the pod and curl
-localhost from inside:
+The Prometheus instance is in-cluster (label `app.kubernetes.io/component=prometheus`).
+Do NOT port-forward — `kubectl exec` into the pod and curl localhost from inside:
 
 ```bash
-PROM=$(kubectl --context $KUBE_CONTEXT -n yugabyte-test get pod -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}')
-kubectl --context $KUBE_CONTEXT -n yugabyte-test exec $PROM -- wget -qO- \
+PROM=$(kubectl --context $KUBE_CONTEXT -n $NAMESPACE get pod -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}')
+kubectl --context $KUBE_CONTEXT -n $NAMESPACE exec $PROM -- wget -qO- \
     "http://localhost:9090/api/v1/query_range?query=...&start=...&end=...&step=10"
 ```
 

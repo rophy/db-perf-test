@@ -10,7 +10,7 @@ fullnameOverride: ""
 sysbench:
   enabled: true
   image:
-    repository: rophy/sysbench
+    repository: docker.io/rophy/sysbench
     tag: yugabyte-20260119
     pullPolicy: IfNotPresent
   resources:
@@ -116,7 +116,7 @@ k6:
 prometheus:
   enabled: true
   image:
-    repository: prom/prometheus
+    repository: docker.io/prom/prometheus
     tag: v2.48.0
     pullPolicy: IfNotPresent
   resources:
@@ -133,7 +133,7 @@ prometheus:
 nodeExporter:
   enabled: true
   image:
-    repository: prom/node-exporter
+    repository: docker.io/prom/node-exporter
     tag: v1.7.0
     pullPolicy: IfNotPresent
   resources:

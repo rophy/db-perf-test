@@ -7,8 +7,8 @@ set -euo pipefail
 # Usage: ft-writer.sh <journal_file>
 # Stop: kill the process or send SIGTERM
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
-NAMESPACE="${NAMESPACE:-yugabyte-test}"
+KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
 WRITER_ID="${WRITER_ID:-1}"
 INSERT_INTERVAL_MS="${INSERT_INTERVAL_MS:-100}"
 

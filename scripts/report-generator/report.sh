@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # Report generation script for benchmark stress tests (sysbench or k6)
 # Auto-detects workload type from timestamps file and generates HTML report
@@ -8,8 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Configuration
-KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
-NAMESPACE="${NAMESPACE:-yugabyte-test}"
+KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
 RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
 
@@ -84,12 +84,12 @@ PYTHON_ARGS=(
 if [[ -n "$WARMUP_END_TIME" ]]; then
     PYTHON_ARGS+=(--warmup-end "$WARMUP_END_TIME")
 fi
-REPORT_OUTPUT=$(python3 "${SCRIPT_DIR}/generate_report.py" "${PYTHON_ARGS[@]}")
-
-echo "$REPORT_OUTPUT"
+REPORT_LOG=$(mktemp)
+trap 'rm -f "$REPORT_LOG"' EXIT
+python3 "${SCRIPT_DIR}/generate_report.py" "${PYTHON_ARGS[@]}" 2>&1 | tee "$REPORT_LOG"
 
 # Extract report directory and run parser
-REPORT_DIR=$(echo "$REPORT_OUTPUT" | grep "Report saved to:" | sed 's|Report saved to: ||' | xargs dirname)
+REPORT_DIR=$(grep "Report saved to:" "$REPORT_LOG" | sed 's|Report saved to: ||' | xargs dirname || true)
 if [[ -n "$REPORT_DIR" && -d "$REPORT_DIR" ]]; then
     echo ""
     echo "=== Running Report Parser ==="

@@ -6,9 +6,10 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Cluster configuration - must be provided for AWS
 KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set to the AWS cluster context}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
 
 echo "=== YugabyteDB Benchmark Infrastructure Setup (AWS) ==="
-echo "Context: $KUBE_CONTEXT"
+echo "Context: $KUBE_CONTEXT, Namespace: $NAMESPACE"
 
 # Check prerequisites
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required but not installed. Aborting." >&2; exit 1; }
@@ -39,7 +40,7 @@ helm repo add yugabytedb https://charts.yugabyte.com || true
 helm repo update
 helm upgrade --install yugabyte yugabytedb/yugabyte \
     --kube-context "$KUBE_CONTEXT" \
-    --namespace yugabyte-test \
+    --namespace "$NAMESPACE" \
     --values "$PROJECT_DIR/k8s/overlays/aws/yugabytedb-values.yaml" \
     --wait --timeout 15m
 
@@ -47,7 +48,7 @@ echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
 echo "  1. Wait for YugabyteDB pods to be ready:"
-echo "     kubectl --context $KUBE_CONTEXT get pods -n yugabyte-test -w"
+echo "     kubectl --context $KUBE_CONTEXT get pods -n $NAMESPACE -w"
 echo "  2. Deploy HammerDB and Prometheus:"
 echo "     KUBE_CONTEXT=$KUBE_CONTEXT make deploy ENV=aws"
 echo "  3. Build TPROC-C schema:"

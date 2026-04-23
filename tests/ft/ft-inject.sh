@@ -10,8 +10,8 @@ set -euo pipefail
 #
 # Targets: yb-tserver-0, yb-tserver-1, yb-tserver-2, yb-master-0, etc.
 
-KUBE_CONTEXT="${KUBE_CONTEXT:-k3s-virsh}"
-NAMESPACE="${NAMESPACE:-yugabyte-test}"
+KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
 FAILURE_MODE="${FAILURE_MODE:-pod-delete}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

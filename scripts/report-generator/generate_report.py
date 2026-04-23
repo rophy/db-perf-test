@@ -57,10 +57,10 @@ class ReportConfig:
     end_time: float
     warmup_end: Optional[float] = None
     step: int = 30
-    kube_context: str = "minikube"
-    namespace: str = "yugabyte-test"
-    release_name: str = "yb-bench"
-    prometheus_url: str = "http://yb-bench-prometheus:9090"
+    kube_context: str = ""
+    namespace: str = ""
+    release_name: str = "yb-benchmark"
+    prometheus_url: str = ""
     pods: list[str] = field(default_factory=list)
     rate_metrics: list[str] = field(default_factory=list)
     total_metrics: list[str] = field(default_factory=list)
@@ -77,7 +77,7 @@ class ReportConfig:
 class QueryExecutor:
     """Executes queries via kubectl exec using wget."""
 
-    def __init__(self, kube_context: str, namespace: str, release_name: str = "yb-bench"):
+    def __init__(self, kube_context: str, namespace: str, release_name: str = "yb-benchmark"):
         self.kube_context = kube_context
         self.namespace = namespace
         self.release_name = release_name
@@ -1590,10 +1590,10 @@ def main():
     parser.add_argument("--warmup-end", type=float, default=None,
                         help="Warmup end timestamp (Unix); shaded on charts if set")
     parser.add_argument("--step", type=int, default=30, help="Query step in seconds (default: 30)")
-    parser.add_argument("--kube-context", default="minikube", help="Kubernetes context")
-    parser.add_argument("--namespace", default="yugabyte-test", help="Kubernetes namespace")
-    parser.add_argument("--release-name", default="yb-bench", help="Helm release name")
-    parser.add_argument("--prometheus-url", default="http://yb-bench-prometheus:9090", help="Prometheus URL (inside cluster)")
+    parser.add_argument("--kube-context", required=True, help="Kubernetes context")
+    parser.add_argument("--namespace", required=True, help="Kubernetes namespace")
+    parser.add_argument("--release-name", default="yb-benchmark", help="Helm release name")
+    parser.add_argument("--prometheus-url", default="", help="Prometheus URL (inside cluster)")
     parser.add_argument("--pods", nargs="+", default=["yb-tserver.*", "yb-master.*", "sysbench.*"],
                         help="Pod name patterns to monitor")
     parser.add_argument("--rate-of", action="append", dest="rate_metrics", default=[],

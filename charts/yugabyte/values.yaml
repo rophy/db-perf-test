@@ -7,7 +7,7 @@ fullnameOverride: ""
 nameOverride: ""
 
 Image:
-  repository: "yugabytedb/yugabyte"
+  repository: "docker.io/yugabytedb/yugabyte"
   tag: 2.23.1.0-b220
   pullPolicy: IfNotPresent
   pullSecretName: ""
