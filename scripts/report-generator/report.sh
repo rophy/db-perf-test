@@ -12,7 +12,17 @@ KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
 RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
-PROMETHEUS_URL="${PROMETHEUS_URL:-http://${RELEASE_NAME}-prometheus:9090}"
+
+# Discover Prometheus service name from the cluster if not explicitly set
+if [[ -z "$PROMETHEUS_URL" ]]; then
+    PROM_SVC=$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" get svc \
+        -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+    if [[ -z "$PROM_SVC" ]]; then
+        PROM_SVC="${RELEASE_NAME}-prometheus"
+        echo "Warning: could not discover Prometheus service, falling back to ${PROM_SVC}"
+    fi
+    PROMETHEUS_URL="http://${PROM_SVC}:9090"
+fi
 METRICS_DUMP_BASE_URL="${METRICS_DUMP_BASE_URL:-}"
 
 # Read timestamps from unified output directory
