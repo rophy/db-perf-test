@@ -32,7 +32,7 @@ spec:
         role: master
       containers:
       - name: mariadb
-        image: mariadb:11
+        image: docker.io/library/mariadb:11
         env:
         - name: MARIADB_ROOT_PASSWORD
           value: rootpass

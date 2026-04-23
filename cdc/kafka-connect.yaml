@@ -16,7 +16,7 @@ spec:
         role: master
       containers:
       - name: kafka-connect
-        image: confluentinc/cp-kafka-connect:7.8.0
+        image: docker.io/confluentinc/cp-kafka-connect:7.8.0
         command: ["/bin/bash", "-c"]
         args:
         - |
