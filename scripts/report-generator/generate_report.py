@@ -1068,6 +1068,101 @@ class ReportGenerator:
 
         return all_series
 
+    _CADVISOR_DUMP_STEP = 10
+    _CADVISOR_IRATE_WINDOW = "30s"
+    _CADVISOR_BATCH_SIZE = 50
+
+    def collect_cadvisor_metrics_dump(self) -> list[dict]:
+        """Dump all cAdvisor container_* metrics, per pod+container.
+
+        Same approach as collect_node_metrics_dump: counters as irate() rates,
+        gauges as raw values.  Aggregated with sum by (pod, container) and
+        filtered to the target namespace with non-empty container label
+        (excludes pod-level aggregates).
+        cAdvisor housekeeping cadence is ~10-15s, so irate window must be >=30s.
+        """
+        ns = self.config.namespace
+
+        type_map = self.prometheus.targets_metadata('{job="cadvisor"}')
+        if not type_map:
+            print("Warning: no cadvisor metadata found", file=sys.stderr)
+            return []
+
+        names = self.prometheus.label_values(
+            "__name__", '{job="cadvisor"}'
+        )
+        if not names:
+            print("Warning: no cadvisor metric names found", file=sys.stderr)
+            return []
+
+        names = [n for n in names
+                 if n.startswith("container_") and not n.endswith("_bucket")]
+
+        counters = []
+        gauges = []
+        for n in names:
+            t = type_map.get(n, "")
+            if t == "counter" or n.endswith("_total"):
+                counters.append(n)
+            else:
+                gauges.append(n)
+
+        print(f"  {len(counters)} counters + {len(gauges)} gauges "
+              f"({len(names)} container_* names)")
+
+        all_series: list[dict] = []
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _query_counter(name: str) -> list[dict]:
+            query = (
+                f'sum by (pod, container)'
+                f'(irate({name}{{job="cadvisor",namespace="{ns}",'
+                f'container!=""}}[{self._CADVISOR_IRATE_WINDOW}]))'
+            )
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time,
+                self._CADVISOR_DUMP_STEP,
+            )
+            for r in results:
+                r.setdefault("metric", {})["__name__"] = name
+            return results
+
+        print("  Counters (irate, sum by pod+container):")
+        done_count = 0
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            futures = {pool.submit(_query_counter, n): n for n in counters}
+            for future in as_completed(futures):
+                all_series.extend(future.result())
+                done_count += 1
+                if done_count % 20 == 0 or done_count == len(counters):
+                    print(f"    {done_count}/{len(counters)}, "
+                          f"{len(all_series)} series total")
+
+        print("  Gauges (raw, sum by pod+container):")
+        for i in range(0, len(gauges), self._CADVISOR_BATCH_SIZE):
+            batch = gauges[i:i + self._CADVISOR_BATCH_SIZE]
+            regex = "|".join(batch)
+            query = (
+                f'sum by (__name__, pod, container)'
+                f'({{__name__=~"{regex}",job="cadvisor",namespace="{ns}",'
+                f'container!=""}})'
+            )
+            results = self.prometheus.query_range_raw(
+                query, self.config.start_time, self.config.end_time,
+                self._CADVISOR_DUMP_STEP,
+            )
+            all_series.extend(results)
+            done = min(i + self._CADVISOR_BATCH_SIZE, len(gauges))
+            print(f"    {done}/{len(gauges)}, {len(all_series)} series total")
+
+        for s in all_series:
+            m = s.get("metric", {})
+            if "pod" in m and "exported_instance" not in m:
+                m["exported_instance"] = m["pod"]
+
+        return all_series
+
     def collect_k6_metrics_dump(self) -> list[dict]:
         """Dump all k6 metrics pushed via Prometheus remote write.
 
@@ -1145,6 +1240,8 @@ class ReportGenerator:
         self.yb_dump = self.collect_yb_metrics_dump()
         print("Collecting node-exporter metrics dump...")
         self.yb_dump.extend(self.collect_node_metrics_dump())
+        print("Collecting cAdvisor metrics dump...")
+        self.yb_dump.extend(self.collect_cadvisor_metrics_dump())
         if self.config.workload_type == "k6":
             print("Collecting k6 metrics dump...")
             self.yb_dump.extend(self.collect_k6_metrics_dump())
