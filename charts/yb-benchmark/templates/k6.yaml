@@ -15,6 +15,8 @@ spec:
       app.kubernetes.io/component: k6
   template:
     metadata:
+      annotations:
+        checksum/scripts: {{ include (print $.Template.BasePath "/k6-configmap.yaml") . | sha256sum }}
       labels:
         {{- include "yb-benchmark.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: k6

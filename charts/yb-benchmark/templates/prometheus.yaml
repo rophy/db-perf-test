@@ -135,6 +135,8 @@ spec:
       app.kubernetes.io/component: prometheus
   template:
     metadata:
+      annotations:
+        checksum/config: {{ toYaml .Values.prometheus | sha256sum }}
       labels:
         {{- include "yb-benchmark.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: prometheus
