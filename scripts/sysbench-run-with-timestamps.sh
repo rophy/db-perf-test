@@ -10,7 +10,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
-RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
+RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
 
 OUTPUT_DIR="${PROJECT_ROOT}/output"
 mkdir -p "$OUTPUT_DIR"
@@ -54,11 +54,17 @@ echo "Node specs saved."
 echo ""
 
 # Read warmup-time from the live sysbench configmap
-WARMUP_TIME=$($KUBECTL get cm "${RELEASE_NAME}-sysbench-scripts" \
+SYSBENCH_CM=$($KUBECTL get cm -l app.kubernetes.io/component=sysbench \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+if [[ -z "$SYSBENCH_CM" ]]; then
+    SYSBENCH_CM="${RELEASE_NAME}-sysbench-scripts"
+    echo "Warning: could not discover sysbench configmap, falling back to ${SYSBENCH_CM}"
+fi
+WARMUP_TIME=$($KUBECTL get cm "$SYSBENCH_CM" \
     -o jsonpath='{.data.sysbench-run\.sh}' 2>/dev/null \
     | grep -oE -- '--warmup-time=[0-9]+' | head -1 | cut -d= -f2)
 if [[ -z "$WARMUP_TIME" ]]; then
-    echo "Error: could not read --warmup-time from configmap ${RELEASE_NAME}-sysbench-scripts" >&2
+    echo "Error: could not read --warmup-time from configmap ${SYSBENCH_CM}" >&2
     exit 1
 fi
 

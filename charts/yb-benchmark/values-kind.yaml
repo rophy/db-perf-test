@@ -1,7 +1,5 @@
-# k3s-virsh values - performance tuning lab
-# Node layout: 1 control node (role=master) + 3 worker nodes (role=db)
-# All VMs: 4 CPUs / 8 GB RAM each, cache=none disk
-# Storage: local PVs backed by dm-delay (configurable latency)
+# Kind: single-node cluster for quick e2e testing
+# No nodeSelector (everything on one node), minimal resources
 
 fullnameOverride: ""
 
@@ -20,8 +18,6 @@ sysbench:
       cpu: "2"
       memory: "1Gi"
   replicas: 1
-  nodeSelector:
-    role: master
 
   # Database connection
   db:
@@ -62,16 +58,14 @@ prometheus:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "100m"
+      memory: "256Mi"
     limits:
       cpu: "500m"
       memory: "1Gi"
   retention: 7d
-  nodeSelector:
-    role: master
 
-# k6 with xk6-sql — custom schema/SQL load testing (disabled by default)
+# k6 with xk6-sql
 k6:
   enabled: true
   image:
@@ -86,8 +80,6 @@ k6:
       cpu: "2"
       memory: "1Gi"
   replicas: 1
-  nodeSelector:
-    role: master
   tables: 10
   tableSize: 100000
   createSecondary: true
@@ -103,7 +95,7 @@ k6:
     password: yugabyte
     name: yugabyte
 
-# Node exporter - host-level CPU/memory/disk metrics
+# Node exporter
 nodeExporter:
   enabled: true
   image:

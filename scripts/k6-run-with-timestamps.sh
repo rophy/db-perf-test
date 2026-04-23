@@ -10,7 +10,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 KUBE_CONTEXT="${KUBE_CONTEXT:-minikube}"
 NAMESPACE="${NAMESPACE:-yugabyte-test}"
-RELEASE_NAME="${RELEASE_NAME:-yb-bench}"
+RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
 K6_SCRIPT="${K6_SCRIPT:-test.js}"
 
 OUTPUT_DIR="${PROJECT_ROOT}/output"

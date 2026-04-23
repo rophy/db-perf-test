@@ -16,15 +16,15 @@ NAMESPACE ?= yugabyte-test
 KUBE_CONTEXT_aws := kube-sandbox
 KUBE_CONTEXT_minikube := minikube
 KUBE_CONTEXT_k3s-virsh := k3s-virsh
+KUBE_CONTEXT_kind := kind-kind
 KUBE_CONTEXT := $(KUBE_CONTEXT_$(ENV))
 
 # Two independent Helm releases
 YB_RELEASE := yugabyte
 YB_CHART_DIR := charts/yugabyte
-BENCH_RELEASE := yb-bench
+BENCH_RELEASE := yb-benchmark
 BENCH_CHART_DIR := charts/yb-benchmark
 
-# Backward compat for scripts that use RELEASE_NAME
 RELEASE_NAME := $(BENCH_RELEASE)
 
 # Slow disk simulation parameters
@@ -64,7 +64,6 @@ _deploy-bench:
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \
 		--create-namespace \
-		--set fullnameOverride=$(BENCH_RELEASE) \
 		-f $(BENCH_CHART_DIR)/values-$(ENV).yaml \
 		--wait --timeout 5m
 
@@ -138,7 +137,7 @@ ysql: ## Connect to YugabyteDB YSQL shell
 	$(KUBECTL) exec -it yb-tserver-0 -- /home/yugabyte/bin/ysqlsh -h yb-tserver-service
 
 port-forward-prometheus: ## Port forward Prometheus to localhost:9090
-	$(KUBECTL) port-forward svc/$(RELEASE_NAME)-prometheus 9090:9090
+	$(KUBECTL) port-forward svc/$(shell $(KUBECTL) get svc -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}') 9090:9090
 
 # Range query test
 range-query-test: ## Run PK range query performance test
