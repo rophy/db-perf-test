@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - 'reports/**'
+      - '.github/workflows/gh-pages.yml'
 
 permissions:
   contents: read
