@@ -1,0 +1,2 @@
+pod_name	node_name
+yb-benchmark-k6-0	ygdb-control
