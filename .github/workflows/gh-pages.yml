@@ -35,7 +35,7 @@ jobs:
 
       - name: Build pages directory
         run: |
-          mkdir -p _site
+          mkdir -p _site/reports
 
           # Copy vendor JS libs (shared across all reports)
           cp -r reports/vendor _site/reports/vendor
