@@ -1630,7 +1630,7 @@
             explorer: () => initExplorer(),
         };
 
-        function activateTab(name) {
+        function activateTab(name, updateHash = true) {
             document.querySelectorAll('.tab').forEach(el => {
                 el.classList.toggle('active', el.dataset.tab === name);
             });
@@ -1640,6 +1640,14 @@
             if (!builtTabs.has(name) && tabBuilders[name]) {
                 tabBuilders[name]();
                 builtTabs.add(name);
+            }
+            if (updateHash) {
+                const params = new URLSearchParams();
+                params.set('tab', name);
+                if (name === 'explorer' && explorerSelectedMetric) {
+                    params.set('metric', explorerSelectedMetric);
+                }
+                history.replaceState(null, '', '#' + params.toString());
             }
         }
 
@@ -1835,6 +1843,10 @@
                         searchEl.value = el.dataset.name;
                         dropdownEl.style.display = 'none';
                         renderExplorerChart();
+                        const params = new URLSearchParams();
+                        params.set('tab', 'explorer');
+                        params.set('metric', el.dataset.name);
+                        history.replaceState(null, '', '#' + params.toString());
                     });
                 });
             }
@@ -1908,6 +1920,28 @@
             });
             attachToolbar(explorerChart, 'explorer-' + name);
         }
+
+        // -------- URL hash routing --------
+        (function restoreFromHash() {
+            const hash = location.hash.replace(/^#/, '');
+            if (!hash) return;
+            const params = new URLSearchParams(hash);
+            const tab = params.get('tab');
+            if (tab) {
+                activateTab(tab, false);
+                const metric = params.get('metric');
+                if (tab === 'explorer' && metric) {
+                    const waitForDump = setInterval(() => {
+                        if (!explorerDump) return;
+                        clearInterval(waitForDump);
+                        explorerSelectedMetric = metric;
+                        const searchEl = document.getElementById('explorer-search');
+                        if (searchEl) searchEl.value = metric;
+                        renderExplorerChart();
+                    }, 100);
+                }
+            }
+        })();
     </script>
 </body>
 </html>
