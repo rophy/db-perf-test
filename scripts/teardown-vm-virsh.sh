@@ -31,6 +31,11 @@ done
 rm -f "$VM_DIR/vm-ips.env"
 rm -f "$PROJECT_DIR/ansible/inventory/vm-virsh.ini"
 
+# Tear down kind cluster used for bench tools
+echo ""
+echo "Deleting kind cluster..."
+kind delete cluster --name kind 2>/dev/null || true
+
 echo ""
 echo "=== Teardown Complete ==="
 echo "Note: Base cloud image preserved at $VM_DIR/"

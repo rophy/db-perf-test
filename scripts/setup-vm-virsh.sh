@@ -257,10 +257,21 @@ cat "$VM_DIR/vm-ips.env"
 echo ""
 echo "=== Ansible Inventory ==="
 cat "$INVENTORY_DIR/vm-virsh.ini"
+
+# --- Create kind cluster for benchmark tooling ---
+echo ""
+echo "=== Setting up kind cluster for benchmark tools ==="
+if kind get clusters 2>/dev/null | grep -q "^kind$"; then
+    echo "kind cluster already exists, skipping creation"
+else
+    kind create cluster --name kind --wait 60s
+fi
+echo "kind cluster ready"
+
 echo ""
 echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "  1. Deploy YB + bench:  make deploy ENV=vm-virsh"
-echo "  2. Check status:       make status ENV=vm-virsh"
-echo "  3. Run benchmark:      make k6-run ENV=vm-virsh"
+echo "  1. Deploy YB:          make deploy ENV=vm-virsh COMPONENT=yb"
+echo "  2. Deploy bench tools:  make deploy ENV=vm-virsh COMPONENT=bench"
+echo "  3. Run benchmark:       make k6-run ENV=vm-virsh"
