@@ -13,17 +13,16 @@ COMPONENT ?= all
 
 NAMESPACE ?= yugabyte-test
 
-# Detect VM-based environments (no k8s)
+# Detect VM-based environments
 IS_VM_ENV := $(filter vm-virsh,$(ENV))
 
-# Map ENV to kube context (k8s environments only)
-ifndef IS_VM_ENV
+# Map ENV to kube context
 KUBE_CONTEXT_aws := kube-sandbox
 KUBE_CONTEXT_minikube := minikube
 KUBE_CONTEXT_k3s-virsh := k3s-virsh
 KUBE_CONTEXT_kind := kind-kind
+KUBE_CONTEXT_vm-virsh := kind-kind
 KUBE_CONTEXT := $(KUBE_CONTEXT_$(ENV))
-endif
 
 # VM-specific variables
 ifdef IS_VM_ENV
@@ -31,6 +30,7 @@ VM_DIR := .vms
 CONTROL_IP = $(shell grep CONTROL_IP $(VM_DIR)/vm-ips.env 2>/dev/null | cut -d= -f2)
 SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
 SSH_CONTROL := ssh $(SSH_OPTS) ubuntu@$(CONTROL_IP)
+YB_ANSIBLE_DIR ?= $(HOME)/projects/yb-ansible
 endif
 
 # Two independent Helm releases
@@ -52,12 +52,8 @@ SYSBENCH_POD := $(BENCH_RELEASE)-sysbench-0
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Deployment (ENV=k3s-virsh|aws|minikube|vm-virsh  COMPONENT=all|yb|bench)
-ifdef IS_VM_ENV
+# Deployment (ENV=k3s-virsh|aws|minikube|kind|vm-virsh  COMPONENT=all|yb|bench)
 deploy: ## Deploy components (ENV= COMPONENT=all|yb|bench)
-	cd ansible && PATH="$(CURDIR)/.venv/bin:$(PATH)" ansible-playbook site.yml
-else
-deploy:
 ifeq ($(COMPONENT),all)
 	$(MAKE) _deploy-yb
 	$(MAKE) _deploy-bench
@@ -68,8 +64,12 @@ else ifeq ($(COMPONENT),bench)
 else
 	$(error Unknown COMPONENT=$(COMPONENT). Use: all, yb, bench)
 endif
-endif
 
+ifdef IS_VM_ENV
+_deploy-yb:
+	@echo "Deploying YugabyteDB via yb-ansible..."
+	cd $(YB_ANSIBLE_DIR) && ansible-playbook site.yml -i $(CURDIR)/ansible/inventory/vm-virsh.ini
+else
 _deploy-yb:
 	@helm upgrade --install $(YB_RELEASE) $(YB_CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
@@ -77,8 +77,12 @@ _deploy-yb:
 		--create-namespace \
 		-f $(YB_CHART_DIR)/values-$(ENV).yaml \
 		--wait --timeout 15m
+endif
 
 _deploy-bench:
+ifdef IS_VM_ENV
+	@./scripts/gen-values-vm-virsh.sh
+endif
 	@helm upgrade --install $(BENCH_RELEASE) $(BENCH_CHART_DIR) \
 		--kube-context $(KUBE_CONTEXT) \
 		--namespace $(NAMESPACE) \
@@ -87,10 +91,6 @@ _deploy-bench:
 		--wait --timeout 5m
 
 # Sysbench operations - uses scripts from ConfigMap (parameters in values.yaml)
-ifdef IS_VM_ENV
-sysbench-prepare sysbench-run sysbench-trigger sysbench-cleanup sysbench-shell sysbench-logs:
-	$(error sysbench is not supported for ENV=vm-virsh. Use k6 instead: make k6-run ENV=vm-virsh)
-else
 sysbench-prepare: ## Prepare sysbench tables
 	$(KUBECTL) exec $(SYSBENCH_POD) -- /scripts/sysbench-prepare.sh
 
@@ -112,7 +112,6 @@ sysbench-shell: ## Open shell in sysbench container
 
 sysbench-logs: ## Show sysbench container logs
 	$(KUBECTL) logs -f $(SYSBENCH_POD)
-endif
 
 K6_POD := $(BENCH_RELEASE)-k6-0
 K6_SCRIPT ?= test.js
@@ -120,18 +119,16 @@ K6_SCRIPT ?= test.js
 # k6 operations
 ifdef IS_VM_ENV
 k6-run: ## Run k6 benchmark with timestamps
-	@ENV=$(ENV) ./scripts/k6-run-with-timestamps-vm.sh
-
-k6-shell: ## Open shell on control VM
-	@$(SSH_CONTROL)
+	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) K6_SCRIPT=$(K6_SCRIPT) \
+		./scripts/k6-run-with-timestamps-vm.sh
 else
 k6-run:
 	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) K6_SCRIPT=$(K6_SCRIPT) \
 		./scripts/k6-run-with-timestamps.sh
-
-k6-shell:
-	$(KUBECTL) exec -it $(K6_POD) -- /bin/sh
 endif
+
+k6-shell: ## Open shell in k6 pod
+	$(KUBECTL) exec -it $(K6_POD) -- /bin/sh
 
 VENDOR_DIR := reports/vendor
 VENDOR_FILES := \
@@ -153,12 +150,11 @@ $(VENDOR_FILES): package.json
 	cp node_modules/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js $(VENDOR_DIR)/
 
 # Report generation
-ifdef IS_VM_ENV
 report: vendor ## Generate performance report from last benchmark run
+ifdef IS_VM_ENV
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	IS_VM_ENV=1 ./scripts/report-generator/report.sh
+	IS_VM_ENV=1 KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) ./scripts/report-generator/report.sh
 else
-report: vendor
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) ./scripts/report-generator/report.sh
 endif
@@ -183,6 +179,9 @@ status: ## Show status of all components
 			echo "  tserver-$$i ($$ip): $$status"; \
 		fi; \
 	done
+	@echo ""
+	@echo "=== Bench Pods (kind) ==="
+	@$(KUBECTL) get pods -o wide 2>/dev/null || echo "No kind cluster or bench not deployed"
 
 ysql: ## Connect to YugabyteDB YSQL shell
 	@TSERVER_IP=$$(grep TSERVER_1_IP $(VM_DIR)/vm-ips.env | cut -d= -f2); \
@@ -243,11 +242,7 @@ adjust-disk-delay: ## Change dm-delay live without destroying data (DISK_DELAY_M
 	@DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/adjust-disk-delay.sh
 
 # Cleanup (ENV= COMPONENT=all|yb|bench)
-ifdef IS_VM_ENV
 clean: ## Clean components (ENV= COMPONENT=all|yb|bench)
-	cd ansible && PATH="$(CURDIR)/.venv/bin:$(PATH)" ansible-playbook clean.yml
-else
-clean:
 ifeq ($(COMPONENT),all)
 	$(MAKE) _clean-bench
 	$(MAKE) _clean-yb
@@ -258,12 +253,16 @@ else ifeq ($(COMPONENT),bench)
 else
 	$(error Unknown COMPONENT=$(COMPONENT). Use: all, yb, bench)
 endif
-endif
 
 _clean-bench:
 	@echo "Uninstalling $(BENCH_RELEASE)..."
 	@helm --kube-context $(KUBE_CONTEXT) uninstall $(BENCH_RELEASE) -n $(NAMESPACE) 2>/dev/null || true
 
+ifdef IS_VM_ENV
+_clean-yb:
+	@echo "Stopping YugabyteDB on VMs via yb-ansible..."
+	cd $(YB_ANSIBLE_DIR) && ansible-playbook clean.yml -i $(CURDIR)/ansible/inventory/vm-virsh.ini
+else
 _clean-yb:
 	@echo "Uninstalling $(YB_RELEASE)..."
 	@helm --kube-context $(KUBE_CONTEXT) uninstall $(YB_RELEASE) -n $(NAMESPACE) 2>/dev/null || true
@@ -272,3 +271,4 @@ _clean-yb:
 	@$(KUBECTL) delete pvc -l app=yb-master 2>/dev/null || true
 	@echo "Deleting namespace..."
 	@kubectl --context $(KUBE_CONTEXT) delete namespace $(NAMESPACE) --ignore-not-found
+endif

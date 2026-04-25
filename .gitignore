@@ -33,6 +33,9 @@ Thumbs.db
 # Helm dependency build artifacts
 charts/*/Chart.lock
 
+# Auto-generated values (from scripts/gen-values-vm-virsh.sh)
+charts/yb-benchmark/values-vm-virsh.yaml
+
 output/
 
 # Metrics dumps (stored in S3, not git)
