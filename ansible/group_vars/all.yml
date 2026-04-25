@@ -1,0 +1,44 @@
+# YugabyteDB
+yb_version: "2025.2.2.1"
+yb_shipper_image: "yb-shipper:{{ yb_version }}"
+yb_install_dir: /opt/yugabyte
+yb_data_dir: /data/yugabyte
+yb_replication_factor: 3
+
+# 3 masters on the control VM, each with distinct ports
+yb_masters:
+  - { rpc_port: 7100, web_port: 7000 }
+  - { rpc_port: 7101, web_port: 7001 }
+  - { rpc_port: 7102, web_port: 7002 }
+
+yb_master_addresses: >-
+  {{ hostvars[groups['control'][0]].ansible_host }}:7100,{{ hostvars[groups['control'][0]].ansible_host }}:7101,{{ hostvars[groups['control'][0]].ansible_host }}:7102
+
+yb_tserver_flags:
+  yb_num_shards_per_tserver: 2
+  ysql_num_shards_per_tserver: 2
+  bytes_durable_wal_write_mb: 4
+  interval_durable_wal_write_ms: 10000
+  global_memstore_size_percentage: 25
+  rocksdb_max_background_compactions: 1
+
+# Bench tools
+k6_image: "ghcr.io/rophy/containers/k6-sql:20260422-69b5ee6"
+prometheus_image: "docker.io/prom/prometheus:v2.48.0"
+node_exporter_image: "docker.io/prom/node-exporter:v1.7.0"
+
+# k6 benchmark params
+k6_tables: 10
+k6_table_size: 100000
+k6_vus: 4
+k6_warmup_time: 30
+k6_duration: "120s"
+k6_create_secondary: true
+k6_install_trigger: true
+k6_serial_cache_size: 1000
+
+# DB connection
+db_port: 5433
+db_user: yugabyte
+db_password: yugabyte
+db_name: yugabyte

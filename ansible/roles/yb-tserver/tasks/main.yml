@@ -1,0 +1,21 @@
+- name: Create data directory
+  file:
+    path: "{{ yb_data_dir }}"
+    state: directory
+    owner: ubuntu
+  become: yes
+
+- name: Install yb-tserver systemd unit
+  template:
+    src: yb-tserver.service.j2
+    dest: /etc/systemd/system/yb-tserver.service
+  become: yes
+  notify: restart yb-tserver
+
+- name: Start yb-tserver
+  systemd:
+    name: yb-tserver
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: yes

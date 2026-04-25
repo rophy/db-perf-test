@@ -1,0 +1,65 @@
+- name: Pull node-exporter image
+  containers.podman.podman_image:
+    name: "{{ node_exporter_image }}"
+    state: present
+
+- name: Check if node-exporter installed
+  stat:
+    path: /opt/bin/node_exporter
+  register: ne_installed
+
+- name: Create /opt/bin
+  file:
+    path: /opt/bin
+    state: directory
+  become: yes
+
+- name: Extract node-exporter binary
+  when: not ne_installed.stat.exists
+  block:
+    - name: Remove stale container
+      command: podman rm -f ne-extract
+      failed_when: false
+      changed_when: false
+
+    - name: Create temp container
+      command: podman create --name ne-extract {{ node_exporter_image }}
+
+    - name: Copy binary to tmp
+      command: podman cp ne-extract:/bin/node_exporter /tmp/node_exporter
+
+    - name: Remove temp container
+      command: podman rm ne-extract
+
+    - name: Move binary to /opt/bin
+      command: mv /tmp/node_exporter /opt/bin/node_exporter
+      become: yes
+
+- name: Make node_exporter executable
+  file:
+    path: /opt/bin/node_exporter
+    mode: "0755"
+  become: yes
+
+- name: Install systemd unit
+  copy:
+    dest: /etc/systemd/system/node-exporter.service
+    content: |
+      [Unit]
+      Description=Node Exporter
+      After=network.target
+      [Service]
+      Type=simple
+      ExecStart=/opt/bin/node_exporter --web.listen-address=:9200
+      Restart=on-failure
+      [Install]
+      WantedBy=multi-user.target
+  become: yes
+
+- name: Start node-exporter
+  systemd:
+    name: node-exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: yes

@@ -1,0 +1,21 @@
+[Unit]
+Description=YugabyteDB TServer
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ yb_install_dir }}/yugabyte-{{ yb_version }}/bin/yb-tserver \
+  --fs_data_dirs={{ yb_data_dir }} \
+  --tserver_master_addrs={{ yb_master_addresses }} \
+  --rpc_bind_addresses={{ ansible_host }}:9100 \
+  --pgsql_proxy_bind_address={{ ansible_host }}:{{ db_port }} \
+  --webserver_interface={{ ansible_host }} \
+{% for flag, value in yb_tserver_flags.items() %}
+  --{{ flag }}={{ value }}{{ " \\" if not loop.last else "" }}
+{% endfor %}
+
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

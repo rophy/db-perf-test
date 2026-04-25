@@ -1,0 +1,8 @@
+- name: restart yb-masters
+  systemd:
+    name: "yb-master-{{ idx + 1 }}"
+    state: restarted
+  become: yes
+  loop: "{{ yb_masters }}"
+  loop_control:
+    index_var: idx

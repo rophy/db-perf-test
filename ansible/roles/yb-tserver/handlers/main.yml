@@ -1,0 +1,5 @@
+- name: restart yb-tserver
+  systemd:
+    name: yb-tserver
+    state: restarted
+  become: yes
