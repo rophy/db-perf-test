@@ -27,9 +27,7 @@ KUBE_CONTEXT := $(KUBE_CONTEXT_$(ENV))
 # VM-specific variables
 ifdef IS_VM_ENV
 VM_DIR := .vms
-CONTROL_IP = $(shell grep CONTROL_IP $(VM_DIR)/vm-ips.env 2>/dev/null | cut -d= -f2)
 SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
-SSH_CONTROL := ssh $(SSH_OPTS) ubuntu@$(CONTROL_IP)
 YB_ANSIBLE_DIR ?= $(HOME)/projects/yb-ansible
 endif
 
@@ -169,15 +167,19 @@ status: ## Show status of all components
 	@cat $(VM_DIR)/vm-ips.env 2>/dev/null || echo "No vm-ips.env found. Run: make setup-vm-virsh"
 	@echo ""
 	@echo "=== YB Masters ==="
-	@$(SSH_CONTROL) "systemctl is-active yb-master-1 yb-master-2 yb-master-3" 2>/dev/null || true
+	@for var in $$(grep "^MASTER_.*_IP=" $(VM_DIR)/vm-ips.env 2>/dev/null | sort); do \
+		ip=$$(echo "$$var" | cut -d= -f2); \
+		name=$$(echo "$$var" | cut -d= -f1 | sed 's/_IP$$//' | tr '[:upper:]' '[:lower:]' | tr '_' '-'); \
+		status=$$(ssh $(SSH_OPTS) ubuntu@$$ip "systemctl is-active yb-master" 2>/dev/null || echo "unknown"); \
+		echo "  $$name ($$ip): $$status"; \
+	done
 	@echo ""
 	@echo "=== YB TServers ==="
-	@for i in 1 2 3; do \
-		ip=$$(grep "TSERVER_$${i}_IP" $(VM_DIR)/vm-ips.env 2>/dev/null | cut -d= -f2); \
-		if [ -n "$$ip" ]; then \
-			status=$$(ssh $(SSH_OPTS) ubuntu@$$ip "systemctl is-active yb-tserver" 2>/dev/null || echo "unknown"); \
-			echo "  tserver-$$i ($$ip): $$status"; \
-		fi; \
+	@for var in $$(grep "^TSERVER_.*_IP=" $(VM_DIR)/vm-ips.env 2>/dev/null | sort); do \
+		ip=$$(echo "$$var" | cut -d= -f2); \
+		name=$$(echo "$$var" | cut -d= -f1 | sed 's/_IP$$//' | tr '[:upper:]' '[:lower:]' | tr '_' '-'); \
+		status=$$(ssh $(SSH_OPTS) ubuntu@$$ip "systemctl is-active yb-tserver" 2>/dev/null || echo "unknown"); \
+		echo "  $$name ($$ip): $$status"; \
 	done
 	@echo ""
 	@echo "=== Bench Pods (kind) ==="
@@ -185,7 +187,8 @@ status: ## Show status of all components
 
 ysql: ## Connect to YugabyteDB YSQL shell
 	@TSERVER_IP=$$(grep TSERVER_1_IP $(VM_DIR)/vm-ips.env | cut -d= -f2); \
-	$(SSH_CONTROL) "/opt/yugabyte/yugabyte-*/bin/ysqlsh -h $$TSERVER_IP"
+	MASTER_IP=$$(grep MASTER_1_IP $(VM_DIR)/vm-ips.env | cut -d= -f2); \
+	ssh $(SSH_OPTS) ubuntu@$$MASTER_IP "/opt/yugabyte/bin/ysqlsh -h $$TSERVER_IP"
 else
 status:
 	@echo "=== Pods ==="

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 VM_PREFIX="${VM_PREFIX:-ygvm}"
+MASTER_COUNT="${MASTER_COUNT:-3}"
 TSERVER_COUNT="${TSERVER_COUNT:-3}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,7 +11,10 @@ VM_DIR="$PROJECT_DIR/.vms"
 
 echo "=== Tearing down vm-virsh VMs ==="
 
-ALL_VMS="${VM_PREFIX}-control"
+ALL_VMS=""
+for i in $(seq 1 "$MASTER_COUNT"); do
+    ALL_VMS="$ALL_VMS ${VM_PREFIX}-master-${i}"
+done
 for i in $(seq 1 "$TSERVER_COUNT"); do
     ALL_VMS="$ALL_VMS ${VM_PREFIX}-tserver-${i}"
 done
