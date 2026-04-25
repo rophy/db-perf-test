@@ -15,6 +15,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from abc import ABC, abstractmethod
 from typing import Optional
 from urllib.parse import quote
 
@@ -68,13 +69,28 @@ class ReportConfig:
     output_dir: str = "reports"
     metrics_dump_base_url: str = ""
     workload_type: str = "sysbench"
+    mode: str = "k8s"
+    ssh_host: str = ""
 
     @property
     def duration_seconds(self) -> float:
         return self.end_time - self.start_time
 
 
-class QueryExecutor:
+class QueryExecutor(ABC):
+    """Base class for executing HTTP queries against Prometheus and pods."""
+
+    @abstractmethod
+    def exec_curl(self, url: str) -> Optional[str]:
+        """Fetch a URL and return the response body."""
+        ...
+
+    def exec_pod_curl(self, pod: str, container: str, url: str) -> Optional[str]:
+        """Execute curl inside a specific pod. Returns None if not supported."""
+        return None
+
+
+class KubectlQueryExecutor(QueryExecutor):
     """Executes queries via kubectl exec using wget."""
 
     def __init__(self, kube_context: str, namespace: str, release_name: str = "yb-benchmark"):
@@ -83,7 +99,6 @@ class QueryExecutor:
         self.release_name = release_name
 
     def exec_curl(self, url: str) -> Optional[str]:
-        """Execute wget command inside prometheus pod (curl not available)."""
         cmd = [
             "kubectl", "--context", self.kube_context,
             "exec", "-n", self.namespace, f"deployment/{self.release_name}-prometheus",
@@ -102,9 +117,7 @@ class QueryExecutor:
             print(f"Query error: {e}", file=sys.stderr)
             return None
 
-
     def exec_pod_curl(self, pod: str, container: str, url: str) -> Optional[str]:
-        """Execute curl inside a specific pod (YB pods have curl, not wget)."""
         cmd = [
             "kubectl", "--context", self.kube_context,
             "exec", "-n", self.namespace, pod, "-c", container,
@@ -116,6 +129,24 @@ class QueryExecutor:
                 return result.stdout
             return None
         except Exception:
+            return None
+
+
+class HttpQueryExecutor(QueryExecutor):
+    """Executes queries via direct HTTP from the host (for VM environments)."""
+
+    def exec_curl(self, url: str) -> Optional[str]:
+        cmd = ["curl", "-sf", url]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                return result.stdout
+            return None
+        except subprocess.TimeoutExpired:
+            print("HTTP request timeout", file=sys.stderr)
+            return None
+        except Exception as e:
+            print(f"HTTP error: {e}", file=sys.stderr)
             return None
 
 
@@ -209,7 +240,7 @@ class PrometheusClient:
             return []
 
 
-class ClusterSpecCollector:
+class KubeClusterSpecCollector:
     """Collects YugabyteDB cluster specifications via kubectl."""
 
     def __init__(self, kube_context: str, namespace: str):
@@ -296,14 +327,74 @@ class ClusterSpecCollector:
         }
 
 
+class VmClusterSpecCollector:
+    """Collects cluster specifications from local files (VM mode)."""
+
+    def __init__(self, project_root: str):
+        self.project_root = Path(project_root)
+
+    def collect(self) -> dict:
+        print("Collecting VM cluster specifications...")
+
+        all_yml = self.project_root / "ansible" / "group_vars" / "all.yml"
+        yb_version = "N/A"
+        master_count = 3
+        if all_yml.exists():
+            text = all_yml.read_text()
+            m = re.search(r'^yb_version:\s*"?([^"\s]+)"?', text, re.MULTILINE)
+            if m:
+                yb_version = m.group(1)
+            master_count = len(re.findall(r'rpc_port:', text))
+
+        spec_file = self.project_root / "output" / "RUN_NODE_SPEC.txt"
+        tserver_replicas = 0
+        cpu = "N/A"
+        memory = "N/A"
+        if spec_file.exists():
+            lines = spec_file.read_text().strip().split("\n")
+            for line in lines[1:]:
+                parts = line.split("\t")
+                if len(parts) >= 4:
+                    tserver_replicas += 1
+                    cpu = parts[2]
+                    memory = parts[3]
+
+        return {
+            "yugabyte_version": yb_version,
+            "master": {
+                "replicas": master_count,
+                "cpu_request": cpu,
+                "mem_request": memory,
+                "cpu_limit": cpu,
+                "mem_limit": memory,
+            },
+            "tserver": {
+                "replicas": tserver_replicas,
+                "cpu_request": cpu,
+                "mem_request": memory,
+                "cpu_limit": cpu,
+                "mem_limit": memory,
+            },
+            "storage": {
+                "storage_class": "bare disk",
+                "size": "N/A",
+            },
+        }
+
+
 class ReportGenerator:
     """Generates stress test reports."""
 
     def __init__(self, config: ReportConfig):
         self.config = config
-        self.executor = QueryExecutor(config.kube_context, config.namespace, config.release_name)
+        project_root = str(Path(config.output_dir).parent)
+        if config.mode == "vm":
+            self.executor = HttpQueryExecutor()
+            self.cluster_collector = VmClusterSpecCollector(project_root)
+        else:
+            self.executor = KubectlQueryExecutor(config.kube_context, config.namespace, config.release_name)
+            self.cluster_collector = KubeClusterSpecCollector(config.kube_context, config.namespace)
         self.prometheus = PrometheusClient(self.executor, config.prometheus_url)
-        self.cluster_collector = ClusterSpecCollector(config.kube_context, config.namespace)
         self.metrics_data = {}
         self.by_pod = {"master": [], "tserver": [], "other": []}
         self.by_node = {}
@@ -348,9 +439,38 @@ class ReportGenerator:
             else:
                 self._tserver_instance_filter = filt
 
+    def _derive_vm_node_instances(self):
+        """Build node instance filters from Prometheus targets (VM mode).
+
+        Cross-references yb-tserver and node-exporter targets by IP to
+        build tserver-only instance filter for node_exporter queries.
+        """
+        all_instances = self.prometheus.label_values("instance", '{job="node-exporter"}')
+        if all_instances:
+            regex = "|".join(sorted(all_instances))
+            self._node_instance_filter = f'instance=~"{regex}"'
+            print(f"  all instance filter: {len(all_instances)} nodes ({', '.join(sorted(all_instances))})")
+
+        ts_instances = self.prometheus.label_values("instance", '{job="yb-tserver"}')
+        if ts_instances and all_instances:
+            ts_ips = {inst.split(":")[0] for inst in ts_instances}
+            node_ts = [inst for inst in all_instances if inst.split(":")[0] in ts_ips]
+            if node_ts:
+                regex = "|".join(sorted(node_ts))
+                self._tserver_instance_filter = f'instance=~"{regex}"'
+                print(f"  tserver instance filter: {len(node_ts)} nodes ({', '.join(sorted(node_ts))})")
+
     def validate_connectivity(self):
-        """Validate kubectl and prometheus connectivity before proceeding."""
-        # Check kubectl can reach the cluster
+        """Validate connectivity before proceeding."""
+        if self.config.mode == "vm":
+            response = self.executor.exec_curl(f"{self.config.prometheus_url}/api/v1/status/config")
+            if not response:
+                print(f"Error: Cannot reach Prometheus at {self.config.prometheus_url}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Prometheus reachable at {self.config.prometheus_url}")
+            return
+
+        # K8s mode: check kubectl can reach the cluster
         cmd = [
             "kubectl", "--context", self.config.kube_context,
             "get", "namespace", self.config.namespace,
@@ -869,7 +989,11 @@ class ReportGenerator:
     _YB_IRATE_WINDOW = "15s"
 
     def _fetch_yb_metric_types(self) -> dict[str, str]:
-        """Fetch metric TYPE annotations from YB tserver and master endpoints."""
+        """Fetch metric TYPE annotations from YB tserver and master endpoints.
+
+        Tries direct pod endpoint scraping first (K8s mode), then falls back
+        to Prometheus targets_metadata API (works for both K8s and VM modes).
+        """
         types: dict[str, str] = {}
         endpoints = [
             ("yb-tserver-0", "yb-tserver", "http://localhost:9000/prometheus-metrics"),
@@ -884,6 +1008,11 @@ class ReportGenerator:
                     parts = line.split()
                     if len(parts) >= 4:
                         types[parts[2]] = parts[3]
+
+        if not types:
+            for job in ["yb-tserver", "yb-master"]:
+                types.update(self.prometheus.targets_metadata(f'{{job="{job}"}}'))
+
         return types
 
     def collect_yb_metrics_dump(self) -> list[dict]:
@@ -1223,11 +1352,15 @@ class ReportGenerator:
         self.cluster_spec = self.cluster_collector.collect()
 
         # Collect metrics
-        print("Collecting container metrics...")
-        self.collect_container_metrics()
-
-        print("Deriving node instance filter from container metrics...")
-        self._derive_node_instances()
+        if self.config.mode == "vm":
+            print("Skipping container metrics (no cAdvisor on VMs)...")
+            print("Deriving node instance filter from Prometheus targets...")
+            self._derive_vm_node_instances()
+        else:
+            print("Collecting container metrics...")
+            self.collect_container_metrics()
+            print("Deriving node instance filter from container metrics...")
+            self._derive_node_instances()
 
         print("Collecting node metrics...")
         self.collect_node_metrics()
@@ -1240,8 +1373,9 @@ class ReportGenerator:
         self.yb_dump = self.collect_yb_metrics_dump()
         print("Collecting node-exporter metrics dump...")
         self.yb_dump.extend(self.collect_node_metrics_dump())
-        print("Collecting cAdvisor metrics dump...")
-        self.yb_dump.extend(self.collect_cadvisor_metrics_dump())
+        if self.config.mode != "vm":
+            print("Collecting cAdvisor metrics dump...")
+            self.yb_dump.extend(self.collect_cadvisor_metrics_dump())
         if self.config.workload_type == "k6":
             print("Collecting k6 metrics dump...")
             self.yb_dump.extend(self.collect_k6_metrics_dump())
@@ -1471,7 +1605,10 @@ class ReportGenerator:
         return result
 
     def _get_k6_params(self) -> Optional[dict]:
-        """Get k6 parameters from the k6 pod's env vars."""
+        """Get k6 parameters from the k6 pod env vars (k8s) or ansible vars (vm)."""
+        if self.config.mode == "vm":
+            return self._get_k6_params_from_ansible()
+
         cmd = [
             "kubectl", "--context", self.config.kube_context,
             "-n", self.config.namespace,
@@ -1494,8 +1631,45 @@ class ReportGenerator:
             pass
         return None
 
+    def _get_k6_params_from_ansible(self) -> Optional[dict]:
+        """Read k6 parameters from ansible group_vars/all.yml."""
+        project_root = Path(self.config.output_dir).parent
+        all_yml = project_root / "ansible" / "group_vars" / "all.yml"
+        if not all_yml.exists():
+            return None
+        text = all_yml.read_text()
+        params = {}
+        key_map = {
+            "k6_tables": "K6_TABLES",
+            "k6_table_size": "K6_TABLE_SIZE",
+            "k6_vus": "BENCH_VUS",
+            "k6_warmup_time": "BENCH_WARMUP",
+            "k6_duration": "BENCH_DURATION",
+            "k6_create_secondary": "K6_CREATE_SECONDARY",
+            "k6_install_trigger": "K6_INSTALL_TRIGGER",
+            "k6_serial_cache_size": "K6_SERIAL_CACHE_SIZE",
+        }
+        for yml_key, env_key in key_map.items():
+            m = re.search(rf'^{yml_key}:\s*"?([^"\n]+)"?', text, re.MULTILINE)
+            if m:
+                params[env_key] = m.group(1).strip()
+        return params if params else None
+
     def _save_k6_configmap(self, output_dir: Path):
-        """Save the k6 scripts configmap for reference."""
+        """Save k6 scripts for reference (configmap for k8s, ansible files for vm)."""
+        if self.config.mode == "vm":
+            project_root = Path(self.config.output_dir).parent
+            for src_name, dest_name in [
+                ("ansible/roles/bench/templates/test-pgx.js.j2", "k6-test.js.j2"),
+                ("ansible/roles/bench/templates/env.sh.j2", "k6-env.sh.j2"),
+                ("ansible/group_vars/all.yml", "ansible-group-vars.yml"),
+            ]:
+                src = project_root / src_name
+                if src.exists():
+                    shutil.copy(src, output_dir / dest_name)
+                    print(f"Saved {dest_name}")
+            return
+
         configmap_name = f"{self.config.release_name}-k6-scripts"
         cmd = [
             "kubectl", "--context", self.config.kube_context,
@@ -1687,10 +1861,12 @@ def main():
     parser.add_argument("--warmup-end", type=float, default=None,
                         help="Warmup end timestamp (Unix); shaded on charts if set")
     parser.add_argument("--step", type=int, default=30, help="Query step in seconds (default: 30)")
-    parser.add_argument("--kube-context", required=True, help="Kubernetes context")
-    parser.add_argument("--namespace", required=True, help="Kubernetes namespace")
+    parser.add_argument("--mode", default="k8s", choices=["k8s", "vm"],
+                        help="Deployment mode (k8s or vm)")
+    parser.add_argument("--kube-context", default="", help="Kubernetes context (required for k8s mode)")
+    parser.add_argument("--namespace", default="", help="Kubernetes namespace (required for k8s mode)")
     parser.add_argument("--release-name", default="yb-benchmark", help="Helm release name")
-    parser.add_argument("--prometheus-url", default="", help="Prometheus URL (inside cluster)")
+    parser.add_argument("--prometheus-url", default="", help="Prometheus URL")
     parser.add_argument("--pods", nargs="+", default=["yb-tserver.*", "yb-master.*", "sysbench.*"],
                         help="Pod name patterns to monitor")
     parser.add_argument("--rate-of", action="append", dest="rate_metrics", default=[],
@@ -1705,6 +1881,9 @@ def main():
                         help="Workload type (sysbench or k6)")
 
     args = parser.parse_args()
+
+    if args.mode == "k8s" and (not args.kube_context or not args.namespace):
+        parser.error("--kube-context and --namespace are required for k8s mode")
 
     config = ReportConfig(
         start_time=args.start,
@@ -1722,6 +1901,7 @@ def main():
         output_dir=args.output_dir,
         metrics_dump_base_url=args.metrics_dump_base_url,
         workload_type=args.workload_type,
+        mode=args.mode,
     )
 
     generator = ReportGenerator(config)

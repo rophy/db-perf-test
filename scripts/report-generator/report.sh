@@ -3,27 +3,47 @@ set -eo pipefail
 
 # Report generation script for benchmark stress tests (sysbench or k6)
 # Auto-detects workload type from timestamps file and generates HTML report
+# Supports both k8s and vm-virsh deployment modes.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Configuration
-KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
-NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
-RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
-OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
-
-# Discover Prometheus service name from the cluster if not explicitly set
-if [[ -z "$PROMETHEUS_URL" ]]; then
-    PROM_SVC=$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" get svc \
-        -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-    if [[ -z "$PROM_SVC" ]]; then
-        PROM_SVC="${RELEASE_NAME}-prometheus"
-        echo "Warning: could not discover Prometheus service, falling back to ${PROM_SVC}"
-    fi
-    PROMETHEUS_URL="http://${PROM_SVC}:9090"
+# Detect VM mode
+IS_VM_ENV="${IS_VM_ENV:-}"
+REPORT_MODE="k8s"
+if [[ -n "$IS_VM_ENV" ]]; then
+    REPORT_MODE="vm"
 fi
+
+OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
+RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
 METRICS_DUMP_BASE_URL="${METRICS_DUMP_BASE_URL:-}"
+
+if [[ "$REPORT_MODE" == "vm" ]]; then
+    # VM mode: Prometheus is directly reachable via control VM IP
+    VM_IPS="${PROJECT_ROOT}/.vms/vm-ips.env"
+    if [[ ! -f "$VM_IPS" ]]; then
+        echo "Error: ${VM_IPS} not found. Run: make setup-vm-virsh" >&2
+        exit 1
+    fi
+    source "$VM_IPS"
+    PROMETHEUS_URL="${PROMETHEUS_URL:-http://${CONTROL_IP}:9090}"
+else
+    # K8s mode: require context and namespace
+    KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+    NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
+
+    # Discover Prometheus service name from the cluster if not explicitly set
+    if [[ -z "$PROMETHEUS_URL" ]]; then
+        PROM_SVC=$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" get svc \
+            -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+        if [[ -z "$PROM_SVC" ]]; then
+            PROM_SVC="${RELEASE_NAME}-prometheus"
+            echo "Warning: could not discover Prometheus service, falling back to ${PROM_SVC}"
+        fi
+        PROMETHEUS_URL="http://${PROM_SVC}:9090"
+    fi
+fi
 
 # Read timestamps from unified output directory
 TIMES_FILE="${PROJECT_ROOT}/output/test_times.txt"
@@ -57,7 +77,7 @@ else
     POD_PATTERNS=("yb-tserver.*" "yb-master.*" "sysbench.*")
 fi
 
-echo "=== ${WORKLOAD_TYPE} Report Generator ==="
+echo "=== ${WORKLOAD_TYPE} Report Generator (${REPORT_MODE}) ==="
 echo "Start time:  $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')"
 if [[ -n "$WARMUP_END_TIME" ]]; then
     echo "Warmup ends: $(date -d @${WARMUP_END_TIME} '+%Y-%m-%d %H:%M:%S')"
@@ -71,9 +91,7 @@ echo "Generating report..."
 PYTHON_ARGS=(
     --start "$START_TIME"
     --end "$END_TIME"
-    --kube-context "$KUBE_CONTEXT"
-    --namespace "$NAMESPACE"
-    --release-name "$RELEASE_NAME"
+    --mode "$REPORT_MODE"
     --prometheus-url "$PROMETHEUS_URL"
     --output-dir "$OUTPUT_DIR"
     --title "$REPORT_TITLE"
@@ -81,6 +99,13 @@ PYTHON_ARGS=(
     --workload-type "$WORKLOAD_TYPE"
     --metrics-dump-base-url "$METRICS_DUMP_BASE_URL"
 )
+if [[ "$REPORT_MODE" == "k8s" ]]; then
+    PYTHON_ARGS+=(
+        --kube-context "$KUBE_CONTEXT"
+        --namespace "$NAMESPACE"
+        --release-name "$RELEASE_NAME"
+    )
+fi
 if [[ -n "$WARMUP_END_TIME" ]]; then
     PYTHON_ARGS+=(--warmup-end "$WARMUP_END_TIME")
 fi
