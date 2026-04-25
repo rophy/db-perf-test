@@ -4,7 +4,8 @@
 .PHONY: report vendor
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
-.PHONY: setup-k3s-virsh teardown-k3s-virsh setup-slow-disk setup-slow-throughput adjust-disk-delay
+.PHONY: setup-k3s-virsh teardown-k3s-virsh setup-vm-virsh teardown-vm-virsh
+.PHONY: setup-slow-disk setup-slow-throughput adjust-disk-delay
 
 # Environment and component selection
 ENV ?= k3s-virsh
@@ -12,12 +13,25 @@ COMPONENT ?= all
 
 NAMESPACE ?= yugabyte-test
 
-# Map ENV to kube context
+# Detect VM-based environments (no k8s)
+IS_VM_ENV := $(filter vm-virsh,$(ENV))
+
+# Map ENV to kube context (k8s environments only)
+ifndef IS_VM_ENV
 KUBE_CONTEXT_aws := kube-sandbox
 KUBE_CONTEXT_minikube := minikube
 KUBE_CONTEXT_k3s-virsh := k3s-virsh
 KUBE_CONTEXT_kind := kind-kind
 KUBE_CONTEXT := $(KUBE_CONTEXT_$(ENV))
+endif
+
+# VM-specific variables
+ifdef IS_VM_ENV
+VM_DIR := .vms
+CONTROL_IP = $(shell grep CONTROL_IP $(VM_DIR)/vm-ips.env 2>/dev/null | cut -d= -f2)
+SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR
+SSH_CONTROL := ssh $(SSH_OPTS) ubuntu@$(CONTROL_IP)
+endif
 
 # Two independent Helm releases
 YB_RELEASE := yugabyte
@@ -38,8 +52,12 @@ SYSBENCH_POD := $(BENCH_RELEASE)-sysbench-0
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Deployment (ENV=k3s-virsh|aws|minikube  COMPONENT=all|yb|bench)
+# Deployment (ENV=k3s-virsh|aws|minikube|vm-virsh  COMPONENT=all|yb|bench)
+ifdef IS_VM_ENV
 deploy: ## Deploy components (ENV= COMPONENT=all|yb|bench)
+	cd ansible && PATH="$(CURDIR)/.venv/bin:$(PATH)" ansible-playbook site.yml
+else
+deploy:
 ifeq ($(COMPONENT),all)
 	$(MAKE) _deploy-yb
 	$(MAKE) _deploy-bench
@@ -49,6 +67,7 @@ else ifeq ($(COMPONENT),bench)
 	$(MAKE) _deploy-bench
 else
 	$(error Unknown COMPONENT=$(COMPONENT). Use: all, yb, bench)
+endif
 endif
 
 _deploy-yb:
@@ -68,6 +87,10 @@ _deploy-bench:
 		--wait --timeout 5m
 
 # Sysbench operations - uses scripts from ConfigMap (parameters in values.yaml)
+ifdef IS_VM_ENV
+sysbench-prepare sysbench-run sysbench-trigger sysbench-cleanup sysbench-shell sysbench-logs:
+	$(error sysbench is not supported for ENV=vm-virsh. Use k6 instead: make k6-run ENV=vm-virsh)
+else
 sysbench-prepare: ## Prepare sysbench tables
 	$(KUBECTL) exec $(SYSBENCH_POD) -- /scripts/sysbench-prepare.sh
 
@@ -89,17 +112,26 @@ sysbench-shell: ## Open shell in sysbench container
 
 sysbench-logs: ## Show sysbench container logs
 	$(KUBECTL) logs -f $(SYSBENCH_POD)
+endif
 
 K6_POD := $(BENCH_RELEASE)-k6-0
 K6_SCRIPT ?= test.js
 
 # k6 operations
+ifdef IS_VM_ENV
 k6-run: ## Run k6 benchmark with timestamps
+	@ENV=$(ENV) ./scripts/k6-run-with-timestamps-vm.sh
+
+k6-shell: ## Open shell on control VM
+	@$(SSH_CONTROL)
+else
+k6-run:
 	@KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) K6_SCRIPT=$(K6_SCRIPT) \
 		./scripts/k6-run-with-timestamps.sh
 
-k6-shell: ## Open shell in k6 container
+k6-shell:
 	$(KUBECTL) exec -it $(K6_POD) -- /bin/sh
+endif
 
 VENDOR_DIR := reports/vendor
 VENDOR_FILES := \
@@ -121,20 +153,51 @@ $(VENDOR_FILES): package.json
 	cp node_modules/chartjs-plugin-annotation/dist/chartjs-plugin-annotation.min.js $(VENDOR_DIR)/
 
 # Report generation
+ifdef IS_VM_ENV
 report: vendor ## Generate performance report from last benchmark run
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	IS_VM_ENV=1 ./scripts/report-generator/report.sh
+else
+report: vendor
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	KUBE_CONTEXT=$(KUBE_CONTEXT) NAMESPACE=$(NAMESPACE) RELEASE_NAME=$(RELEASE_NAME) ./scripts/report-generator/report.sh
+endif
 
 # Utilities
+ifdef IS_VM_ENV
 status: ## Show status of all components
+	@echo "=== VMs ==="
+	@virsh list --all | grep ygvm || true
+	@echo ""
+	@echo "=== VM IPs ==="
+	@cat $(VM_DIR)/vm-ips.env 2>/dev/null || echo "No vm-ips.env found. Run: make setup-vm-virsh"
+	@echo ""
+	@echo "=== YB Masters ==="
+	@$(SSH_CONTROL) "systemctl is-active yb-master-1 yb-master-2 yb-master-3" 2>/dev/null || true
+	@echo ""
+	@echo "=== YB TServers ==="
+	@for i in 1 2 3; do \
+		ip=$$(grep "TSERVER_$${i}_IP" $(VM_DIR)/vm-ips.env 2>/dev/null | cut -d= -f2); \
+		if [ -n "$$ip" ]; then \
+			status=$$(ssh $(SSH_OPTS) ubuntu@$$ip "systemctl is-active yb-tserver" 2>/dev/null || echo "unknown"); \
+			echo "  tserver-$$i ($$ip): $$status"; \
+		fi; \
+	done
+
+ysql: ## Connect to YugabyteDB YSQL shell
+	@TSERVER_IP=$$(grep TSERVER_1_IP $(VM_DIR)/vm-ips.env | cut -d= -f2); \
+	$(SSH_CONTROL) "/opt/yugabyte/yugabyte-*/bin/ysqlsh -h $$TSERVER_IP"
+else
+status:
 	@echo "=== Pods ==="
 	@$(KUBECTL) get pods -o wide
 	@echo ""
 	@echo "=== Services ==="
 	@$(KUBECTL) get svc
 
-ysql: ## Connect to YugabyteDB YSQL shell
+ysql:
 	$(KUBECTL) exec -it yb-tserver-0 -- /home/yugabyte/bin/ysqlsh -h yb-tserver-service
+endif
 
 port-forward-prometheus: ## Port forward Prometheus to localhost:9090
 	$(KUBECTL) port-forward svc/$(shell $(KUBECTL) get svc -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}') 9090:9090
@@ -163,6 +226,13 @@ setup-k3s-virsh: ## Create VMs and install k3s cluster
 teardown-k3s-virsh: ## Destroy VMs and remove k3s cluster
 	@./scripts/teardown-k3s-virsh.sh
 
+# vm-virsh infrastructure (raw VMs, no k8s)
+setup-vm-virsh: ## Create VMs for raw VM deployment
+	@./scripts/setup-vm-virsh.sh
+
+teardown-vm-virsh: ## Destroy raw VM deployment VMs
+	@./scripts/teardown-vm-virsh.sh
+
 setup-slow-disk: ## Setup tserver storage with optional dm-delay (DISK_DELAY_MS=50)
 	@KUBE_CONTEXT=$(KUBE_CONTEXT) DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/setup-slow-disk.sh
 
@@ -173,7 +243,11 @@ adjust-disk-delay: ## Change dm-delay live without destroying data (DISK_DELAY_M
 	@DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/adjust-disk-delay.sh
 
 # Cleanup (ENV= COMPONENT=all|yb|bench)
+ifdef IS_VM_ENV
 clean: ## Clean components (ENV= COMPONENT=all|yb|bench)
+	cd ansible && PATH="$(CURDIR)/.venv/bin:$(PATH)" ansible-playbook clean.yml
+else
+clean:
 ifeq ($(COMPONENT),all)
 	$(MAKE) _clean-bench
 	$(MAKE) _clean-yb
@@ -183,6 +257,7 @@ else ifeq ($(COMPONENT),bench)
 	$(MAKE) _clean-bench
 else
 	$(error Unknown COMPONENT=$(COMPONENT). Use: all, yb, bench)
+endif
 endif
 
 _clean-bench:
