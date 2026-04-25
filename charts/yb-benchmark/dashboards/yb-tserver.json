@@ -1,0 +1,506 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "tags": ["prom-replay"],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Node Metrics (Aggregated)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "(count by (instance) (node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\", run_id=~\"$run_id\"}))\n- sum by (instance) (irate(node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "title": "CPU Usage (cores)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "decmbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "(node_memory_MemTotal_bytes{job=\"node-exporter\", run_id=~\"$run_id\"} - node_memory_MemAvailable_bytes{job=\"node-exporter\", run_id=~\"$run_id\"}) / 1024 / 1024",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "title": "Memory Used (MB)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "decmbytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*TX.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "max by (instance) (irate(node_network_receive_bytes_total{device!=\"lo\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) / 1024 / 1024",
+          "legendFormat": "{{instance}} RX"
+        },
+        {
+          "expr": "max by (instance) (irate(node_network_transmit_bytes_total{device!=\"lo\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) / 1024 / 1024",
+          "legendFormat": "{{instance}} TX"
+        }
+      ],
+      "title": "Network (MB/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "iops"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*read.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (instance) (irate(node_disk_writes_completed_total{device!~\"loop.*|dm-.*\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}} write"
+        },
+        {
+          "expr": "sum by (instance) (irate(node_disk_reads_completed_total{device!~\"loop.*|dm-.*\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}} read"
+        }
+      ],
+      "title": "Disk IOPS",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "id": 101,
+      "title": "Node CPU Breakdown",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "percent",
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "avg by (instance) (irate(node_cpu_seconds_total{mode=\"user\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) * 100",
+          "legendFormat": "{{instance}} user"
+        },
+        {
+          "expr": "avg by (instance) (irate(node_cpu_seconds_total{mode=\"system\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) * 100",
+          "legendFormat": "{{instance}} system"
+        },
+        {
+          "expr": "avg by (instance) (irate(node_cpu_seconds_total{mode=\"iowait\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) * 100",
+          "legendFormat": "{{instance}} iowait"
+        },
+        {
+          "expr": "avg by (instance) (irate(node_cpu_seconds_total{mode=\"steal\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) * 100",
+          "legendFormat": "{{instance}} steal"
+        },
+        {
+          "expr": "avg by (instance) (irate(node_cpu_seconds_total{mode=\"softirq\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) * 100",
+          "legendFormat": "{{instance}} softirq"
+        }
+      ],
+      "title": "CPU by Mode (%)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 102,
+      "title": "Container Metrics (per pod)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*node total.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (irate(container_cpu_usage_seconds_total{container=\"yb-tserver\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}}"
+        },
+        {
+          "expr": "(count by (instance) (node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\", run_id=~\"$run_id\"}))\n- sum by (instance) (irate(node_cpu_seconds_total{mode=\"idle\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{instance}} node total"
+        }
+      ],
+      "title": "TServer CPU (cores) + Node Overlay",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "decmbytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*node total.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (container_memory_working_set_bytes{container=\"yb-tserver\", run_id=~\"$run_id\"}) / 1024 / 1024",
+          "legendFormat": "{{pod}}"
+        },
+        {
+          "expr": "(node_memory_MemTotal_bytes{job=\"node-exporter\", run_id=~\"$run_id\"} - node_memory_MemAvailable_bytes{job=\"node-exporter\", run_id=~\"$run_id\"}) / 1024 / 1024",
+          "legendFormat": "{{instance}} node total"
+        }
+      ],
+      "title": "TServer Memory (MB) + Node Overlay",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "decmbytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*TX.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (irate(container_network_receive_bytes_total{pod=~\"yb-tserver.*\", run_id=~\"$run_id\"}[$__rate_interval])) / 1024 / 1024",
+          "legendFormat": "{{pod}} RX"
+        },
+        {
+          "expr": "sum by (pod) (irate(container_network_transmit_bytes_total{pod=~\"yb-tserver.*\", run_id=~\"$run_id\"}[$__rate_interval])) / 1024 / 1024",
+          "legendFormat": "{{pod}} TX"
+        }
+      ],
+      "title": "TServer Network (MB/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "iops"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*read.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 35 },
+      "id": 9,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (pod) (irate(container_fs_writes_total{container=\"yb-tserver\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} write"
+        },
+        {
+          "expr": "sum by (pod) (irate(container_fs_reads_total{container=\"yb-tserver\", run_id=~\"$run_id\"}[$__rate_interval]))",
+          "legendFormat": "{{pod}} read"
+        }
+      ],
+      "title": "TServer Disk IOPS (container)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "id": 103,
+      "title": "Disk Throughput",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "decmbytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*read.*" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 5] } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum by (instance) (irate(node_disk_written_bytes_total{device!~\"loop.*|dm-.*\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) / 1024 / 1024",
+          "legendFormat": "{{instance}} write"
+        },
+        {
+          "expr": "sum by (instance) (irate(node_disk_read_bytes_total{device!~\"loop.*|dm-.*\", job=\"node-exporter\", run_id=~\"$run_id\"}[$__rate_interval])) / 1024 / 1024",
+          "legendFormat": "{{instance}} read"
+        }
+      ],
+      "title": "Disk Throughput (MB/s)",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "prometheus", "uid": "${DS}" },
+        "definition": "label_values(run_id)",
+        "includeAll": true,
+        "multi": true,
+        "name": "run_id",
+        "query": { "query": "label_values(run_id)", "refId": "StandardVariableQuery" },
+        "refresh": 2,
+        "regex": "",
+        "sort": 2,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "VictoriaMetrics", "value": "victoriametrics" },
+        "hide": 2,
+        "name": "DS",
+        "options": [],
+        "query": "prometheus",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "YB TServer",
+  "uid": "yb-tserver",
+  "version": 1
+}

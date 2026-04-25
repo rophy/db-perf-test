@@ -1,0 +1,15 @@
+{{- if index .Values "prom-replay" "enabled" }}
+{{- range $path, $bytes := .Files.Glob "dashboards/*.json" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "yb-benchmark.fullname" $ }}-{{ $path | base | trimSuffix ".json" }}
+  labels:
+    {{- include "yb-benchmark.labels" $ | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  {{ $path | base }}: |-
+    {{- toString $bytes | nindent 4 }}
+---
+{{- end }}
+{{- end }}
