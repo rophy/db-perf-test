@@ -53,24 +53,6 @@ sysbench:
   numRowsInInsert: 1
   threadInitTimeout: 90
 
-# Prometheus configuration
-prometheus:
-  enabled: true
-  image:
-    repository: docker.io/prom/prometheus
-    tag: v2.48.0
-    pullPolicy: IfNotPresent
-  resources:
-    requests:
-      cpu: "250m"
-      memory: "512Mi"
-    limits:
-      cpu: "500m"
-      memory: "1Gi"
-  retention: 7d
-  nodeSelector:
-    role: master
-
 # k6 with xk6-sql — custom schema/SQL load testing (disabled by default)
 k6:
   enabled: true

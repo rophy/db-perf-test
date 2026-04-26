@@ -54,7 +54,7 @@ spec:
         - name: BENCH_DURATION
           value: {{ .Values.k6.duration | quote }}
         - name: K6_PROMETHEUS_RW_SERVER_URL
-          value: "http://{{ include "yb-benchmark.fullname" . }}-prometheus:9090/api/v1/write"
+          value: "http://{{ include "yb-benchmark.fullname" . }}-prom-replay-victoriametrics:8428/api/v1/write"
         - name: K6_PROMETHEUS_RW_TREND_STATS
           value: "p(95),p(99),min,max,avg"
         resources:

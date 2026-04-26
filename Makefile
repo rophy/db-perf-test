@@ -66,7 +66,7 @@ endif
 ifdef IS_VM_ENV
 _deploy-yb:
 	@echo "Deploying YugabyteDB via yb-ansible..."
-	cd $(YB_ANSIBLE_DIR) && ansible-playbook site.yml -i $(CURDIR)/ansible/inventory/vm-virsh.ini
+	cd $(YB_ANSIBLE_DIR) && ansible-playbook deploy.yml -i $(CURDIR)/ansible/inventory/vm-virsh.ini
 else
 _deploy-yb:
 	@helm upgrade --install $(YB_RELEASE) $(YB_CHART_DIR) \
@@ -201,8 +201,8 @@ ysql:
 	$(KUBECTL) exec -it yb-tserver-0 -- /home/yugabyte/bin/ysqlsh -h yb-tserver-service
 endif
 
-port-forward-prometheus: ## Port forward Prometheus to localhost:9090
-	$(KUBECTL) port-forward svc/$(shell $(KUBECTL) get svc -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}') 9090:9090
+port-forward-metrics: ## Port forward VictoriaMetrics to localhost:8428
+	$(KUBECTL) port-forward svc/$(shell $(KUBECTL) get svc -l app.kubernetes.io/component=victoriametrics -o jsonpath='{.items[0].metadata.name}') 8428:8428
 
 # Range query test
 range-query-test: ## Run PK range query performance test

@@ -19,29 +19,27 @@ OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/reports}"
 RELEASE_NAME="${RELEASE_NAME:-yb-benchmark}"
 METRICS_DUMP_BASE_URL="${METRICS_DUMP_BASE_URL:-}"
 
+KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
+NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
+
 if [[ "$REPORT_MODE" == "vm" ]]; then
-    # VM mode: Prometheus is directly reachable via control VM IP
     VM_IPS="${PROJECT_ROOT}/.vms/vm-ips.env"
     if [[ ! -f "$VM_IPS" ]]; then
         echo "Error: ${VM_IPS} not found. Run: make setup-vm-virsh" >&2
         exit 1
     fi
     source "$VM_IPS"
-    PROMETHEUS_URL="${PROMETHEUS_URL:-http://${CONTROL_IP}:9090}"
-else
-    # K8s mode: require context and namespace
-    KUBE_CONTEXT="${KUBE_CONTEXT:?KUBE_CONTEXT must be set}"
-    NAMESPACE="${NAMESPACE:?NAMESPACE must be set}"
+fi
 
-    # Discover Prometheus service name from the cluster if not explicitly set
-    if [[ -z "$PROMETHEUS_URL" ]]; then
-        PROM_SVC=$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" get svc \
-            -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-        if [[ -z "$PROM_SVC" ]]; then
-            PROM_SVC="${RELEASE_NAME}-prometheus"
-            echo "Warning: could not discover Prometheus service, falling back to ${PROM_SVC}"
-        fi
-        PROMETHEUS_URL="http://${PROM_SVC}:9090"
+# Discover VictoriaMetrics service from the cluster
+if [[ -z "${PROMETHEUS_URL:-}" ]]; then
+    VM_SVC=$(kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" get svc \
+        -l app.kubernetes.io/component=victoriametrics -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+    if [[ -n "$VM_SVC" ]]; then
+        PROMETHEUS_URL="http://${VM_SVC}:8428"
+    else
+        PROMETHEUS_URL="http://${RELEASE_NAME}-prom-replay-victoriametrics:8428"
+        echo "Warning: could not discover VictoriaMetrics service, falling back to ${PROMETHEUS_URL}"
     fi
 fi
 

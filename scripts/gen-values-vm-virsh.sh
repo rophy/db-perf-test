@@ -108,22 +108,6 @@ k6:
     password: yugabyte
     name: yugabyte
 
-# Prometheus — scrapes VM targets via static configs
-prometheus:
-  enabled: true
-  image:
-    repository: docker.io/prom/prometheus
-    tag: v2.48.0
-    pullPolicy: IfNotPresent
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "500m"
-      memory: "1Gi"
-  retention: 7d
-
 # Node exporter — disabled (runs on VMs via yb-ansible)
 nodeExporter:
   enabled: false
