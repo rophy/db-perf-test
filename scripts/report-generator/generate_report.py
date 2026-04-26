@@ -402,6 +402,7 @@ class ReportGenerator:
         self.cluster_spec = {}
         self._node_instance_filter = ""
         self._tserver_instance_filter = ""
+        self._metric_queries: dict[str, str] = {}
 
     def _derive_node_instances(self):
         """Extract node hostnames from container metrics and build instance filters.
@@ -1059,11 +1060,19 @@ class ReportGenerator:
         print("  Counters (irate, sum by instance):")
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        def _query_counter(name: str) -> list[dict]:
-            query = (
+        for name in counters:
+            self._metric_queries[name] = (
                 f'sum by (exported_instance)'
                 f'(irate({name}{{job=~"yb-tserver|yb-master"}}[{self._YB_IRATE_WINDOW}]))'
             )
+        for name in gauges:
+            self._metric_queries[name] = (
+                f'sum by (exported_instance)'
+                f'({name}{{job=~"yb-tserver|yb-master"}})'
+            )
+
+        def _query_counter(name: str) -> list[dict]:
+            query = self._metric_queries[name]
             results = self.prometheus.query_range_raw(
                 query, self.config.start_time, self.config.end_time,
                 self._YB_DUMP_STEP,
@@ -1144,15 +1153,23 @@ class ReportGenerator:
         print(f"  {len(counters)} counters + {len(gauges)} gauges "
               f"({len(names)} names, {len(type_map)} metadata entries)")
 
+        for name in counters:
+            self._metric_queries[name] = (
+                f'sum by (instance)'
+                f'(irate({name}{{job="node-exporter"{nf_comma}}}[{self._NODE_IRATE_WINDOW}]))'
+            )
+        for name in gauges:
+            self._metric_queries[name] = (
+                f'sum by (instance)'
+                f'({name}{{job="node-exporter"{nf_comma}}})'
+            )
+
         all_series: list[dict] = []
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _query_counter(name: str) -> list[dict]:
-            query = (
-                f'sum by (instance)'
-                f'(irate({name}{{job="node-exporter"{nf_comma}}}[{self._NODE_IRATE_WINDOW}]))'
-            )
+            query = self._metric_queries[name]
             results = self.prometheus.query_range_raw(
                 query, self.config.start_time, self.config.end_time,
                 self._NODE_DUMP_STEP,
@@ -1239,16 +1256,24 @@ class ReportGenerator:
         print(f"  {len(counters)} counters + {len(gauges)} gauges "
               f"({len(names)} container_* names)")
 
+        for name in counters:
+            self._metric_queries[name] = (
+                f'sum by (pod, container)'
+                f'(irate({name}{{job="cadvisor",namespace="{ns}",'
+                f'container!=""}}[{self._CADVISOR_IRATE_WINDOW}]))'
+            )
+        for name in gauges:
+            self._metric_queries[name] = (
+                f'sum by (pod, container)'
+                f'({name}{{job="cadvisor",namespace="{ns}",container!=""}})'
+            )
+
         all_series: list[dict] = []
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _query_counter(name: str) -> list[dict]:
-            query = (
-                f'sum by (pod, container)'
-                f'(irate({name}{{job="cadvisor",namespace="{ns}",'
-                f'container!=""}}[{self._CADVISOR_IRATE_WINDOW}]))'
-            )
+            query = self._metric_queries[name]
             results = self.prometheus.query_range_raw(
                 query, self.config.start_time, self.config.end_time,
                 self._CADVISOR_DUMP_STEP,
@@ -1310,13 +1335,17 @@ class ReportGenerator:
 
         print(f"  {len(counters)} counters + {len(gauges)} gauges ({len(names)} names)")
 
+        for name in counters:
+            self._metric_queries[name] = f'irate({name}[30s])'
+        for name in gauges:
+            self._metric_queries[name] = name
+
         all_series: list[dict] = []
         step = 5
 
         for name in counters:
-            query = f'irate({name}[30s])'
             results = self.prometheus.query_range_raw(
-                query, self.config.start_time, self.config.end_time, step,
+                self._metric_queries[name], self.config.start_time, self.config.end_time, step,
             )
             for r in results:
                 r.setdefault("metric", {})["__name__"] = name
@@ -1324,15 +1353,14 @@ class ReportGenerator:
 
         for name in gauges:
             results = self.prometheus.query_range_raw(
-                name, self.config.start_time, self.config.end_time, step,
+                self._metric_queries[name], self.config.start_time, self.config.end_time, step,
             )
             all_series.extend(results)
 
         print(f"  {len(all_series)} series total")
         return all_series
 
-    @staticmethod
-    def build_metrics_index(dump: list[dict]) -> list[dict]:
+    def build_metrics_index(self, dump: list[dict]) -> list[dict]:
         """Build a summary index of metric names for the explorer picker."""
         name_info: dict[str, dict] = {}
         for s in dump:
@@ -1342,6 +1370,7 @@ class ReportGenerator:
                 name_info[name] = {
                     "name": name,
                     "count": 0,
+                    "query": self._metric_queries.get(name, name),
                 }
             name_info[name]["count"] += 1
         return sorted(name_info.values(), key=lambda x: x["name"])
@@ -1452,6 +1481,7 @@ class ReportGenerator:
             "format_number": format_number,
             "yb_metrics_index": self.yb_metrics_index,
             "metrics_dump_url": "__METRICS_DUMP_URL__",
+            "summary_txt_url": "./summary.txt",
         }
 
         return template.render(**report_data)

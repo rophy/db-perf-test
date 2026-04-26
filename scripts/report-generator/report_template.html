@@ -10,22 +10,14 @@
     <script src="../vendor/hammer.min.js"></script>
     <script src="../vendor/chartjs-plugin-annotation.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background-color: #f5f5f5;
             color: #333;
             line-height: 1.6;
         }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -34,59 +26,12 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        header h1 {
-            font-size: 2rem;
-            margin-bottom: 15px;
-        }
-        .metadata {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-        .metadata-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .metadata-label {
-            font-weight: 600;
-        }
-        .tab-bar {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e3e8ff;
-            flex-wrap: wrap;
-        }
-        .tab {
-            padding: 10px 18px;
-            background: white;
-            border: 1px solid transparent;
-            border-bottom: none;
-            border-radius: 8px 8px 0 0;
-            cursor: pointer;
-            font-size: 0.95rem;
-            color: #666;
-            font-weight: 500;
-            transition: background 120ms, color 120ms;
-        }
-        .tab:hover {
-            background: #f0f3ff;
-            color: #4c5fd5;
-        }
-        .tab.active {
-            background: #4c5fd5;
-            color: white;
-            border-color: #4c5fd5;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
+        header h1 { font-size: 2rem; margin-bottom: 15px; }
+        .metadata { display: flex; flex-wrap: wrap; gap: 20px; font-size: 0.9rem; opacity: 0.9; }
+        .metadata-item { display: flex; align-items: center; gap: 8px; }
+        .metadata-label { font-weight: 600; }
+        .metadata a { color: white; text-decoration: underline; opacity: 0.9; }
+        .metadata a:hover { opacity: 1; }
         .section {
             background: white;
             border-radius: 10px;
@@ -101,42 +46,8 @@
             padding-bottom: 10px;
             border-bottom: 2px solid #eee;
         }
-        .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        .summary-table th,
-        .summary-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        .summary-table th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #555;
-        }
-        .summary-table tr:hover {
-            background-color: #f8f9fa;
-        }
-        .summary-table td:not(:first-child) {
-            text-align: right;
-            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-        }
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin-bottom: 20px;
-        }
-        .chart-toolbar {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            display: flex;
-            gap: 6px;
-            z-index: 10;
-        }
+        .chart-container { position: relative; height: 300px; margin-bottom: 20px; }
+        .chart-toolbar { position: absolute; top: 6px; right: 6px; display: flex; gap: 6px; z-index: 10; }
         .toolbar-btn {
             background: rgba(255, 255, 255, 0.92);
             color: #555;
@@ -148,21 +59,7 @@
             font-weight: 500;
             line-height: 1.2;
         }
-        .toolbar-btn:hover {
-            background: #f0f3ff;
-            color: #4c5fd5;
-            border-color: #4c5fd5;
-        }
-        .pod-card-header {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-        .pod-card-header .pod-card-title h3 {
-            margin-bottom: 4px;
-        }
+        .toolbar-btn:hover { background: #f0f3ff; color: #4c5fd5; border-color: #4c5fd5; }
         .chart-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
@@ -178,100 +75,40 @@
             font-size: 1.1rem;
             color: #555;
             margin-bottom: 15px;
-        }
-        .pods-list {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
         }
+        .chart-card h3 .chart-toolbar {
+            position: static;
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .pods-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
         .pod-badge {
-            background: #e3e8ff;
-            color: #4c5fd5;
+            background: rgba(255,255,255,0.2);
+            color: white;
             padding: 5px 12px;
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: 500;
         }
-        .stat-value {
-            color: #4c5fd5;
-            font-weight: 600;
-        }
-        .spec-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .spec-info {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-            padding: 15px;
+        .explorer-query {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: #888;
             background: #f8f9fa;
-            border-radius: 8px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-top: 6px;
+            word-break: break-all;
         }
-        .spec-info .metadata-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .spec-info .metadata-label {
-            font-weight: 600;
-            color: #555;
-        }
-        .pod-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-        .pod-card h3 {
-            font-size: 1.1rem;
-            color: #444;
-            margin-bottom: 4px;
-        }
-        .pod-card .pod-host {
-            color: #888;
-            font-size: 0.85rem;
-            margin-bottom: 16px;
-        }
-        .pod-charts {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 18px;
-        }
-        .pod-charts .chart-container {
-            height: 220px;
-            margin-bottom: 0;
-        }
-        .pod-charts .mini-card h4 {
-            font-size: 0.92rem;
-            color: #666;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-        .empty-tab {
-            padding: 40px;
-            text-align: center;
-            color: #888;
-            background: white;
-            border-radius: 10px;
-        }
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: #888;
-            font-size: 0.85rem;
-        }
+        footer { text-align: center; padding: 20px; color: #888; font-size: 0.85rem; }
         @media (max-width: 768px) {
-            .chart-grid {
-                grid-template-columns: 1fr;
-            }
-            .metadata {
-                flex-direction: column;
-                gap: 10px;
-            }
+            .chart-grid { grid-template-columns: 1fr; }
+            .metadata { flex-direction: column; gap: 10px; }
         }
     </style>
 </head>
@@ -292,6 +129,9 @@
                     <span class="metadata-label">Duration:</span>
                     <span>{{ duration }}</span>
                 </div>
+                <div class="metadata-item">
+                    <a href="{{ summary_txt_url }}">summary.txt</a>
+                </div>
             </div>
             <div class="pods-list">
                 {% for pod in pods %}
@@ -300,549 +140,198 @@
             </div>
         </header>
 
-        <div class="tab-bar" id="tab-bar">
-            <div class="tab active" data-tab="overview">Overview</div>
-            <div class="tab" data-tab="master">yb-master ({{ by_pod.master|length }})</div>
-            <div class="tab" data-tab="tserver">t-server ({{ by_pod.tserver|length }})</div>
-            <div class="tab" data-tab="other">others ({{ by_pod.other|length }})</div>
-            <div class="tab" data-tab="raw">Raw</div>
-            <div class="tab" data-tab="explorer">Metrics Explorer</div>
-        </div>
-
-        <div class="tab-content active" id="tab-overview">
-            {% if cluster_spec %}
-            <section class="section">
-                <h2>Cluster Configuration</h2>
-                <div class="spec-grid">
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Component</th>
-                                <th>Replicas</th>
-                                <th>CPU Request</th>
-                                <th>CPU Limit</th>
-                                <th>Memory Request</th>
-                                <th>Memory Limit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if cluster_spec.master %}
-                            <tr>
-                                <td>yb-master</td>
-                                <td class="stat-value">{{ cluster_spec.master.replicas }}</td>
-                                <td>{{ cluster_spec.master.cpu_request }}</td>
-                                <td>{{ cluster_spec.master.cpu_limit }}</td>
-                                <td>{{ cluster_spec.master.mem_request }}</td>
-                                <td>{{ cluster_spec.master.mem_limit }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if cluster_spec.tserver %}
-                            <tr>
-                                <td>yb-tserver</td>
-                                <td class="stat-value">{{ cluster_spec.tserver.replicas }}</td>
-                                <td>{{ cluster_spec.tserver.cpu_request }}</td>
-                                <td>{{ cluster_spec.tserver.cpu_limit }}</td>
-                                <td>{{ cluster_spec.tserver.mem_request }}</td>
-                                <td>{{ cluster_spec.tserver.mem_limit }}</td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                    <div class="spec-info">
-                        {% if cluster_spec.yugabyte_version %}
-                        <div class="metadata-item">
-                            <span class="metadata-label">YugabyteDB Version:</span>
-                            <span>{{ cluster_spec.yugabyte_version }}</span>
-                        </div>
-                        {% endif %}
-                        {% if cluster_spec.storage %}
-                        <div class="metadata-item">
-                            <span class="metadata-label">Storage Class:</span>
-                            <span>{{ cluster_spec.storage.storage_class }}</span>
-                        </div>
-                        <div class="metadata-item">
-                            <span class="metadata-label">PVC Size:</span>
-                            <span>{{ cluster_spec.storage.size }}</span>
-                        </div>
-                        {% endif %}
+        {# ── Workload Time Series ── #}
+        {% if sysbench_results and sysbench_results.intervals %}
+        <section class="section">
+            <h2>{{ workload_name }} Time Series</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>TPS over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-tps-chart"></canvas>
                     </div>
                 </div>
-            </section>
-            {% endif %}
-
-            {% if sysbench_results %}
-            <section class="section">
-                <h2>{{ workload_name }} Results</h2>
-                <div class="spec-grid">
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Metric</th>
-                                <th>Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if sysbench_results.tps is defined %}
-                            <tr>
-                                <td>Transactions per Second (TPS)</td>
-                                <td class="stat-value">{{ "%.2f"|format(sysbench_results.tps) }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if sysbench_results.qps is defined %}
-                            <tr>
-                                <td>Queries per Second (QPS)</td>
-                                <td class="stat-value">{{ "%.2f"|format(sysbench_results.qps) }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if sysbench_results.transactions is defined %}
-                            <tr>
-                                <td>Total Transactions</td>
-                                <td class="stat-value">{{ sysbench_results.transactions }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if sysbench_results.queries is defined %}
-                            <tr>
-                                <td>Total Queries</td>
-                                <td class="stat-value">{{ sysbench_results.queries }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if sysbench_results.sql_stats %}
-                            <tr>
-                                <td>Queries (Read / Write / Other)</td>
-                                <td class="stat-value">{{ sysbench_results.sql_stats.get('read', 'N/A') }} / {{ sysbench_results.sql_stats.get('write', 'N/A') }} / {{ sysbench_results.sql_stats.get('other', 'N/A') }}</td>
-                            </tr>
-                            {% endif %}
-                            {% if sysbench_results.errors is defined %}
-                            <tr>
-                                <td>Errors (total / per sec)</td>
-                                <td class="stat-value">{{ sysbench_results.errors }} ({{ "%.2f"|format(sysbench_results.errors_per_sec) }}/s)</td>
-                            </tr>
-                            {% endif %}
-                            {% if sysbench_results.elapsed is defined %}
-                            <tr>
-                                <td>Elapsed Time</td>
-                                <td class="stat-value">{{ "%.1f"|format(sysbench_results.elapsed) }}s</td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Latency</th>
-                                <th>Value (ms)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if sysbench_results.lat_min is defined %}
-                            <tr><td>Min</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_min) }}</td></tr>
-                            {% endif %}
-                            {% if sysbench_results.lat_avg is defined %}
-                            <tr><td>Avg</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_avg) }}</td></tr>
-                            {% endif %}
-                            {% if sysbench_results.lat_p95 is defined %}
-                            <tr><td>{{ latency_percentile }}</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_p95) }}</td></tr>
-                            {% endif %}
-                            {% if sysbench_results.lat_max is defined %}
-                            <tr><td>Max</td><td class="stat-value">{{ "%.2f"|format(sysbench_results.lat_max) }}</td></tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-
-                    {% if sysbench_results.fairness_avg is defined %}
-                    <div class="spec-info">
-                        <div class="metadata-item">
-                            <span class="metadata-label">Thread Fairness (events avg/stddev):</span>
-                            <span>{{ "%.2f"|format(sysbench_results.fairness_avg) }} / {{ "%.2f"|format(sysbench_results.fairness_stddev) }}</span>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </section>
-
-            {% if sysbench_results.intervals %}
-            <section class="section">
-                <h2>{{ workload_name }} Time Series</h2>
-                <div class="chart-grid">
-                    <div class="chart-card">
-                        <h3>TPS over Time</h3>
-                        <div class="chart-container">
-                            <canvas id="sysbench-tps-chart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h3>{{ latency_percentile }} Latency over Time</h3>
-                        <div class="chart-container">
-                            <canvas id="sysbench-lat-chart"></canvas>
-                        </div>
-                    </div>
-                    {% if sysbench_results.intervals and sysbench_results.intervals[0].read_qps is defined %}
-                    <div class="chart-card">
-                        <h3>QPS Breakdown (Read/Write/Other)</h3>
-                        <div class="chart-container">
-                            <canvas id="sysbench-qps-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-                    <div class="chart-card">
-                        <h3>Errors per Second</h3>
-                        <div class="chart-container">
-                            <canvas id="sysbench-err-chart"></canvas>
-                        </div>
+                <div class="chart-card">
+                    <h3>{{ latency_percentile }} Latency over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-lat-chart"></canvas>
                     </div>
                 </div>
-                <h3 style="margin-top: 20px;">Per-Interval Metrics</h3>
-                <p style="color: #666; font-size: 13px; margin-top: -6px;">
-                    Each row is one {{ workload_name }} reporting interval. TPS / latency / errors come
-                    from {{ workload_name }}. CPU / memory / network / disk are sampled from Prometheus
-                    at the same instant (sum across tserver pods, except CPU which is the
-                    average of DB-node VM cores used).
-                </p>
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th>T (s)</th>
-                            <th>TPS</th>
-                            <th>Lat {{ latency_percentile }} (ms)</th>
-                            <th>Err/s</th>
-                            <th>CPU/node (cores)</th>
-                            <th>Mem (MB)</th>
-                            <th>Net (MB/s)</th>
-                            <th>Disk WrIOPS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for iv in sysbench_results.intervals %}
-                        <tr>
-                            <td class="stat-value">{{ iv.time }}</td>
-                            <td class="stat-value">{{ "%.0f"|format(iv.tps) }}</td>
-                            <td class="stat-value">{{ "%.1f"|format(iv.lat_95) }}</td>
-                            <td class="stat-value">{{ "%.2f"|format(iv.err_s) }}</td>
-                            <td class="stat-value">{% if iv.cpu_cores is not none %}{{ "%.2f"|format(iv.cpu_cores) }}{% else %}—{% endif %}</td>
-                            <td class="stat-value">{% if iv.mem_mb is not none %}{{ "%.0f"|format(iv.mem_mb) }}{% else %}—{% endif %}</td>
-                            <td class="stat-value">{% if iv.net_mb is not none %}{{ "%.1f"|format(iv.net_mb) }}{% else %}—{% endif %}</td>
-                            <td class="stat-value">{% if iv.disk_write_iops is not none %}{{ "%.0f"|format(iv.disk_write_iops) }}{% else %}—{% endif %}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </section>
-            {% endif %}
-            {% endif %}
-
-            {% if sysbench_params %}
-            <section class="section">
-                <h2>{{ workload_name }} Parameters</h2>
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Parameter</th>
-                            <th>Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for key, value in sysbench_params.items() %}
-                        <tr>
-                            <td>{{ key }}</td>
-                            <td class="stat-value">{{ value }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </section>
-            {% endif %}
-
-            <section class="section">
-                <h2>Metrics Summary</h2>
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Metric</th>
-                            <th>Min</th>
-                            <th>Avg</th>
-                            <th>Max</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for key, metric in metrics.items() %}
-                        <tr>
-                            <td>{{ metric.name }}</td>
-                            <td class="stat-value">{{ "%.2f"|format(metric.min) }}</td>
-                            <td class="stat-value">{{ "%.2f"|format(metric.avg) }}</td>
-                            <td class="stat-value">{{ "%.2f"|format(metric.max) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </section>
-        </div>
-
-        {% for role, label in [('master', 'yb-master'), ('tserver', 'tservers'), ('other', 'others')] %}
-        <div class="tab-content" id="tab-{{ role }}">
-            {% if by_pod[role] %}
-            {% set role_instances = by_pod[role] | map(attribute='instance') | list | unique | list %}
-            {% if role_instances %}
-            <div class="pod-card aggregated-card" data-role="{{ role }}">
-                <div class="pod-card-header">
-                    <div class="pod-card-title">
-                        <h3>Aggregated</h3>
-                        <div class="pod-host">
-                            node_exporter view across {{ role_instances|length }}
-                            {% if role_instances|length == 1 %}node{% else %}nodes{% endif %}:
-                            <strong>{{ role_instances | join(', ') }}</strong>
-                        </div>
-                    </div>
-                    <button class="toolbar-btn pod-reset-btn" type="button">Reset zoom</button>
-                </div>
-                <div class="pod-charts">
-                    <div class="mini-card">
-                        <h4>CPU (cores)</h4>
-                        <div class="chart-container"><canvas id="agg-{{ role }}-cpu"></canvas></div>
-                    </div>
-                    <div class="mini-card">
-                        <h4>Memory (MB)</h4>
-                        <div class="chart-container"><canvas id="agg-{{ role }}-mem"></canvas></div>
-                    </div>
-                    <div class="mini-card">
-                        <h4>Network (MB/s)</h4>
-                        <div class="chart-container"><canvas id="agg-{{ role }}-net"></canvas></div>
-                    </div>
-                    <div class="mini-card">
-                        <h4>Disk IOPS</h4>
-                        <div class="chart-container"><canvas id="agg-{{ role }}-disk"></canvas></div>
+                {% if sysbench_results.intervals[0].read_qps is defined %}
+                <div class="chart-card">
+                    <h3>QPS Breakdown (Read/Write/Other)</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-qps-chart"></canvas>
                     </div>
                 </div>
-            </div>
-            {% endif %}
-            {% for card in by_pod[role] %}
-            <div class="pod-card" data-pod="{{ card.pod }}" data-instance="{{ card.instance }}" data-role="{{ role }}">
-                <div class="pod-card-header">
-                    <div class="pod-card-title">
-                        <h3>{{ card.pod }}</h3>
-                        <div class="pod-host">on node <strong>{{ card.instance }}</strong></div>
-                    </div>
-                    <button class="toolbar-btn pod-reset-btn" type="button">Reset zoom</button>
-                </div>
-                <div class="pod-charts">
-                    <div class="mini-card">
-                        <h4>CPU (cores)</h4>
-                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-cpu"></canvas></div>
-                    </div>
-                    <div class="mini-card">
-                        <h4>Memory (MB)</h4>
-                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-mem"></canvas></div>
-                    </div>
-                    <div class="mini-card">
-                        <h4>Network (MB/s)</h4>
-                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-net"></canvas></div>
-                    </div>
-                    <div class="mini-card">
-                        <h4>Disk Write IOPS</h4>
-                        <div class="chart-container"><canvas id="pod-{{ card.pod }}-disk"></canvas></div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <div class="empty-tab">No {{ label }} pods captured for this run.</div>
-            {% endif %}
-        </div>
-        {% endfor %}
-
-        <div class="tab-content" id="tab-raw">
-            <section class="section">
-                <h2>Resource Usage Charts (per pod)</h2>
-                <div class="chart-grid">
-                    {% if metrics.cpu and metrics.cpu.series %}
-                    <div class="chart-card">
-                        <h3>CPU Usage (cores)</h3>
-                        <div class="chart-container">
-                            <canvas id="cpu-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.memory and metrics.memory.series %}
-                    <div class="chart-card">
-                        <h3>Memory Usage (MB)</h3>
-                        <div class="chart-container">
-                            <canvas id="memory-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.network_rx and metrics.network_rx.series %}
-                    <div class="chart-card">
-                        <h3>Network RX (MB/s)</h3>
-                        <div class="chart-container">
-                            <canvas id="network-rx-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.network_tx and metrics.network_tx.series %}
-                    <div class="chart-card">
-                        <h3>Network TX (MB/s)</h3>
-                        <div class="chart-container">
-                            <canvas id="network-tx-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.disk_read_iops and metrics.disk_read_iops.series %}
-                    <div class="chart-card">
-                        <h3>Disk Read IOPS</h3>
-                        <div class="chart-container">
-                            <canvas id="disk-read-iops-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.disk_write_iops and metrics.disk_write_iops.series %}
-                    <div class="chart-card">
-                        <h3>Disk Write IOPS</h3>
-                        <div class="chart-container">
-                            <canvas id="disk-write-iops-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.disk_read_throughput and metrics.disk_read_throughput.series %}
-                    <div class="chart-card">
-                        <h3>Disk Read Throughput (MB/s)</h3>
-                        <div class="chart-container">
-                            <canvas id="disk-read-throughput-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.disk_write_throughput and metrics.disk_write_throughput.series %}
-                    <div class="chart-card">
-                        <h3>Disk Write Throughput (MB/s)</h3>
-                        <div class="chart-container">
-                            <canvas id="disk-write-throughput-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </section>
-
-            {% if metrics.node_cpu and metrics.node_cpu.series %}
-            <section class="section">
-                <h2>Node-Level CPU (VM)</h2>
-                <div class="chart-grid">
-                    <div class="chart-card">
-                        <h3>Total CPU Usage (cores)</h3>
-                        <div class="chart-container">
-                            <canvas id="node-cpu-chart"></canvas>
-                        </div>
-                    </div>
-
-                    {% if metrics.node_cpu_user and metrics.node_cpu_user.series %}
-                    <div class="chart-card">
-                        <h3>CPU User (%)</h3>
-                        <div class="chart-container">
-                            <canvas id="node-cpu-user-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.node_cpu_system and metrics.node_cpu_system.series %}
-                    <div class="chart-card">
-                        <h3>CPU System (%)</h3>
-                        <div class="chart-container">
-                            <canvas id="node-cpu-system-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.node_cpu_iowait and metrics.node_cpu_iowait.series %}
-                    <div class="chart-card">
-                        <h3>CPU IOWait (%)</h3>
-                        <div class="chart-container">
-                            <canvas id="node-cpu-iowait-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.node_cpu_steal and metrics.node_cpu_steal.series %}
-                    <div class="chart-card">
-                        <h3>CPU Steal (%)</h3>
-                        <div class="chart-container">
-                            <canvas id="node-cpu-steal-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if metrics.node_cpu_softirq and metrics.node_cpu_softirq.series %}
-                    <div class="chart-card">
-                        <h3>CPU SoftIRQ (%)</h3>
-                        <div class="chart-container">
-                            <canvas id="node-cpu-softirq-chart"></canvas>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </section>
-            {% endif %}
-
-            {% set custom_metrics = [] %}
-            {% for key, metric in metrics.items() %}
-                {% if key.startswith('rate_') or key.startswith('total_') %}
-                    {% set _ = custom_metrics.append((key, metric)) %}
                 {% endif %}
-            {% endfor %}
-
-            {% if custom_metrics %}
-            <section class="section">
-                <h2>Custom Metrics</h2>
-                <div class="chart-grid">
-                    {% for key, metric in custom_metrics %}
-                    {% if metric.series %}
-                    <div class="chart-card">
-                        <h3>{{ metric.name }}</h3>
-                        <div class="chart-container">
-                            <canvas id="chart-{{ key }}"></canvas>
-                        </div>
+                <div class="chart-card">
+                    <h3>Errors per Second</h3>
+                    <div class="chart-container">
+                        <canvas id="sysbench-err-chart"></canvas>
                     </div>
-                    {% endif %}
-                    {% endfor %}
                 </div>
-            </section>
+            </div>
+        </section>
+        {% endif %}
+
+        {# ── Correlated Resource Charts (grouped by metric type, all roles together) ── #}
+        {% set all_roles = [('master', 'yb-master'), ('tserver', 'tserver'), ('other', 'other')] %}
+        {% set has_any_pods = (by_pod.master|length + by_pod.tserver|length + by_pod.other|length) > 0 %}
+
+        {% if has_any_pods %}
+        <section class="section" id="correlated-cpu">
+            <h2>CPU (cores)</h2>
+            <div class="chart-grid">
+                {% for role, label in all_roles %}
+                {% if by_pod[role] %}
+                {% set role_instances = by_pod[role] | map(attribute='instance') | list | unique | list %}
+                <div class="chart-card">
+                    <h3>{{ label }} ({{ role_instances | join(', ') }})</h3>
+                    <div class="chart-container"><canvas id="corr-{{ role }}-cpu"></canvas></div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="section" id="correlated-mem">
+            <h2>Memory (MB)</h2>
+            <div class="chart-grid">
+                {% for role, label in all_roles %}
+                {% if by_pod[role] %}
+                {% set role_instances = by_pod[role] | map(attribute='instance') | list | unique | list %}
+                <div class="chart-card">
+                    <h3>{{ label }} ({{ role_instances | join(', ') }})</h3>
+                    <div class="chart-container"><canvas id="corr-{{ role }}-mem"></canvas></div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="section" id="correlated-net">
+            <h2>Network (MB/s)</h2>
+            <div class="chart-grid">
+                {% for role, label in all_roles %}
+                {% if by_pod[role] %}
+                {% set role_instances = by_pod[role] | map(attribute='instance') | list | unique | list %}
+                <div class="chart-card">
+                    <h3>{{ label }} ({{ role_instances | join(', ') }})</h3>
+                    <div class="chart-container"><canvas id="corr-{{ role }}-net"></canvas></div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="section" id="correlated-disk">
+            <h2>Disk IOPS</h2>
+            <div class="chart-grid">
+                {% for role, label in all_roles %}
+                {% if by_pod[role] %}
+                {% set role_instances = by_pod[role] | map(attribute='instance') | list | unique | list %}
+                <div class="chart-card">
+                    <h3>{{ label }} ({{ role_instances | join(', ') }})</h3>
+                    <div class="chart-container"><canvas id="corr-{{ role }}-disk"></canvas></div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {# ── Node-Level CPU Breakdown ── #}
+        {% if metrics.node_cpu and metrics.node_cpu.series %}
+        <section class="section">
+            <h2>Node-Level CPU (VM)</h2>
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Total CPU Usage (cores)</h3>
+                    <div class="chart-container"><canvas id="node-cpu-chart"></canvas></div>
+                </div>
+                {% if metrics.node_cpu_user and metrics.node_cpu_user.series %}
+                <div class="chart-card">
+                    <h3>CPU User (%)</h3>
+                    <div class="chart-container"><canvas id="node-cpu-user-chart"></canvas></div>
+                </div>
+                {% endif %}
+                {% if metrics.node_cpu_system and metrics.node_cpu_system.series %}
+                <div class="chart-card">
+                    <h3>CPU System (%)</h3>
+                    <div class="chart-container"><canvas id="node-cpu-system-chart"></canvas></div>
+                </div>
+                {% endif %}
+                {% if metrics.node_cpu_iowait and metrics.node_cpu_iowait.series %}
+                <div class="chart-card">
+                    <h3>CPU IOWait (%)</h3>
+                    <div class="chart-container"><canvas id="node-cpu-iowait-chart"></canvas></div>
+                </div>
+                {% endif %}
+                {% if metrics.node_cpu_steal and metrics.node_cpu_steal.series %}
+                <div class="chart-card">
+                    <h3>CPU Steal (%)</h3>
+                    <div class="chart-container"><canvas id="node-cpu-steal-chart"></canvas></div>
+                </div>
+                {% endif %}
+                {% if metrics.node_cpu_softirq and metrics.node_cpu_softirq.series %}
+                <div class="chart-card">
+                    <h3>CPU SoftIRQ (%)</h3>
+                    <div class="chart-container"><canvas id="node-cpu-softirq-chart"></canvas></div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        {# ── Custom Metrics ── #}
+        {% set custom_metrics = [] %}
+        {% for key, metric in metrics.items() %}
+            {% if key.startswith('rate_') or key.startswith('total_') %}
+                {% set _ = custom_metrics.append((key, metric)) %}
             {% endif %}
-        </div>
+        {% endfor %}
+        {% if custom_metrics %}
+        <section class="section">
+            <h2>Custom Metrics</h2>
+            <div class="chart-grid">
+                {% for key, metric in custom_metrics %}
+                {% if metric.series %}
+                <div class="chart-card">
+                    <h3>{{ metric.name }}</h3>
+                    <div class="chart-container"><canvas id="chart-{{ key }}"></canvas></div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
-        <div class="tab-content" id="tab-explorer">
-            <section class="section">
-                <h2>Metrics Explorer</h2>
-                <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
-                    Browse all YugabyteDB Prometheus metrics captured during the run.
-                    Data is loaded from <code>metrics_dump.json</code> alongside this report.
-                </p>
-                <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-start;">
-                    <div style="flex: 1; min-width: 300px;">
-                        <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;">Metric</label>
-                        <input type="text" id="explorer-search" placeholder="Search metrics..."
-                               style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
-                        <div id="explorer-dropdown"
-                             style="max-height: 350px; overflow-y: auto; border: 1px solid #ddd; border-top: none;
-                                    border-radius: 0 0 6px 6px; display: none; background: white; position: relative; z-index: 20;">
-                        </div>
-                    </div>
-                    <div style="min-width: 200px;">
-                        <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;">Instances</label>
-                        <div id="explorer-instances" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+        {# ── Metrics Explorer ── #}
+        <section class="section" id="metrics-explorer">
+            <h2>Metrics Explorer</h2>
+            <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
+                Browse all Prometheus metrics captured during the run.
+                Data is loaded from <code>metrics_dump.json.gz</code> alongside this report.
+            </p>
+            <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 1; min-width: 300px;">
+                    <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;">Metric</label>
+                    <input type="text" id="explorer-search" placeholder="Search metrics..."
+                           style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;">
+                    <div id="explorer-dropdown"
+                         style="max-height: 350px; overflow-y: auto; border: 1px solid #ddd; border-top: none;
+                                border-radius: 0 0 6px 6px; display: none; background: white; position: relative; z-index: 20;">
                     </div>
                 </div>
-                <div id="explorer-status" style="color: #888; font-size: 0.85rem; margin-bottom: 12px;">
-                    Loading metrics dump...
-                </div>
-                <div class="chart-container" style="height: 400px;">
-                    <canvas id="explorer-chart"></canvas>
-                </div>
-            </section>
-        </div>
+                <button type="button" id="explorer-add-btn" class="toolbar-btn"
+                        style="padding: 8px 16px; font-size: 0.9rem;" disabled>+ Add chart</button>
+            </div>
+            <div id="explorer-status" style="color: #888; font-size: 0.85rem; margin-bottom: 12px;">
+                Loading metrics dump...
+            </div>
+            <div id="explorer-charts" class="chart-grid"></div>
+        </section>
 
         <footer>
             <p>Generated by db-perf-test Report Generator</p>
@@ -858,7 +347,6 @@
             'rgba(239, 68, 68, 1)',
             'rgba(236, 72, 153, 1)',
         ];
-
         const colorsBg = [
             'rgba(102, 126, 234, 0.1)',
             'rgba(118, 75, 162, 0.1)',
@@ -868,13 +356,10 @@
             'rgba(236, 72, 153, 0.1)',
         ];
 
-        // Run-window timestamps for warmup shading + annotation. Null if not provided.
         const RUN_START_MS  = {{ start_epoch }} * 1000;
         const RUN_END_MS    = {{ end_epoch }} * 1000;
         const WARMUP_END_MS = {% if warmup_end_epoch %}{{ warmup_end_epoch }} * 1000{% else %}null{% endif %};
 
-        // Custom plugin: draws a dashed vertical guide at chart._crosshairX (canvas px).
-        // The crosshair is set externally by syncCrosshair() and rendered each frame.
         const crosshairPlugin = {
             id: 'crosshair',
             afterDatasetsDraw(chart) {
@@ -894,50 +379,32 @@
         };
         Chart.register(crosshairPlugin);
 
-        // Common annotation block (warmup shaded box + warmup-end vertical line).
-        // Returned as a fresh object each call so different charts can mutate
-        // without aliasing.
         function warmupAnnotations() {
             if (WARMUP_END_MS == null) return {};
             return {
                 warmupBox: {
-                    type: 'box',
-                    xMin: RUN_START_MS,
-                    xMax: WARMUP_END_MS,
-                    backgroundColor: 'rgba(180, 180, 180, 0.12)',
-                    borderWidth: 0,
+                    type: 'box', xMin: RUN_START_MS, xMax: WARMUP_END_MS,
+                    backgroundColor: 'rgba(180, 180, 180, 0.12)', borderWidth: 0,
                 },
                 warmupLine: {
-                    type: 'line',
-                    xMin: WARMUP_END_MS,
-                    xMax: WARMUP_END_MS,
-                    borderColor: 'rgba(120, 120, 120, 0.55)',
-                    borderWidth: 1,
-                    borderDash: [4, 4],
+                    type: 'line', xMin: WARMUP_END_MS, xMax: WARMUP_END_MS,
+                    borderColor: 'rgba(120, 120, 120, 0.55)', borderWidth: 1, borderDash: [4, 4],
                     label: {
-                        display: true,
-                        content: 'warmup end',
-                        position: 'start',
-                        backgroundColor: 'rgba(120, 120, 120, 0.7)',
-                        color: 'white',
-                        font: { size: 10 },
-                        padding: { x: 4, y: 2 },
+                        display: true, content: 'warmup end', position: 'start',
+                        backgroundColor: 'rgba(120, 120, 120, 0.7)', color: 'white',
+                        font: { size: 10 }, padding: { x: 4, y: 2 },
                     },
                 },
             };
         }
 
-        // Shared chart options. timeAxis=true uses a Date X-axis (Prometheus
-        // series); false uses the simple categorical axis (sysbench intervals).
         function commonOptions(yAxisLabel, timeAxis = true) {
             const xScale = timeAxis
-                ? { type: 'time',
-                    time: { displayFormats: { second: 'HH:mm:ss', minute: 'HH:mm' } },
+                ? { type: 'time', time: { displayFormats: { second: 'HH:mm:ss', minute: 'HH:mm' } },
                     title: { display: true, text: 'Time' } }
                 : { title: { display: true, text: 'Time (s)' } };
             return {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
                     x: xScale,
@@ -950,7 +417,7 @@
                         pan: { enabled: false },
                         zoom: {
                             wheel: { enabled: true, modifierKey: 'shift' },
-                            drag:  { enabled: true, backgroundColor: 'rgba(76,95,213,0.15)' },
+                            drag: { enabled: true, backgroundColor: 'rgba(76,95,213,0.15)' },
                             mode: 'x',
                         },
                     },
@@ -958,31 +425,28 @@
             };
         }
 
-        // Inject a CSV-export button into the chart's container. Idempotent.
         function attachToolbar(chart, exportName) {
             const container = chart.canvas.parentElement;
-            if (!container || container.querySelector('.chart-toolbar')) return;
+            if (!container) return;
+            const card = container.closest('.chart-card');
+            const target = card ? card.querySelector('h3') : container;
+            if (!target || target.querySelector('.chart-toolbar')) return;
             const bar = document.createElement('div');
             bar.className = 'chart-toolbar';
+            const reset = document.createElement('button');
+            reset.type = 'button'; reset.className = 'toolbar-btn';
+            reset.textContent = 'Reset zoom'; reset.title = 'Reset zoom';
+            reset.addEventListener('click', (e) => { e.stopPropagation(); if (chart.resetZoom) chart.resetZoom(); });
+            bar.appendChild(reset);
             const csv = document.createElement('button');
-            csv.type = 'button';
-            csv.className = 'toolbar-btn';
-            csv.textContent = '⬇ CSV';
-            csv.title = 'Download time-series as CSV';
-            csv.addEventListener('click', (e) => {
-                e.stopPropagation();
-                downloadChartCSV(chart, exportName);
-            });
+            csv.type = 'button'; csv.className = 'toolbar-btn';
+            csv.textContent = '⬇ CSV'; csv.title = 'Download time-series as CSV';
+            csv.addEventListener('click', (e) => { e.stopPropagation(); downloadChartCSV(chart, exportName); });
             bar.appendChild(csv);
-            container.appendChild(bar);
-            // Make the container a positioning context for the absolute toolbar.
-            if (getComputedStyle(container).position === 'static') {
-                container.style.position = 'relative';
-            }
+            target.appendChild(bar);
+            if (!card && getComputedStyle(container).position === 'static') container.style.position = 'relative';
         }
 
-        // Serialize all datasets into a CSV with one row per X value. Dataset 0's
-        // X axis seeds the row order; other datasets are assumed aligned.
         function downloadChartCSV(chart, exportName) {
             const datasets = chart.data.datasets;
             if (!datasets.length) return;
@@ -991,28 +455,19 @@
             const xs = datasets[0].data.map(d => (d && d.x instanceof Date) ? d.x.toISOString() : (d && d.x != null ? d.x : ''));
             for (let i = 0; i < xs.length; i++) {
                 const row = [xs[i]];
-                for (const ds of datasets) {
-                    const pt = ds.data[i];
-                    const y = pt && pt.y != null ? pt.y : '';
-                    row.push(y);
-                }
+                for (const ds of datasets) { const pt = ds.data[i]; row.push(pt && pt.y != null ? pt.y : ''); }
                 rows.push(row.join(','));
             }
             const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = (exportName || 'chart') + '.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            a.href = url; a.download = (exportName || 'chart') + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
 
-        // Sync a crosshair guide across every Chart instance inside `card`.
-        // No-op if the card has fewer than 2 charts.
-        function syncCrosshair(card) {
-            const charts = [...card.querySelectorAll('canvas')]
+        function syncCrosshair(container) {
+            const charts = [...container.querySelectorAll('canvas')]
                 .map(c => Chart.getChart(c)).filter(Boolean);
             if (charts.length < 2) return;
             for (const chart of charts) {
@@ -1020,82 +475,49 @@
                     const rect = chart.canvas.getBoundingClientRect();
                     const px = e.clientX - rect.left;
                     const dataX = chart.scales.x.getValueForPixel(px);
-                    for (const c of charts) {
-                        c._crosshairX = c.scales.x.getPixelForValue(dataX);
-                        c.draw();
-                    }
+                    for (const c of charts) { c._crosshairX = c.scales.x.getPixelForValue(dataX); c.draw(); }
                 });
                 chart.canvas.addEventListener('mouseleave', () => {
-                    for (const c of charts) {
-                        c._crosshairX = null;
-                        c.draw();
-                    }
+                    for (const c of charts) { c._crosshairX = null; c.draw(); }
                 });
             }
-        }
-
-        // Wire the per-pod "Reset zoom" button to reset every chart in the card.
-        function attachPodResetButton(card) {
-            const btn = card.querySelector('.pod-reset-btn');
-            if (!btn) return;
-            btn.addEventListener('click', () => {
-                card.querySelectorAll('canvas').forEach(c => {
-                    const chart = Chart.getChart(c);
-                    if (chart && chart.resetZoom) chart.resetZoom();
-                });
-            });
         }
 
         function createChart(canvasId, seriesData, yAxisLabel) {
             const canvas = document.getElementById(canvasId);
             if (!canvas || !seriesData || seriesData.length === 0) return;
-
             const datasets = seriesData.map((series, idx) => ({
                 label: series.name,
-                data: series.timestamps.map((t, i) => ({
-                    x: new Date(t * 1000),
-                    y: series.values[i]
-                })),
+                data: series.timestamps.map((t, i) => ({ x: new Date(t * 1000), y: series.values[i] })),
                 borderColor: colors[idx % colors.length],
                 backgroundColor: colorsBg[idx % colorsBg.length],
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
+                fill: true, tension: 0.3, pointRadius: 0,
             }));
-
-            const chart = new Chart(canvas, {
-                type: 'line',
-                data: { datasets },
-                options: commonOptions(yAxisLabel, true),
-            });
+            const chart = new Chart(canvas, { type: 'line', data: { datasets }, options: commonOptions(yAxisLabel, true) });
             attachToolbar(chart, canvasId);
             return chart;
         }
 
-        // Build a Chart.js line chart from a list of {label, series, dashed} entries.
-        // `series` is {timestamps, values}. dashed=true draws a dashed line (used
-        // for the host-node overlay so it visually distinguishes from pod lines).
         function createOverlayChart(canvasId, layers, yAxisLabel) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const datasets = layers.filter(l => l.series && l.series.timestamps).map((l, idx) => ({
                 label: l.label,
-                data: l.series.timestamps.map((t, i) => ({
-                    x: new Date(t * 1000),
-                    y: l.series.values[i],
-                })),
+                data: l.series.timestamps.map((t, i) => ({ x: new Date(t * 1000), y: l.series.values[i] })),
                 borderColor: colors[idx % colors.length],
                 backgroundColor: colorsBg[idx % colorsBg.length],
                 borderDash: l.dashed ? [6, 4] : [],
-                fill: !l.dashed,
-                tension: 0.3,
-                pointRadius: 0,
+                fill: !l.dashed, tension: 0.3, pointRadius: 0,
             }));
-            const chart = new Chart(canvas, {
-                type: 'line',
-                data: { datasets },
-                options: commonOptions(yAxisLabel, true),
-            });
+            const chart = new Chart(canvas, { type: 'line', data: { datasets }, options: commonOptions(yAxisLabel, true) });
+            attachToolbar(chart, canvasId);
+            return chart;
+        }
+
+        function createSimpleChart(canvasId, labels, datasets, yAxisLabel) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const chart = new Chart(canvas, { type: 'line', data: { labels, datasets }, options: commonOptions(yAxisLabel, false) });
             attachToolbar(chart, canvasId);
             return chart;
         }
@@ -1104,162 +526,19 @@
         const byPod = {{ by_pod | tojson }};
         const byNode = {{ by_node | tojson }};
 
-        // -------- Tab switching --------
-        const builtTabs = new Set(['overview']);
-
-        const tabBuilders = {
-            master:  () => buildPodCards('master'),
-            tserver: () => buildPodCards('tserver'),
-            other:   () => buildPodCards('other'),
-            raw:     () => buildRawCharts(),
-            explorer: () => initExplorer(),
-        };
-
-        function activateTab(name, updateHash = true) {
-            document.querySelectorAll('.tab').forEach(el => {
-                el.classList.toggle('active', el.dataset.tab === name);
-            });
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.toggle('active', el.id === 'tab-' + name);
-            });
-            if (!builtTabs.has(name) && tabBuilders[name]) {
-                tabBuilders[name]();
-                builtTabs.add(name);
-            }
-            if (updateHash) {
-                const params = new URLSearchParams();
-                params.set('tab', name);
-                if (name === 'explorer' && explorerSelectedMetric) {
-                    params.set('metric', explorerSelectedMetric);
-                }
-                history.replaceState(null, '', '#' + params.toString());
-            }
-        }
-
-        document.querySelectorAll('.tab').forEach(el => {
-            el.addEventListener('click', () => activateTab(el.dataset.tab));
-        });
-
-        // -------- Per-pod cards --------
-        function buildPodCards(role) {
-            const cards = byPod[role] || [];
-
-            // First card: aggregated node_exporter view across the distinct
-            // host nodes that run pods of this role. One line per node,
-            // matching the 4-chart (CPU/Mem/Net/Disk) mini-card layout.
-            const nodeNames = [...new Set(cards.map(c => c.instance))].sort();
-            if (nodeNames.length > 0) {
-                const nodes = nodeNames.map(inst => ({ instance: inst, ...(byNode[inst] || {}) }));
-
-                createOverlayChart('agg-' + role + '-cpu',
-                    nodes.map(n => ({ label: n.instance, series: n.node_cpu })),
-                    'cores');
-
-                createOverlayChart('agg-' + role + '-mem',
-                    nodes.map(n => ({ label: n.instance, series: n.node_memory })),
-                    'MB');
-
-                // RX (solid) and TX (dashed) per node on one chart.
-                const netLayers = [];
-                for (const n of nodes) netLayers.push({ label: n.instance + ' RX', series: n.node_network_rx });
-                for (const n of nodes) netLayers.push({ label: n.instance + ' TX', series: n.node_network_tx, dashed: true });
-                createOverlayChart('agg-' + role + '-net', netLayers, 'MB/s');
-
-                // Write (solid) and Read (dashed) per node.
-                const diskLayers = [];
-                for (const n of nodes) diskLayers.push({ label: n.instance + ' write', series: n.node_disk_write_iops });
-                for (const n of nodes) diskLayers.push({ label: n.instance + ' read',  series: n.node_disk_read_iops, dashed: true });
-                createOverlayChart('agg-' + role + '-disk', diskLayers, 'IOPS');
-            }
-
-            for (const card of cards) {
-                const node = byNode[card.instance] || {};
-                createOverlayChart('pod-' + card.pod + '-cpu', [
-                    { label: card.pod + ' (cores)', series: card.cpu },
-                    { label: card.instance + ' total (cores)', series: node.node_cpu, dashed: true },
-                ], 'cores');
-
-                createOverlayChart('pod-' + card.pod + '-mem', [
-                    { label: card.pod + ' (MB)', series: card.memory },
-                    { label: card.instance + ' total (MB)', series: node.node_memory, dashed: true },
-                ], 'MB');
-
-                createOverlayChart('pod-' + card.pod + '-net', [
-                    { label: card.pod + ' RX', series: card.network_rx },
-                    { label: card.pod + ' TX', series: card.network_tx },
-                    { label: card.instance + ' RX', series: node.node_network_rx, dashed: true },
-                    { label: card.instance + ' TX', series: node.node_network_tx, dashed: true },
-                ], 'MB/s');
-
-                createOverlayChart('pod-' + card.pod + '-disk', [
-                    { label: card.pod + ' write IOPS', series: card.disk_write_iops },
-                    { label: card.pod + ' read IOPS', series: card.disk_read_iops },
-                    { label: card.instance + ' write IOPS', series: node.node_disk_write_iops, dashed: true },
-                    { label: card.instance + ' read IOPS',  series: node.node_disk_read_iops,  dashed: true },
-                ], 'IOPS');
-            }
-            // Wire crosshair sync + reset zoom for every card (aggregated and
-            // per-pod) now that all 4 charts in each card exist.
-            document.querySelectorAll(`.tab-content#tab-${role} .pod-card`).forEach(card => {
-                syncCrosshair(card);
-                attachPodResetButton(card);
-            });
-        }
-
-        // -------- Raw cluster charts (legacy view) --------
-        function buildRawCharts() {
-            if (metricsData.cpu) createChart('cpu-chart', metricsData.cpu.series, 'cores');
-            if (metricsData.memory) createChart('memory-chart', metricsData.memory.series, 'Memory MB');
-            if (metricsData.network_rx) createChart('network-rx-chart', metricsData.network_rx.series, 'Bytes/s');
-            if (metricsData.network_tx) createChart('network-tx-chart', metricsData.network_tx.series, 'Bytes/s');
-
-            if (metricsData.disk_read_iops) createChart('disk-read-iops-chart', metricsData.disk_read_iops.series, 'IOPS');
-            if (metricsData.disk_write_iops) createChart('disk-write-iops-chart', metricsData.disk_write_iops.series, 'IOPS');
-            if (metricsData.disk_read_throughput) createChart('disk-read-throughput-chart', metricsData.disk_read_throughput.series, 'MB/s');
-            if (metricsData.disk_write_throughput) createChart('disk-write-throughput-chart', metricsData.disk_write_throughput.series, 'MB/s');
-
-            if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'cores');
-            if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
-            if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
-            if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');
-            if (metricsData.node_cpu_steal) createChart('node-cpu-steal-chart', metricsData.node_cpu_steal.series, 'CPU %');
-            if (metricsData.node_cpu_softirq) createChart('node-cpu-softirq-chart', metricsData.node_cpu_softirq.series, 'CPU %');
-
-            Object.keys(metricsData).forEach(key => {
-                if (key.startsWith('rate_') || key.startsWith('total_')) {
-                    createChart('chart-' + key, metricsData[key].series, 'Value');
-                }
-            });
-        }
-
-        // -------- Sysbench interval charts (Overview, eager) --------
+        // -------- Workload interval charts --------
         {% if sysbench_results and sysbench_results.intervals %}
         const sysbenchIntervals = {{ sysbench_results.intervals | tojson }};
-
-        function createSimpleChart(canvasId, labels, datasets, yAxisLabel) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            const chart = new Chart(canvas, {
-                type: 'line',
-                data: { labels, datasets },
-                options: commonOptions(yAxisLabel, false),
-            });
-            attachToolbar(chart, canvasId);
-            return chart;
-        }
-
         const sbLabels = sysbenchIntervals.map(i => i.time + 's');
 
         createSimpleChart('sysbench-tps-chart', sbLabels, [{
-            label: 'TPS',
-            data: sysbenchIntervals.map(i => i.tps),
+            label: 'TPS', data: sysbenchIntervals.map(i => i.tps),
             borderColor: colors[0], backgroundColor: colorsBg[0],
             fill: true, tension: 0.3, pointRadius: 3,
         }], 'TPS');
 
         createSimpleChart('sysbench-lat-chart', sbLabels, [{
-            label: '95th %ile (ms)',
-            data: sysbenchIntervals.map(i => i.lat_95),
+            label: '95th %ile (ms)', data: sysbenchIntervals.map(i => i.lat_95),
             borderColor: colors[4], backgroundColor: colorsBg[4],
             fill: true, tension: 0.3, pointRadius: 3,
         }], 'Latency (ms)');
@@ -1273,43 +552,100 @@
         {% endif %}
 
         createSimpleChart('sysbench-err-chart', sbLabels, [{
-            label: 'Errors/s',
-            data: sysbenchIntervals.map(i => i.err_s),
+            label: 'Errors/s', data: sysbenchIntervals.map(i => i.err_s),
             borderColor: colors[4], backgroundColor: colorsBg[4],
             fill: true, tension: 0.3, pointRadius: 3,
         }], 'Errors/s');
         {% endif %}
 
+        // -------- Correlated resource charts (grouped by metric, all roles) --------
+        function buildCorrelatedCharts() {
+            const roles = ['master', 'tserver', 'other'];
+
+            for (const role of roles) {
+                const cards = byPod[role] || [];
+                if (!cards.length) continue;
+                const nodeNames = [...new Set(cards.map(c => c.instance))].sort();
+                const nodes = nodeNames.map(inst => ({ instance: inst, ...(byNode[inst] || {}) }));
+
+                // CPU
+                createOverlayChart('corr-' + role + '-cpu',
+                    nodes.map(n => ({ label: n.instance, series: n.node_cpu })),
+                    'cores');
+
+                // Memory
+                createOverlayChart('corr-' + role + '-mem',
+                    nodes.map(n => ({ label: n.instance, series: n.node_memory })),
+                    'MB');
+
+                // Network: RX solid, TX dashed
+                const netLayers = [];
+                for (const n of nodes) netLayers.push({ label: n.instance + ' RX', series: n.node_network_rx });
+                for (const n of nodes) netLayers.push({ label: n.instance + ' TX', series: n.node_network_tx, dashed: true });
+                createOverlayChart('corr-' + role + '-net', netLayers, 'MB/s');
+
+                // Disk: write solid, read dashed
+                const diskLayers = [];
+                for (const n of nodes) diskLayers.push({ label: n.instance + ' write', series: n.node_disk_write_iops });
+                for (const n of nodes) diskLayers.push({ label: n.instance + ' read', series: n.node_disk_read_iops, dashed: true });
+                createOverlayChart('corr-' + role + '-disk', diskLayers, 'IOPS');
+            }
+
+        }
+        buildCorrelatedCharts();
+
+        // -------- Node-level CPU + custom metrics --------
+        if (metricsData.node_cpu) createChart('node-cpu-chart', metricsData.node_cpu.series, 'cores');
+        if (metricsData.node_cpu_user) createChart('node-cpu-user-chart', metricsData.node_cpu_user.series, 'CPU %');
+        if (metricsData.node_cpu_system) createChart('node-cpu-system-chart', metricsData.node_cpu_system.series, 'CPU %');
+        if (metricsData.node_cpu_iowait) createChart('node-cpu-iowait-chart', metricsData.node_cpu_iowait.series, 'CPU %');
+        if (metricsData.node_cpu_steal) createChart('node-cpu-steal-chart', metricsData.node_cpu_steal.series, 'CPU %');
+        if (metricsData.node_cpu_softirq) createChart('node-cpu-softirq-chart', metricsData.node_cpu_softirq.series, 'CPU %');
+
+        Object.keys(metricsData).forEach(key => {
+            if (key.startsWith('rate_') || key.startsWith('total_')) {
+                createChart('chart-' + key, metricsData[key].series, 'Value');
+            }
+        });
+
         // -------- Metrics Explorer --------
         const ybMetricsIndex = {{ yb_metrics_index | tojson }};
         let explorerDump = null;
-        let explorerChart = null;
         let explorerSelectedMetric = null;
+        let explorerCardId = 0;
+        const explorerCards = new Map();
 
         function initExplorer() {
             const statusEl = document.getElementById('explorer-status');
+            const addBtn = document.getElementById('explorer-add-btn');
             const dumpUrl = {{ metrics_dump_url | tojson }};
             statusEl.textContent = 'Loading metrics dump...';
             fetch(dumpUrl)
                 .then(r => {
                     if (!r.ok) throw new Error(`HTTP ${r.status}`);
                     const ds = new DecompressionStream('gzip');
-                    const decompressed = r.body.pipeThrough(ds);
-                    return new Response(decompressed).json();
+                    return new Response(r.body.pipeThrough(ds)).json();
                 })
                 .then(data => {
                     explorerDump = data;
-                    statusEl.textContent = `Loaded ${data.length} series. Select a metric above.`;
+                    statusEl.textContent = `Loaded ${data.length} series. Pick a metric and click "+ Add chart".`;
+                    addBtn.disabled = false;
                     buildExplorerDropdown();
+                    restoreFromHash();
                 })
                 .catch(err => {
                     statusEl.textContent = `Failed to load metrics dump: ${err.message}`;
                 });
+
+            addBtn.addEventListener('click', () => {
+                if (explorerSelectedMetric) addExplorerCard(explorerSelectedMetric);
+            });
         }
 
         function buildExplorerDropdown() {
             const searchEl = document.getElementById('explorer-search');
             const dropdownEl = document.getElementById('explorer-dropdown');
+            const addBtn = document.getElementById('explorer-add-btn');
 
             function renderList(filter) {
                 const lc = (filter || '').toLowerCase();
@@ -1333,17 +669,21 @@
                         explorerSelectedMetric = el.dataset.name;
                         searchEl.value = el.dataset.name;
                         dropdownEl.style.display = 'none';
-                        renderExplorerChart();
-                        const params = new URLSearchParams();
-                        params.set('tab', 'explorer');
-                        params.set('metric', el.dataset.name);
-                        history.replaceState(null, '', '#' + params.toString());
                     });
                 });
             }
 
             searchEl.addEventListener('focus', () => renderList(searchEl.value));
-            searchEl.addEventListener('input', () => renderList(searchEl.value));
+            searchEl.addEventListener('input', () => {
+                explorerSelectedMetric = null;
+                renderList(searchEl.value);
+            });
+            searchEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && explorerSelectedMetric) {
+                    dropdownEl.style.display = 'none';
+                    addExplorerCard(explorerSelectedMetric);
+                }
+            });
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('#explorer-search') && !e.target.closest('#explorer-dropdown')) {
                     dropdownEl.style.display = 'none';
@@ -1351,16 +691,55 @@
             });
         }
 
-        function renderExplorerChart() {
-            if (!explorerDump || !explorerSelectedMetric) return;
-            const name = explorerSelectedMetric;
+        function addExplorerCard(metricName) {
+            const id = explorerCardId++;
+            const container = document.getElementById('explorer-charts');
+            const metricInfo = ybMetricsIndex.find(m => m.name === metricName);
+            const queryText = metricInfo ? metricInfo.query : metricName;
 
-            // Filter series by metric name
-            let series = explorerDump.filter(s => s.metric.__name__ === name);
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            card.id = 'explorer-card-' + id;
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <h3 style="margin-bottom: 4px;">${metricName}</h3>
+                        <div class="explorer-query">${queryText}</div>
+                    </div>
+                    <button type="button" class="toolbar-btn" style="margin-left: 12px; color: #e55; border-color: #e55;"
+                            onclick="removeExplorerCard(${id})">Remove</button>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;"
+                     id="explorer-inst-${id}"></div>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="explorer-canvas-${id}"></canvas>
+                </div>
+            `;
+            container.appendChild(card);
 
-            // Build instance checkboxes
+            const state = { id, metricName, chart: null };
+            explorerCards.set(id, state);
+            renderCardChart(state);
+            updateHashFromCards();
+        }
+
+        function removeExplorerCard(id) {
+            const state = explorerCards.get(id);
+            if (state && state.chart) state.chart.destroy();
+            explorerCards.delete(id);
+            const el = document.getElementById('explorer-card-' + id);
+            if (el) el.remove();
+            updateHashFromCards();
+        }
+
+        function renderCardChart(state) {
+            if (!explorerDump) return;
+            const { id, metricName } = state;
+
+            let series = explorerDump.filter(s => s.metric.__name__ === metricName);
             const instances = [...new Set(series.map(s => s.metric.exported_instance || 'unknown'))].sort();
-            const instEl = document.getElementById('explorer-instances');
+
+            const instEl = document.getElementById('explorer-inst-' + id);
             const prevChecked = new Set([...instEl.querySelectorAll('input:checked')].map(el => el.value));
             const useAll = prevChecked.size === 0;
             instEl.innerHTML = instances.map(inst => {
@@ -1370,14 +749,12 @@
                 </label>`;
             }).join('');
             instEl.querySelectorAll('input').forEach(el => {
-                el.addEventListener('change', () => renderExplorerChart());
+                el.addEventListener('change', () => renderCardChart(state));
             });
 
-            // Filter by checked instances
             const checkedInstances = new Set([...instEl.querySelectorAll('input:checked')].map(el => el.value));
             series = series.filter(s => checkedInstances.has(s.metric.exported_instance || 'unknown'));
 
-            // Build datasets — data is already per-instance (pre-aggregated by PromQL)
             const datasets = series.map((s, idx) => ({
                 label: s.metric.exported_instance || 'unknown',
                 data: s.values.map(([t, v]) => ({ x: new Date(parseFloat(t) * 1000), y: parseFloat(v) })),
@@ -1386,53 +763,52 @@
                 fill: false, tension: 0.3, pointRadius: 0,
             }));
 
-            document.getElementById('explorer-status').textContent =
-                `${name}: ${datasets.length} series`;
+            if (state.chart) { state.chart.destroy(); state.chart = null; }
 
-            if (explorerChart) {
-                explorerChart.destroy();
-                explorerChart = null;
-            }
-
-            const canvas = document.getElementById('explorer-chart');
-            explorerChart = new Chart(canvas, {
-                type: 'line',
-                data: { datasets },
+            const canvas = document.getElementById('explorer-canvas-' + id);
+            state.chart = new Chart(canvas, {
+                type: 'line', data: { datasets },
                 options: {
-                    ...commonOptions(name, true),
+                    ...commonOptions(metricName, true),
                     plugins: {
-                        ...commonOptions(name, true).plugins,
-                        legend: {
-                            position: 'top',
-                            labels: { boxWidth: 12, font: { size: 11 } },
-                        },
+                        ...commonOptions(metricName, true).plugins,
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
                     },
                 },
             });
-            attachToolbar(explorerChart, 'explorer-' + name);
+            attachToolbar(state.chart, 'explorer-' + metricName);
+        }
+
+        function updateHashFromCards() {
+            const metrics = [...explorerCards.values()].map(s => s.metricName);
+            if (metrics.length) {
+                history.replaceState(null, '', '#metrics=' + metrics.map(encodeURIComponent).join(','));
+            } else {
+                history.replaceState(null, '', location.pathname);
+            }
         }
 
         // -------- URL hash routing --------
-        (function restoreFromHash() {
+        function restoreFromHash() {
             const hash = location.hash.replace(/^#/, '');
             if (!hash) return;
             const params = new URLSearchParams(hash);
-            const tab = params.get('tab');
-            if (tab) {
-                activateTab(tab, false);
-                const metric = params.get('metric');
-                if (tab === 'explorer' && metric) {
-                    const waitForDump = setInterval(() => {
-                        if (!explorerDump) return;
-                        clearInterval(waitForDump);
-                        explorerSelectedMetric = metric;
-                        const searchEl = document.getElementById('explorer-search');
-                        if (searchEl) searchEl.value = metric;
-                        renderExplorerChart();
-                    }, 100);
+            // Support both old ?metric=X and new ?metrics=X,Y
+            const single = params.get('metric');
+            const multi = params.get('metrics');
+            const names = multi ? multi.split(',').map(decodeURIComponent) : (single ? [single] : []);
+            for (const name of names) {
+                if (ybMetricsIndex.some(m => m.name === name)) {
+                    addExplorerCard(name);
                 }
             }
-        })();
+            if (names.length) {
+                document.getElementById('metrics-explorer')?.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Start loading explorer data immediately
+        initExplorer();
     </script>
 </body>
 </html>
