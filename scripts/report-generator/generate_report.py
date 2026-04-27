@@ -174,9 +174,23 @@ class PrometheusClient:
         return []
 
     def targets_metadata(self, match_target: str, limit: int = 5000) -> dict[str, str]:
-        """Fetch metric type annotations via /api/v1/targets/metadata."""
+        """Fetch metric type annotations. Tries /api/v1/targets/metadata first
+        (Prometheus), falls back to /api/v1/metadata (VictoriaMetrics)."""
         qs = f"match_target={quote(match_target)}&limit={limit}"
         url = f"{self.base_url}/api/v1/targets/metadata?{qs}"
+        response = self.executor.exec_curl(url)
+        if response:
+            try:
+                data = json.loads(response)
+                if data.get("status") == "success":
+                    types: dict[str, str] = {}
+                    for m in data.get("data", []):
+                        types[m["metric"]] = m["type"]
+                    return types
+            except (json.JSONDecodeError, KeyError):
+                pass
+        # Fallback: VictoriaMetrics /api/v1/metadata (no match_target filter)
+        url = f"{self.base_url}/api/v1/metadata?limit={limit}"
         response = self.executor.exec_curl(url)
         if not response:
             return {}
@@ -184,9 +198,10 @@ class PrometheusClient:
             data = json.loads(response)
             if data.get("status") != "success":
                 return {}
-            types: dict[str, str] = {}
-            for m in data.get("data", []):
-                types[m["metric"]] = m["type"]
+            types = {}
+            for name, entries in data.get("data", {}).items():
+                if entries:
+                    types[name] = entries[0].get("type", "")
             return types
         except (json.JSONDecodeError, KeyError):
             return {}
