@@ -33,7 +33,7 @@ Based on [YugabyteDB official documentation](https://docs.yugabyte.com/stable/be
 ## Benchmark Results
 
 ### Test Environment
-- **Cluster**: kube-sandbox (AWS K3s, 3 nodes)
+- **Cluster**: kind-kind (3 nodes)
 - **YugabyteDB**: 3 tservers, RF=3
 - **Data**: 10 tables x 100,000 rows = 1M rows total
 
@@ -175,21 +175,21 @@ YugabyteDB benefits from warmup to populate caches and stabilize tablet leadersh
 ### Prepare Data
 
 ```bash
-kubectl --context kube-sandbox exec -n yugabyte-test deployment/sysbench -- \
+kubectl --context kind-kind exec -n yugabyte-test deployment/sysbench -- \
   /scripts/entrypoint.sh prepare
 ```
 
 ### Run Benchmark
 
 ```bash
-kubectl --context kube-sandbox exec -n yugabyte-test deployment/sysbench -- \
+kubectl --context kind-kind exec -n yugabyte-test deployment/sysbench -- \
   /scripts/entrypoint.sh run
 ```
 
 ### Cleanup
 
 ```bash
-kubectl --context kube-sandbox exec -n yugabyte-test deployment/sysbench -- \
+kubectl --context kind-kind exec -n yugabyte-test deployment/sysbench -- \
   /scripts/entrypoint.sh cleanup
 ```
 

@@ -4,11 +4,10 @@
 .PHONY: report vendor
 .PHONY: range-query-test
 .PHONY: cdc-deploy cdc-test cdc-status cdc-clean
-.PHONY: setup-k3s-virsh teardown-k3s-virsh setup-vm-virsh teardown-vm-virsh
-.PHONY: setup-slow-disk setup-slow-throughput adjust-disk-delay
+.PHONY: setup-vm-virsh teardown-vm-virsh
 
 # Environment and component selection
-ENV ?= k3s-virsh
+ENV ?= kind
 COMPONENT ?= all
 
 NAMESPACE ?= yugabyte-test
@@ -17,9 +16,6 @@ NAMESPACE ?= yugabyte-test
 IS_VM_ENV := $(filter vm-virsh,$(ENV))
 
 # Map ENV to kube context
-KUBE_CONTEXT_aws := kube-sandbox
-KUBE_CONTEXT_minikube := minikube
-KUBE_CONTEXT_k3s-virsh := k3s-virsh
 KUBE_CONTEXT_kind := kind-kind
 KUBE_CONTEXT_vm-virsh := kind-kind
 KUBE_CONTEXT := $(KUBE_CONTEXT_$(ENV))
@@ -39,18 +35,13 @@ BENCH_CHART_DIR := charts/yb-benchmark
 
 RELEASE_NAME := $(BENCH_RELEASE)
 
-# Slow disk simulation parameters
-DISK_DELAY_MS ?= 0
-DISK_BW_MBPS ?= 0
-DISK_IOPS ?= 0
-
 KUBECTL := kubectl --context $(KUBE_CONTEXT) -n $(NAMESPACE)
 SYSBENCH_POD := $(BENCH_RELEASE)-sysbench-0
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Deployment (ENV=k3s-virsh|aws|minikube|kind|vm-virsh  COMPONENT=all|yb|bench)
+# Deployment (ENV=kind|vm-virsh  COMPONENT=all|yb|bench)
 deploy: ## Deploy components (ENV= COMPONENT=all|yb|bench)
 ifeq ($(COMPONENT),all)
 	$(MAKE) _deploy-yb
@@ -221,28 +212,12 @@ cdc-status: ## Show CDC connector status
 cdc-clean: ## Delete CDC pipeline resources
 	@$(KUBECTL) delete -f cdc/ --ignore-not-found
 
-# k3s-virsh infrastructure
-setup-k3s-virsh: ## Create VMs and install k3s cluster
-	@./scripts/setup-k3s-virsh.sh
-
-teardown-k3s-virsh: ## Destroy VMs and remove k3s cluster
-	@./scripts/teardown-k3s-virsh.sh
-
-# vm-virsh infrastructure (raw VMs, no k8s)
+# vm-virsh infrastructure (VMs for YB, kind for bench tools)
 setup-vm-virsh: ## Create VMs for raw VM deployment
 	@./scripts/setup-vm-virsh.sh
 
 teardown-vm-virsh: ## Destroy raw VM deployment VMs
 	@./scripts/teardown-vm-virsh.sh
-
-setup-slow-disk: ## Setup tserver storage with optional dm-delay (DISK_DELAY_MS=50)
-	@KUBE_CONTEXT=$(KUBE_CONTEXT) DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/setup-slow-disk.sh
-
-setup-slow-throughput: ## Throttle VM disk throughput (DISK_BW_MBPS=10 DISK_IOPS=200)
-	@DISK_BW_MBPS=$(DISK_BW_MBPS) DISK_IOPS=$(DISK_IOPS) ./scripts/setup-slow-throughput.sh
-
-adjust-disk-delay: ## Change dm-delay live without destroying data (DISK_DELAY_MS=5)
-	@DISK_DELAY_MS=$(DISK_DELAY_MS) ./scripts/adjust-disk-delay.sh
 
 # Cleanup (ENV= COMPONENT=all|yb|bench)
 clean: ## Clean components (ENV= COMPONENT=all|yb|bench)

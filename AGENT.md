@@ -30,20 +30,19 @@ Every benchmark run has a **warmup** phase followed by a **heat** (steady-state)
 
 ### Shell Scripts
 - **NEVER** use bare `kubectl` commands that rely on the current context
-- **ALWAYS** use explicit `--context` flag: `kubectl --context minikube ...`
+- **ALWAYS** use explicit `--context` flag: `kubectl --context kind-kind ...`
 
-### Querying Prometheus
-The Prometheus instance is in-cluster (label `app.kubernetes.io/component=prometheus`).
-Do NOT port-forward — `kubectl exec` into the pod and curl localhost from inside:
+### Querying Metrics
+VictoriaMetrics (via prom-replay subchart) is the metrics store (label `app.kubernetes.io/component=victoriametrics`).
+Do NOT port-forward — `kubectl exec` into the pod and wget localhost from inside:
 
 ```bash
-PROM=$(kubectl --context $KUBE_CONTEXT -n $NAMESPACE get pod -l app.kubernetes.io/component=prometheus -o jsonpath='{.items[0].metadata.name}')
-kubectl --context $KUBE_CONTEXT -n $NAMESPACE exec $PROM -- wget -qO- \
-    "http://localhost:9090/api/v1/query_range?query=...&start=...&end=...&step=10"
+VM=$(kubectl --context $KUBE_CONTEXT -n $NAMESPACE get pod -l app.kubernetes.io/component=victoriametrics -o jsonpath='{.items[0].metadata.name}')
+kubectl --context $KUBE_CONTEXT -n $NAMESPACE exec $VM -- wget -qO- \
+    "http://localhost:8428/api/v1/query_range?query=...&start=...&end=...&step=10"
 ```
 
-`wget` is what's installed in the prom/prometheus image (no curl). Use the
-epoch timestamps from `output/test_times.txt` (or the report
+Use the epoch timestamps from `output/test_times.txt` (or the report
 directory copy) to scope `query_range` to the run window.
 
 ### Running Benchmarks
