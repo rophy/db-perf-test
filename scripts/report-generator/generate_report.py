@@ -101,7 +101,7 @@ class KubectlQueryExecutor(QueryExecutor):
     def exec_curl(self, url: str) -> Optional[str]:
         cmd = [
             "kubectl", "--context", self.kube_context,
-            "exec", "-n", self.namespace, f"deployment/{self.release_name}-prometheus",
+            "exec", "-n", self.namespace, f"statefulset/{self.release_name}-prom-replay-victoriametrics",
             "--", "wget", "-q", "-O", "-", url
         ]
         try:
@@ -490,21 +490,21 @@ class ReportGenerator:
             print(f"Error: kubectl failed: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Check prometheus deployment exists
+        # Check VictoriaMetrics statefulset exists
         cmd = [
             "kubectl", "--context", self.config.kube_context,
             "-n", self.config.namespace,
-            "get", f"deployment/{self.config.release_name}-prometheus",
+            "get", f"statefulset/{self.config.release_name}-prom-replay-victoriametrics",
             "-o", "name"
         ]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode != 0:
-                print(f"Error: Prometheus deployment '{self.config.release_name}-prometheus' not found in namespace '{self.config.namespace}'", file=sys.stderr)
+                print(f"Error: VictoriaMetrics statefulset '{self.config.release_name}-prom-replay-victoriametrics' not found in namespace '{self.config.namespace}'", file=sys.stderr)
                 print(f"kubectl error: {result.stderr}", file=sys.stderr)
                 sys.exit(1)
         except Exception as e:
-            print(f"Error: Failed to check prometheus deployment: {e}", file=sys.stderr)
+            print(f"Error: Failed to check VictoriaMetrics statefulset: {e}", file=sys.stderr)
             sys.exit(1)
 
     # (pod_regex, container_label_match) for each role we chart. Each role
